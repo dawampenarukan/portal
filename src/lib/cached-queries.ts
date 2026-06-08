@@ -53,7 +53,7 @@ export const getPublishedPublicationsCached = unstable_cache(
 
 export const getSurveyDataCached = unstable_cache(
   () => getSurveyData(),
-  ["survey-data"],
+  ["survey-data-v2"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG, PUBLICATIONS_TAG] }
 );
 
@@ -65,7 +65,7 @@ export const getActiveSurveySummariesCached = unstable_cache(
 
 export const getSurveyPublicationsCached = unstable_cache(
   () => getSurveyPublications(),
-  ["survey-publications"],
+  ["survey-publications-v2"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, PUBLICATIONS_TAG, SURVEY_TAG] }
 );
 

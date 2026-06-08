@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         content: content as string,
         type: type as PublicationType,
         period: (period as string).trim(),
-        chartData: chartData ?? undefined,
+        chartData: type === PublicationType.SURVEY_RESULT ? undefined : (chartData ?? undefined),
         isPublished: Boolean(isPublished),
         publishedAt: isPublished ? (publishedAt ? new Date(publishedAt as string) : new Date()) : null,
       },

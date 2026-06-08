@@ -14,6 +14,7 @@ import {
   getPublishedPublicationsCached,
   getSurveyDataCached,
 } from "@/lib/cached-queries";
+import { filterUpcomingEvents } from "@/lib/event-utils";
 import { safeQuery } from "@/lib/safe-db";
 
 const emptySurvey = {
@@ -101,6 +102,7 @@ export async function HomeLatestNewsSection() {
 
 export async function HomeEventsSection() {
   const events = await safeQuery(() => getPublishedEventsCached(), [], "getPublishedEvents");
+  const upcoming = filterUpcomingEvents(events);
 
   return (
     <section>
@@ -109,7 +111,11 @@ export async function HomeEventsSection() {
         title="Acara Seru Mendatang"
         subtitle="Yuk ikutan kegiatan edukasi gizi!"
       />
-      <EventCarousel events={events} />
+      {upcoming.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Belum ada event mendatang saat ini.</p>
+      ) : (
+        <EventCarousel events={upcoming} />
+      )}
     </section>
   );
 }

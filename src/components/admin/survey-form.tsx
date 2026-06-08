@@ -6,6 +6,11 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DEFAULT_NPS_QUESTION,
+  DEFAULT_RESPONDENT_TARGET,
+  ensureNpsQuestion,
+} from "@/lib/survey-defaults";
 import type { SurveyView } from "@/lib/types";
 
 interface QuestionDraft {
@@ -19,24 +24,42 @@ interface SurveyFormProps {
   survey?: SurveyView;
 }
 
+function buildRatingQuestions(survey?: SurveyView): QuestionDraft[] {
+  const ratingQuestions =
+    survey?.questions
+      .filter((q) => q.type !== "nps")
+      .map((q) => ({
+        question: q.question,
+        type: q.type,
+        options: (q.options ?? []).join(", "),
+        order: q.order,
+      })) ?? [];
+
+  return ratingQuestions.length > 0
+    ? ratingQuestions
+    : [{ question: "", type: "rating", options: "", order: 0 }];
+}
+
 export function SurveyForm({ survey }: SurveyFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(survey?.title ?? "");
   const [description, setDescription] = useState(survey?.description ?? "");
-  const [isActive, setIsActive] = useState(survey?.isActive ?? false);
-  const [questions, setQuestions] = useState<QuestionDraft[]>(
-    survey?.questions.map((q) => ({
-      question: q.question,
-      type: q.type,
-      options: (q.options ?? []).join(", "),
-      order: q.order,
-    })) ?? [{ question: "", type: "rating", options: "", order: 0 }]
+  const [respondentTarget, setRespondentTarget] = useState(
+    String(survey?.respondentTarget ?? DEFAULT_RESPONDENT_TARGET)
   );
+  const [isActive, setIsActive] = useState(survey?.isActive ?? false);
+  const [npsQuestion, setNpsQuestion] = useState(
+    survey?.questions.find((q) => q.type === "nps")?.question ?? DEFAULT_NPS_QUESTION
+  );
+  const [questions, setQuestions] = useState<QuestionDraft[]>(buildRatingQuestions(survey));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
   function addQuestion() {
-    setQuestions([...questions, { question: "", type: "rating", options: "", order: questions.length }]);
+    setQuestions([
+      ...questions,
+      { question: "", type: "rating", options: "", order: questions.length },
+    ]);
   }
 
   function removeQuestion(index: number) {
@@ -52,18 +75,31 @@ export function SurveyForm({ survey }: SurveyFormProps) {
     setSubmitting(true);
     setError("");
 
+    const targetValue = parseInt(respondentTarget, 10);
+    if (!Number.isFinite(targetValue) || targetValue < 1) {
+      setSubmitting(false);
+      setError("Target responden minimal 1");
+      return;
+    }
+
+    const ratingQuestions = questions
+      .filter((q) => q.question.trim())
+      .map((q, i) => ({
+        question: q.question,
+        type: q.type,
+        options: q.options ? q.options.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
+        order: i,
+      }));
+
     const payload = {
       title,
       description,
       isActive,
-      questions: questions
-        .filter((q) => q.question.trim())
-        .map((q, i) => ({
-          question: q.question,
-          type: q.type,
-          options: q.options ? q.options.split(",").map((o) => o.trim()).filter(Boolean) : undefined,
-          order: i,
-        })),
+      respondentTarget: targetValue,
+      questions: ensureNpsQuestion(
+        [...ratingQuestions, { question: npsQuestion, type: "nps", order: ratingQuestions.length }],
+        npsQuestion
+      ),
     };
 
     const url = survey ? `/api/surveys/${survey.id}` : "/api/surveys";
@@ -104,6 +140,19 @@ export function SurveyForm({ survey }: SurveyFormProps) {
         <label className="mb-1.5 block text-sm font-medium">Deskripsi</label>
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
       </div>
+      <div>
+        <label className="mb-1.5 block text-sm font-medium">Target Responden *</label>
+        <Input
+          type="number"
+          min={1}
+          value={respondentTarget}
+          onChange={(e) => setRespondentTarget(e.target.value)}
+          required
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Dipakai untuk menghitung persentase &quot;Target Tercapai&quot; di dashboard survey.
+        </p>
+      </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
         Aktifkan survey (bisa lebih dari satu survey aktif)
@@ -111,14 +160,14 @@ export function SurveyForm({ survey }: SurveyFormProps) {
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold">Pertanyaan</h3>
+          <h3 className="font-semibold">Pertanyaan Kepuasan</h3>
           <Button type="button" size="sm" variant="outline" onClick={addQuestion}>
             <Plus className="h-4 w-4" />
             Tambah
           </Button>
         </div>
         {questions.map((q, i) => (
-          <div key={i} className="rounded-lg border p-4 space-y-3">
+          <div key={i} className="space-y-3 rounded-lg border p-4">
             <div className="flex justify-between">
               <span className="text-sm font-medium">Pertanyaan {i + 1}</span>
               {questions.length > 1 && (
@@ -138,7 +187,6 @@ export function SurveyForm({ survey }: SurveyFormProps) {
               onChange={(e) => updateQuestion(i, "type", e.target.value)}
             >
               <option value="rating">Rating (1-5)</option>
-              <option value="nps">NPS (0-10)</option>
               <option value="multiple_choice">Pilihan Ganda</option>
               <option value="text">Teks Bebas</option>
             </select>
@@ -153,6 +201,21 @@ export function SurveyForm({ survey }: SurveyFormProps) {
         ))}
       </div>
 
+      <div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <div>
+          <h3 className="font-semibold">Skor Bahagia (NPS) — Wajib</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pertanyaan ini selalu ada di setiap survey untuk menghitung skor bahagia (skala 0–10).
+          </p>
+        </div>
+        <Input
+          value={npsQuestion}
+          onChange={(e) => setNpsQuestion(e.target.value)}
+          required
+        />
+        <p className="text-xs text-muted-foreground">Tipe: NPS (0–10), tidak dapat dihapus.</p>
+      </div>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={submitting}>
@@ -160,7 +223,7 @@ export function SurveyForm({ survey }: SurveyFormProps) {
         </Button>
         {survey && (
           <Button type="button" variant="secondary" onClick={handlePublish} disabled={submitting}>
-            Publikasikan ke Beranda
+            Tampilkan di Portal
           </Button>
         )}
         <Button type="button" variant="outline" onClick={() => router.back()}>

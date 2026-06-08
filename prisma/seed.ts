@@ -76,27 +76,7 @@ const menuSeed = {
   },
 } as const;
 
-const surveyChartData = {
-  satisfactionScore: 4.3,
-  npsScore: 82,
-  respondents: 347,
-  target: 75,
-  aspects: [
-    { name: "Rasa Makanan", score: 4.5 },
-    { name: "Kebersihan", score: 4.4 },
-    { name: "Pelayanan", score: 4.2 },
-    { name: "Ketepatan Waktu", score: 4.1 },
-    { name: "Keramahan Petugas", score: 4.6 },
-  ],
-  trend: [
-    { month: "Jan", score: 3.8 },
-    { month: "Feb", score: 4.0 },
-    { month: "Mar", score: 4.1 },
-    { month: "Apr", score: 4.2 },
-    { month: "Mei", score: 4.3 },
-    { month: "Jun", score: 4.3 },
-  ],
-};
+const surveySeedTitle = "Survey Kepuasan Pelanggan Juni 2026";
 
 async function main() {
   await prisma.surveyAnswer.deleteMany();
@@ -270,12 +250,11 @@ async function main() {
       },
       {
         title: "Hasil Survey Kepuasan Juni 2026",
-        slug: "hasil-survey-juni-2026",
+        slug: "hasil-survey-survey-kepuasan-pelanggan-juni-2026",
         period: "Juni 2026",
         type: PublicationType.SURVEY_RESULT,
-        summary: "Skor kepuasan 4.3/5 dengan 347 responden.",
+        summary: "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.",
         content: "Ringkasan hasil survey kepuasan Juni 2026.",
-        chartData: surveyChartData,
         isPublished: true,
         publishedAt: new Date(),
       },
@@ -302,8 +281,9 @@ async function main() {
 
   await prisma.survey.create({
     data: {
-      title: "Survey Kepuasan Pelanggan Juni 2026",
+      title: surveySeedTitle,
       description: "Bantu kami meningkatkan layanan dengan mengisi survey kepuasan ini.",
+      respondentTarget: 100,
       isActive: true,
       questions: {
         create: [

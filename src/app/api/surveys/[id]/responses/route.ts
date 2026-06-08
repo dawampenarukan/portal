@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { syncSurveyPublication } from "@/lib/survey-aggregation";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
+import { buildSurveyPublicationSlug, syncSurveyPublication } from "@/lib/survey-aggregation";
+import { PublicationType } from "@prisma/client";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -42,7 +44,16 @@ export async function POST(request: Request, { params }: Params) {
     });
 
     try {
-      await syncSurveyPublication(id);
+      const published = await prisma.publication.findFirst({
+        where: {
+          slug: buildSurveyPublicationSlug(survey.title),
+          type: PublicationType.SURVEY_RESULT,
+          isPublished: true,
+        },
+        select: { id: true },
+      });
+      await syncSurveyPublication(id, { publish: Boolean(published) });
+      revalidatePublicContent({ survey: true, publications: true });
     } catch (err) {
       console.error("[survey:sync]", err);
     }

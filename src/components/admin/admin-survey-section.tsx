@@ -29,7 +29,8 @@ export async function AdminSurveyList() {
               <div>
                 <h3 className="font-semibold">{survey.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {survey._count.questions} pertanyaan · {survey._count.responses} responden
+                  {survey._count.questions} pertanyaan · {survey._count.responses} responden · target{" "}
+                  {survey.respondentTarget}
                 </p>
                 {survey.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{survey.description}</p>
@@ -64,7 +65,8 @@ export function AdminSurveyHeader() {
       <div>
         <h2 className="text-2xl font-bold">Kelola Survey</h2>
         <p className="text-muted-foreground">
-          Buat kuesioner kepuasan. Hasil otomatis tampil di beranda setelah responden mengisi.
+          Buat kuesioner kepuasan. Skor kepuasan dan skor bahagia diperbarui otomatis dari jawaban
+          responden.
         </p>
       </div>
       <Link href="/admin/survey/new" prefetch={false}>

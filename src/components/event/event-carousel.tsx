@@ -1,29 +1,34 @@
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ArticleCoverImage } from "@/components/news/article-cover-image";
 
-interface Event {
+interface EventItem {
   id: string;
   title: string;
   location: string;
   date: string;
   time: string;
+  coverImage?: string | null;
 }
 
 interface EventCarouselProps {
-  events: Event[];
+  events: EventItem[];
 }
-
-const eventEmojis = ["🥗", "👩‍🍳", "🎊"];
 
 export function EventCarousel({ events }: EventCarouselProps) {
   return (
     <div className="flex gap-4 overflow-x-auto pb-2">
-      {events.map((event, i) => (
-        <Card key={event.id} className="charming-card min-w-[280px] shrink-0 border-0">
+      {events.map((event) => (
+        <Card key={event.id} className="charming-card min-w-[280px] shrink-0 overflow-hidden border-0">
+          <div className="relative aspect-[16/10]">
+            <ArticleCoverImage
+              src={event.coverImage}
+              alt={event.title}
+              fill
+              fallbackEmoji="🎉"
+            />
+          </div>
           <CardContent className="p-5">
-            <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-3xl">
-              {eventEmojis[i % eventEmojis.length]}
-            </div>
             <h3 className="font-extrabold leading-snug">{event.title}</h3>
             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
               <p className="flex items-center gap-2 font-medium">

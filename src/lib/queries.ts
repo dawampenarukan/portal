@@ -16,6 +16,13 @@ import {
   MenuCategoryId,
 } from "@/lib/menu-meta";
 import { FALLBACK_TRENDING_TOPICS } from "@/lib/trending-topics";
+import {
+  aggregateSurveyResults,
+  buildSurveySummary,
+  getLiveSurveyData,
+  getLiveSurveyDataForPublication,
+  resolveSurveyIdFromPublicationSlug,
+} from "@/lib/survey-aggregation";
 import type {
   ArticleView,
   CommentView,
@@ -97,6 +104,7 @@ function mapEvent(event: {
   location: string;
   startAt: Date;
   endAt: Date | null;
+  coverImage?: string | null;
 }): EventView {
   const end = event.endAt ?? event.startAt;
   const sameDay = format(event.startAt, "d MMMM yyyy", { locale: localeId });
@@ -108,6 +116,9 @@ function mapEvent(event: {
     location: event.location,
     date: sameDay,
     time: timeRange,
+    coverImage: event.coverImage ?? null,
+    startAt: event.startAt.toISOString(),
+    endAt: event.endAt?.toISOString() ?? null,
   };
 }
 
@@ -241,6 +252,7 @@ export async function getPublishedEvents(): Promise<EventView[]> {
       location: true,
       startAt: true,
       endAt: true,
+      coverImage: true,
     },
   });
   return events.map(mapEvent);
@@ -369,19 +381,23 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
     prisma.survey.findMany({ select: { id: true, title: true } }),
   ]);
 
-  const slugToSurveyId = new Map(
-    surveys.map((s) => [slugify(`hasil-survey-${s.title}`), s.id])
-  );
+  return Promise.all(
+    pubs.map(async (pub) => {
+      const mapped = mapPublicationAdmin(pub);
+      const surveyId = pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null;
+      const liveChartData = surveyId
+        ? await aggregateSurveyResults(surveyId)
+        : await getLiveSurveyDataForPublication(pub.slug, surveys);
 
-  return pubs.map((pub) => {
-    const mapped = mapPublicationAdmin(pub);
-    return {
-      ...mapped,
-      chartData: mapped.chartData ?? null,
-      isPublished: mapped.isPublished ?? false,
-      surveyId: pub.slug ? (slugToSurveyId.get(pub.slug) ?? null) : null,
-    };
-  });
+      return {
+        ...mapped,
+        summary: liveChartData ? buildSurveySummary(liveChartData) : mapped.summary,
+        chartData: liveChartData ?? null,
+        isPublished: mapped.isPublished ?? false,
+        surveyId,
+      };
+    })
+  );
 }
 
 export async function getPerformancePublications(): Promise<PublicationView[]> {
@@ -404,40 +420,9 @@ export async function getPublicationById(id: string): Promise<PublicationView | 
   return pub ? mapPublicationAdmin(pub) : null;
 }
 
-function parseSurveyChartData(raw: unknown): SurveyDataView {
-  const data = raw as SurveyDataView;
-  return {
-    satisfactionScore: data.satisfactionScore ?? 0,
-    npsScore: data.npsScore ?? 0,
-    respondents: data.respondents ?? 0,
-    target: data.target ?? 0,
-    aspects: data.aspects ?? [],
-    trend: data.trend ?? [],
-  };
-}
-
 export async function getSurveyData(): Promise<SurveyDataView> {
-  const publishedSurvey = await prisma.publication.findFirst({
-    where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
-    orderBy: { publishedAt: "desc" },
-    select: { chartData: true },
-  });
-
-  if (publishedSurvey?.chartData) {
-    return parseSurveyChartData(publishedSurvey.chartData);
-  }
-
-  const draftSurvey = await prisma.publication.findFirst({
-    where: { type: PublicationType.SURVEY_RESULT },
-    orderBy: { updatedAt: "desc" },
-    select: { chartData: true },
-  });
-
-  if (draftSurvey?.chartData) {
-    return parseSurveyChartData(draftSurvey.chartData);
-  }
-
-  return defaultSurveyData;
+  const live = await getLiveSurveyData();
+  return live ?? defaultSurveyData;
 }
 
 export async function getArticleComments(articleId: string): Promise<CommentView[]> {
@@ -782,6 +767,7 @@ export async function getAllSurveys(): Promise<SurveyView[]> {
     id: s.id,
     title: s.title,
     description: s.description,
+    respondentTarget: s.respondentTarget,
     isActive: s.isActive,
     responseCount: s._count.responses,
     questions: s.questions.map((q) => ({
@@ -800,6 +786,7 @@ export async function getAdminSurveysList() {
       id: true,
       title: true,
       description: true,
+      respondentTarget: true,
       isActive: true,
       _count: { select: { responses: true, questions: true } },
     },
@@ -829,6 +816,7 @@ export async function getActiveSurveys(): Promise<SurveyView[]> {
     id: s.id,
     title: s.title,
     description: s.description,
+    respondentTarget: s.respondentTarget,
     isActive: s.isActive,
     responseCount: s._count.responses,
     questions: s.questions.map((q) => ({
@@ -860,6 +848,7 @@ export async function getSurveyById(id: string): Promise<SurveyView | null> {
     id: survey.id,
     title: survey.title,
     description: survey.description,
+    respondentTarget: survey.respondentTarget,
     isActive: survey.isActive,
     responseCount: survey._count.responses,
     questions: survey.questions.map((q) => ({

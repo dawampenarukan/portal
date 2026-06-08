@@ -80,6 +80,7 @@ export interface SurveyView {
   id: string;
   title: string;
   description: string | null;
+  respondentTarget: number;
   isActive: boolean;
   questions: SurveyQuestionView[];
   responseCount: number;

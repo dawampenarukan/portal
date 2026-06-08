@@ -3,12 +3,73 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import type { SurveyDataView } from "@/lib/types";
 
+import { DEFAULT_NPS_QUESTION, DEFAULT_RESPONDENT_TARGET } from "@/lib/survey-defaults";
+
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+
+export function buildSurveyPublicationSlug(surveyTitle: string): string {
+  return slugify(`hasil-survey-${surveyTitle}`);
+}
+
+export function resolveSurveyIdFromPublicationSlug(
+  publicationSlug: string,
+  surveys: { id: string; title: string }[]
+): string | null {
+  for (const survey of surveys) {
+    if (buildSurveyPublicationSlug(survey.title) === publicationSlug) {
+      return survey.id;
+    }
+  }
+  return null;
+}
+
+export function buildSurveySummary(chartData: SurveyDataView): string {
+  if (chartData.respondents === 0) {
+    return "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.";
+  }
+  return `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden. Skor bahagia ${chartData.npsScore}.`;
+}
+
+function buildMonthlyTrend(
+  responses: { createdAt: Date; answers: { questionId: string; value: string }[] }[],
+  ratingQuestionIds: Set<string>
+): { month: string; score: number }[] {
+  const byMonth = new Map<string, number[]>();
+
+  for (const response of responses) {
+    const ratingAnswers = response.answers.filter((a) => ratingQuestionIds.has(a.questionId));
+    const scores = ratingAnswers.map((a) => parseFloat(a.value)).filter((n) => !Number.isNaN(n));
+    if (scores.length === 0) continue;
+
+    const avg = scores.reduce((sum, value) => sum + value, 0) / scores.length;
+    const key = `${response.createdAt.getFullYear()}-${response.createdAt.getMonth()}`;
+    const bucket = byMonth.get(key) ?? [];
+    bucket.push(avg);
+    byMonth.set(key, bucket);
+  }
+
+  return Array.from(byMonth.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([key, avgs]) => {
+      const monthIndex = Number(key.split("-")[1]);
+      const score = avgs.reduce((sum, value) => sum + value, 0) / avgs.length;
+      return {
+        month: MONTH_LABELS[monthIndex] ?? key,
+        score: Math.round(score * 10) / 10,
+      };
+    });
+}
+
 export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDataView> {
   const survey = await prisma.survey.findUnique({
     where: { id: surveyId },
     include: {
       questions: { orderBy: { order: "asc" } },
-      responses: { include: { answers: true } },
+      responses: {
+        include: { answers: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -26,19 +87,20 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
   const respondents = survey.responses.length;
   const ratingQuestions = survey.questions.filter((q) => q.type === "rating");
   const npsQuestion = survey.questions.find((q) => q.type === "nps");
+  const ratingQuestionIds = new Set(ratingQuestions.map((q) => q.id));
 
   const aspects = ratingQuestions.map((q) => {
     const answers = survey.responses.flatMap((r) =>
       r.answers.filter((a) => a.questionId === q.id)
     );
     const scores = answers.map((a) => parseFloat(a.value)).filter((n) => !Number.isNaN(n));
-    const avg = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
+    const avg = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : 0;
     return { name: q.question, score: Math.round(avg * 10) / 10 };
   });
 
   const satisfactionScore =
     aspects.length > 0
-      ? Math.round((aspects.reduce((s, a) => s + a.score, 0) / aspects.length) * 10) / 10
+      ? Math.round((aspects.reduce((sum, aspect) => sum + aspect.score, 0) / aspects.length) * 10) / 10
       : 0;
 
   let npsScore = 0;
@@ -54,21 +116,16 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     }
   }
 
-  const target = respondents >= 100 ? 100 : Math.round((respondents / 100) * 100);
+  const targetGoal =
+    survey.respondentTarget > 0 ? survey.respondentTarget : DEFAULT_RESPONDENT_TARGET;
+  const target =
+    respondents >= targetGoal
+      ? 100
+      : Math.min(100, Math.round((respondents / targetGoal) * 100));
 
-  const trend = survey.responses
-    .slice(-6)
-    .map((r, i) => {
-      const ratingAnswers = r.answers.filter((a) =>
-        ratingQuestions.some((q) => q.id === a.questionId)
-      );
-      const scores = ratingAnswers.map((a) => parseFloat(a.value)).filter((n) => !Number.isNaN(n));
-      const avg = scores.length ? scores.reduce((s, v) => s + v, 0) / scores.length : 0;
-      return {
-        month: `R${i + 1}`,
-        score: Math.round(avg * 10) / 10,
-      };
-    });
+  const trend = buildMonthlyTrend(survey.responses, ratingQuestionIds);
+  const now = new Date();
+  const currentMonth = MONTH_LABELS[now.getMonth()];
 
   return {
     satisfactionScore,
@@ -76,7 +133,12 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     respondents,
     target,
     aspects,
-    trend: trend.length > 0 ? trend : [{ month: "Jun", score: satisfactionScore }],
+    trend:
+      trend.length > 0
+        ? trend
+        : respondents > 0
+          ? [{ month: currentMonth, score: satisfactionScore }]
+          : [],
   };
 }
 
@@ -85,19 +147,33 @@ export async function syncSurveyPublication(
   options: { publish?: boolean } = {}
 ): Promise<SurveyDataView | null> {
   const { publish = false } = options;
-  const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+  const survey = await prisma.survey.findUnique({
+    where: { id: surveyId },
+    include: { questions: { orderBy: { order: "asc" } } },
+  });
   if (!survey) return null;
+
+  const hasNps = survey.questions.some((q) => q.type === "nps");
+  if (!hasNps) {
+    await prisma.surveyQuestion.create({
+      data: {
+        surveyId,
+        question: DEFAULT_NPS_QUESTION,
+        type: "nps",
+        order: survey.questions.length,
+      },
+    });
+  }
 
   const chartData = await aggregateSurveyResults(surveyId);
   const chartDataJson = chartData as unknown as Prisma.InputJsonValue;
   const period = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-  const slug = slugify(`hasil-survey-${survey.title}`);
+  const slug = buildSurveyPublicationSlug(survey.title);
+  const summary = buildSurveySummary(chartData);
 
   const existing = await prisma.publication.findFirst({
     where: { slug, type: PublicationType.SURVEY_RESULT },
   });
-
-  const summary = `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden.`;
 
   if (existing) {
     await prisma.publication.update({
@@ -106,7 +182,9 @@ export async function syncSurveyPublication(
         title: `Hasil Survey: ${survey.title}`,
         summary,
         chartData: chartDataJson,
-        ...(publish ? { isPublished: true, publishedAt: new Date() } : {}),
+        ...(publish || existing.isPublished
+          ? { isPublished: true, publishedAt: existing.publishedAt ?? new Date() }
+          : {}),
       },
     });
   } else {
@@ -117,7 +195,7 @@ export async function syncSurveyPublication(
         period,
         type: PublicationType.SURVEY_RESULT,
         summary,
-        content: `Ringkasan hasil survey ${survey.title}.`,
+        content: `Ringkasan hasil survey ${survey.title}. Skor diperbarui otomatis dari jawaban responden.`,
         chartData: chartDataJson,
         isPublished: publish,
         publishedAt: publish ? new Date() : null,
@@ -129,19 +207,38 @@ export async function syncSurveyPublication(
 }
 
 export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
-  const activeSurvey = await prisma.survey.findFirst({
-    where: { isActive: true },
-    include: { _count: { select: { responses: true } } },
+  const surveys = await prisma.survey.findMany({
+    select: { id: true, title: true },
     orderBy: { updatedAt: "desc" },
   });
 
-  if (activeSurvey && activeSurvey._count.responses > 0) {
+  const publishedPub = await prisma.publication.findFirst({
+    where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
+    orderBy: { publishedAt: "desc" },
+    select: { slug: true },
+  });
+
+  if (publishedPub?.slug) {
+    const surveyId = resolveSurveyIdFromPublicationSlug(publishedPub.slug, surveys);
+    if (surveyId) {
+      const data = await aggregateSurveyResults(surveyId);
+      if (data.respondents > 0) return data;
+    }
+  }
+
+  const activeSurvey = await prisma.survey.findFirst({
+    where: { isActive: true, responses: { some: {} } },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+  if (activeSurvey) {
     return aggregateSurveyResults(activeSurvey.id);
   }
 
   const surveyWithResponses = await prisma.survey.findFirst({
     where: { responses: { some: {} } },
     orderBy: { updatedAt: "desc" },
+    select: { id: true },
   });
 
   if (surveyWithResponses) {
@@ -149,4 +246,14 @@ export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
   }
 
   return null;
+}
+
+export async function getLiveSurveyDataForPublication(
+  publicationSlug: string | null | undefined,
+  surveys: { id: string; title: string }[]
+): Promise<SurveyDataView | null> {
+  if (!publicationSlug) return null;
+  const surveyId = resolveSurveyIdFromPublicationSlug(publicationSlug, surveys);
+  if (!surveyId) return null;
+  return aggregateSurveyResults(surveyId);
 }

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { ensureNpsQuestion, normalizeRespondentTarget } from "@/lib/survey-defaults";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -22,22 +24,27 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { title, description, isActive, questions } = body as {
+    const { title, description, isActive, respondentTarget, questions } = body as {
       title?: string;
       description?: string;
       isActive?: boolean;
+      respondentTarget?: number;
       questions?: { question: string; type: string; options?: string[]; order: number }[];
     };
 
     if (!title?.trim()) return badRequest("Judul survey wajib diisi");
 
+    const normalizedQuestions = ensureNpsQuestion(questions ?? []);
+    const target = normalizeRespondentTarget(respondentTarget);
+
     const survey = await prisma.survey.create({
       data: {
         title: title.trim(),
         description: description?.trim() || null,
+        respondentTarget: target,
         isActive: Boolean(isActive),
         questions: {
-          create: (questions ?? []).map((q, i) => ({
+          create: normalizedQuestions.map((q, i) => ({
             question: q.question,
             type: q.type,
             options: q.options ?? undefined,
@@ -47,6 +54,8 @@ export async function POST(request: Request) {
       },
       include: { questions: true },
     });
+
+    revalidatePublicContent({ survey: true });
 
     return NextResponse.json(survey, { status: 201 });
   } catch {

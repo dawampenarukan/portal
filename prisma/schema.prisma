@@ -138,14 +138,15 @@ model Feedback {
 }
 
 model Survey {
-  id          String           @id @default(cuid())
-  title       String
-  description String?
-  isActive    Boolean          @default(false)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  questions   SurveyQuestion[]
-  responses   SurveyResponse[]
+  id               String           @id @default(cuid())
+  title            String
+  description      String?
+  respondentTarget Int              @default(100)
+  isActive         Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  questions        SurveyQuestion[]
+  responses        SurveyResponse[]
 }
 
 model SurveyQuestion {

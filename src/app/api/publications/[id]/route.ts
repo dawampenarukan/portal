@@ -38,7 +38,12 @@ export async function PATCH(request: Request, { params }: Params) {
         content: body.content ?? existing.content,
         type: body.type ?? existing.type,
         period: body.period?.trim() ?? existing.period,
-        chartData: body.chartData !== undefined ? body.chartData : existing.chartData,
+        chartData:
+          (body.type ?? existing.type) === "SURVEY_RESULT"
+            ? existing.chartData
+            : body.chartData !== undefined
+              ? body.chartData
+              : existing.chartData,
         isPublished,
         publishedAt: isPublished
           ? body.publishedAt

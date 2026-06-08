@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
+import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { ensureNpsQuestion, normalizeRespondentTarget } from "@/lib/survey-defaults";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,17 +31,19 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!existing) return notFound();
 
     if (body.questions) {
+      const normalizedQuestions = ensureNpsQuestion(
+        body.questions as { question: string; type: string; options?: string[]; order: number }[]
+      );
+
       await prisma.surveyQuestion.deleteMany({ where: { surveyId: id } });
       await prisma.surveyQuestion.createMany({
-        data: (body.questions as { question: string; type: string; options?: string[]; order: number }[]).map(
-          (q, i) => ({
-            surveyId: id,
-            question: q.question,
-            type: q.type,
-            options: q.options ?? undefined,
-            order: q.order ?? i,
-          })
-        ),
+        data: normalizedQuestions.map((q, i) => ({
+          surveyId: id,
+          question: q.question,
+          type: q.type,
+          options: q.options ?? undefined,
+          order: q.order ?? i,
+        })),
       });
     }
 
@@ -49,10 +53,16 @@ export async function PATCH(request: Request, { params }: Params) {
         title: body.title?.trim() ?? existing.title,
         description:
           body.description !== undefined ? body.description?.trim() || null : existing.description,
+        respondentTarget:
+          body.respondentTarget !== undefined
+            ? normalizeRespondentTarget(body.respondentTarget)
+            : existing.respondentTarget,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
       },
       include: { questions: { orderBy: { order: "asc" } } },
     });
+
+    revalidatePublicContent({ survey: true });
 
     return NextResponse.json(survey);
   } catch {
@@ -67,6 +77,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
   try {
     await prisma.survey.delete({ where: { id } });
+    revalidatePublicContent({ survey: true, publications: true });
     return NextResponse.json({ ok: true });
   } catch {
     return notFound();
