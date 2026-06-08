@@ -2,6 +2,9 @@ import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { getTrendingTopics } from "@/lib/queries";
 
+// Render at request time — avoids DB connection during Vercel build
+export const dynamic = "force-dynamic";
+
 export default async function PublicLayout({
   children,
 }: {
