@@ -139,7 +139,7 @@ export async function getPublishedArticles(): Promise<ArticleView[]> {
     include: { author: true, category: true },
     orderBy: { publishedAt: "desc" },
   });
-  return articles.map(mapArticle);
+  return articles.map((a) => mapArticle(a));
 }
 
 export async function getAllArticles(): Promise<ArticleView[]> {
@@ -217,7 +217,7 @@ function mapPublicationAdmin(pub: {
     type: typeMap[pub.type],
     summary: pub.summary ?? "",
     content: pub.content,
-    chartData: pub.chartData as SurveyDataView | null,
+    chartData: pub.chartData as unknown as SurveyDataView | null,
     isPublished: pub.isPublished,
   };
 }
@@ -240,7 +240,7 @@ export async function getSurveyData(): Promise<SurveyDataView> {
 
   if (!pub?.chartData) return defaultSurveyData;
 
-  const data = pub.chartData as SurveyDataView;
+  const data = pub.chartData as unknown as SurveyDataView;
   return {
     satisfactionScore: data.satisfactionScore ?? 0,
     npsScore: data.npsScore ?? 0,

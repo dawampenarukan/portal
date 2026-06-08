@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PublicationType } from "@prisma/client";
+import { Prisma, PublicationType } from "@prisma/client";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateSurveyResults } from "@/lib/survey-aggregation";
@@ -18,6 +18,7 @@ export async function POST(_request: Request, { params }: Params) {
     if (!survey) return notFound("Survey tidak ditemukan");
 
     const chartData = await aggregateSurveyResults(id);
+    const chartDataJson = chartData as unknown as Prisma.InputJsonValue;
     const period = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
     const slug = slugify(`hasil-survey-${survey.title}`);
 
@@ -31,7 +32,7 @@ export async function POST(_request: Request, { params }: Params) {
           data: {
             title: `Hasil Survey: ${survey.title}`,
             summary: `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden.`,
-            chartData,
+            chartData: chartDataJson,
             isPublished: true,
             publishedAt: new Date(),
           },
@@ -44,7 +45,7 @@ export async function POST(_request: Request, { params }: Params) {
             type: PublicationType.SURVEY_RESULT,
             summary: `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden.`,
             content: `Ringkasan hasil survey ${survey.title}.`,
-            chartData,
+            chartData: chartDataJson,
             isPublished: true,
             publishedAt: new Date(),
           },
