@@ -106,7 +106,7 @@ export function SurveyForm({ survey }: SurveyFormProps) {
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-        Aktifkan survey (hanya satu survey aktif)
+        Aktifkan survey (bisa lebih dari satu survey aktif)
       </label>
 
       <div className="space-y-4">

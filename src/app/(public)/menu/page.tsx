@@ -1,5 +1,6 @@
 import { MenuPageContent } from "@/components/menu/menu-page-content";
 import { getAllMenuData } from "@/lib/queries";
+import { getFavoritedMenuItemIds, getVoterKeyFromCookies } from "@/lib/menu-vote";
 import { safeQuery } from "@/lib/safe-db";
 import type { MenuCategoryBundle } from "@/lib/types";
 import type { MenuCategoryId } from "@/lib/menu-meta";
@@ -25,7 +26,11 @@ interface PageProps {
 
 export default async function MenuPage({ searchParams }: PageProps) {
   const { kategori } = await searchParams;
-  const menuData = await safeQuery(() => getAllMenuData(), emptyMenu, "getAllMenuData");
+  const [menuData, voterKey] = await Promise.all([
+    safeQuery(() => getAllMenuData(), emptyMenu, "getAllMenuData"),
+    getVoterKeyFromCookies(),
+  ]);
+  const favoritedIds = await getFavoritedMenuItemIds(voterKey);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -40,7 +45,11 @@ export default async function MenuPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <MenuPageContent initialCategory={kategori} menuData={menuData} />
+      <MenuPageContent
+        initialCategory={kategori}
+        menuData={menuData}
+        favoritedIds={favoritedIds}
+      />
     </div>
   );
 }

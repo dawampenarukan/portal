@@ -11,25 +11,24 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
   try {
-    const body = await request.json();
     const existing = await prisma.menuItem.findUnique({ where: { id } });
-    if (!existing) return notFound();
+    if (!existing) return notFound("Menu tidak ditemukan");
 
+    const body = await request.json();
     const item = await prisma.menuItem.update({
       where: { id },
       data: {
         name: body.name?.trim() ?? existing.name,
         description:
           body.description !== undefined ? body.description?.trim() || null : existing.description,
-        emoji: body.emoji !== undefined ? body.emoji || null : existing.emoji,
-        votes: body.votes !== undefined ? Number(body.votes) : existing.votes,
+        emoji: body.emoji !== undefined ? body.emoji?.trim() || "🍽️" : existing.emoji,
         isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
       },
     });
 
     return NextResponse.json(item);
   } catch {
-    return serverError("Gagal memperbarui menu");
+    return serverError("Gagal memperbarui menu favorit");
   }
 }
 
@@ -38,10 +37,11 @@ export async function DELETE(_request: Request, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
+
   try {
     await prisma.menuItem.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
-    return notFound();
+    return notFound("Menu tidak ditemukan");
   }
 }

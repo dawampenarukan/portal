@@ -80,7 +80,11 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
   };
 }
 
-export async function syncSurveyPublication(surveyId: string): Promise<SurveyDataView | null> {
+export async function syncSurveyPublication(
+  surveyId: string,
+  options: { publish?: boolean } = {}
+): Promise<SurveyDataView | null> {
+  const { publish = false } = options;
   const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
   if (!survey) return null;
 
@@ -102,8 +106,7 @@ export async function syncSurveyPublication(surveyId: string): Promise<SurveyDat
         title: `Hasil Survey: ${survey.title}`,
         summary,
         chartData: chartDataJson,
-        isPublished: true,
-        publishedAt: new Date(),
+        ...(publish ? { isPublished: true, publishedAt: new Date() } : {}),
       },
     });
   } else {
@@ -116,8 +119,8 @@ export async function syncSurveyPublication(surveyId: string): Promise<SurveyDat
         summary,
         content: `Ringkasan hasil survey ${survey.title}.`,
         chartData: chartDataJson,
-        isPublished: true,
-        publishedAt: new Date(),
+        isPublished: publish,
+        publishedAt: publish ? new Date() : null,
       },
     });
   }

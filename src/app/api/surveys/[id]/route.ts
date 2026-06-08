@@ -28,13 +28,6 @@ export async function PATCH(request: Request, { params }: Params) {
     const existing = await prisma.survey.findUnique({ where: { id } });
     if (!existing) return notFound();
 
-    if (body.isActive) {
-      await prisma.survey.updateMany({
-        where: { id: { not: id } },
-        data: { isActive: false },
-      });
-    }
-
     if (body.questions) {
       await prisma.surveyQuestion.deleteMany({ where: { surveyId: id } });
       await prisma.surveyQuestion.createMany({

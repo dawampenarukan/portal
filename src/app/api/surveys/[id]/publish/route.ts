@@ -15,7 +15,7 @@ export async function POST(_request: Request, { params }: Params) {
     const survey = await prisma.survey.findUnique({ where: { id } });
     if (!survey) return notFound("Survey tidak ditemukan");
 
-    const chartData = await syncSurveyPublication(id);
+    const chartData = await syncSurveyPublication(id, { publish: true });
     if (!chartData) return notFound("Survey tidak ditemukan");
 
     return NextResponse.json({ chartData });

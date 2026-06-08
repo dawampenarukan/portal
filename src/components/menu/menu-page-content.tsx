@@ -16,9 +16,10 @@ import { cn } from "@/lib/utils";
 interface MenuPageContentProps {
   initialCategory?: string;
   menuData: Record<MenuCategoryId, MenuCategoryBundle>;
+  favoritedIds: string[];
 }
 
-export function MenuPageContent({ initialCategory, menuData }: MenuPageContentProps) {
+export function MenuPageContent({ initialCategory, menuData, favoritedIds }: MenuPageContentProps) {
   const [activeId, setActiveId] = useState<MenuCategoryId>(
     getMenuCategory(initialCategory ?? "porsi-kecil")
   );
@@ -71,7 +72,11 @@ export function MenuPageContent({ initialCategory, menuData }: MenuPageContentPr
             </span>
             Menu Favorit
           </h3>
-          <MenuFavorites favorites={favorites} />
+          <MenuFavorites
+            key={activeId}
+            favorites={favorites}
+            favoritedIds={favoritedIds}
+          />
         </div>
 
         <div className="space-y-6 lg:col-span-2">

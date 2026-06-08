@@ -35,7 +35,7 @@ export function SurveyActions({ survey }: SurveyActionsProps) {
         <Button size="sm" variant="outline">Edit</Button>
       </Link>
       <Button size="sm" variant="secondary" onClick={handlePublish} disabled={loading}>
-        Publikasikan
+        Publikasikan ke Beranda
       </Button>
       <Button size="sm" variant="ghost" onClick={handleDelete} disabled={loading}>
         Hapus

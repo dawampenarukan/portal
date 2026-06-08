@@ -1,8 +1,30 @@
 import { MenuCategoryType } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
 const validCategories = new Set<string>(Object.values(MenuCategoryType));
+
+export async function GET(request: Request) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
+  const category = new URL(request.url).searchParams.get("category");
+  const where =
+    category && validCategories.has(category)
+      ? { category: category as MenuCategoryType }
+      : undefined;
+
+  try {
+    const requests = await prisma.menuRequest.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
+    return NextResponse.json(requests);
+  } catch {
+    return serverError("Gagal memuat request menu");
+  }
+}
 
 export async function POST(request: Request) {
   try {

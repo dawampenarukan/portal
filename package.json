@@ -13,7 +13,9 @@
     "db:seed": "prisma db seed",
     "db:ensure-admin": "tsx scripts/ensure-admin.ts",
     "db:setup": "bash scripts/setup-db.sh",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "env:pull": "bash scripts/pull-vercel-env.sh",
+    "env:local": "bash scripts/use-local-db.sh"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",

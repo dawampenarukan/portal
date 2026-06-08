@@ -6,6 +6,8 @@ import { getAllMenuData, getMenuRequestCounts } from "@/lib/queries";
 
 export const metadata = { title: "Kelola Menu" };
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminMenuPage() {
   const [menuData, requestCounts] = await Promise.all([
     getAllMenuData(),
@@ -17,7 +19,8 @@ export default async function AdminMenuPage() {
       <div>
         <h2 className="text-2xl font-bold">Kelola Menu</h2>
         <p className="text-muted-foreground">
-          Atur menu favorit, jadwal mingguan, dan tinjau request menu dari pengunjung.
+          Atur jadwal mingguan, lihat akumulasi menu favorit, dan tinjau request menu dari
+          pengunjung.
         </p>
       </div>
 

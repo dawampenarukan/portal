@@ -30,9 +30,8 @@ export const authConfig = {
 
       if (isAdminPanel && !isLoggedIn) return false;
 
-      if (isLoginPage && isLoggedIn) {
-        return Response.redirect(new URL("/admin", request.nextUrl));
-      }
+      // Biarkan halaman login di-render; redirect ke /admin dilakukan di page (hindari gagal RSC fetch)
+      if (isLoginPage && isLoggedIn) return true;
 
       return true;
     },

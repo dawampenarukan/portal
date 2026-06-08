@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isLocalDatabaseUrl } from '@/lib/safe-db';
+import { getDatabaseInfo, isLocalDatabaseUrl } from '@/lib/safe-db';
 import { hasBlobStorage } from '@/lib/upload';
 import { prisma } from '@/lib/prisma';
 
@@ -17,8 +17,13 @@ function checkAuthUrl(): string | undefined {
 
 export async function GET() {
   const authUrlIssue = checkAuthUrl();
+  const dbInfo = getDatabaseInfo();
   const checks: Record<string, string> = {
+    NODE_ENV: process.env.NODE_ENV ?? 'unknown',
     DATABASE_URL: process.env.DATABASE_URL ? 'set' : 'missing',
+    DATABASE_HOST: dbInfo.host,
+    DATABASE_NAME: dbInfo.database,
+    DATABASE_LOCAL: dbInfo.isLocal ? 'yes' : 'no',
     NEXTAUTH_SECRET:
       process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET
         ? 'set'
@@ -71,10 +76,27 @@ export async function GET() {
       select: { id: true, email: true },
     });
 
+    const [articleCount, surveyCount, surveyResponseCount, publicationCount] =
+      await Promise.all([
+        prisma.article.count(),
+        prisma.survey.count(),
+        prisma.surveyResponse.count(),
+        prisma.publication.count({ where: { type: 'SURVEY_RESULT' } }),
+      ]);
+
     return NextResponse.json({
       ok: true,
       checks,
       database: 'connected',
+      databaseHost: dbInfo.host,
+      databaseName: dbInfo.database,
+      isLocalDatabase: dbInfo.isLocal,
+      counts: {
+        articles: articleCount,
+        surveys: surveyCount,
+        surveyResponses: surveyResponseCount,
+        surveyPublications: publicationCount,
+      },
       adminExists: !!admin,
       blobReady: hasBlobStorage(),
       blobHint: hasBlobStorage()

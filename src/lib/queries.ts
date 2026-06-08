@@ -8,6 +8,8 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getLiveSurveyData } from "@/lib/survey-aggregation";
+import { slugify } from "@/lib/slug";
+import { getDaySortOrder } from "@/lib/week-days";
 import {
   MENU_CATEGORY_ID_TO_TYPE,
   MENU_CATEGORY_TYPE_TO_ID,
@@ -21,6 +23,7 @@ import type {
   PublicationView,
   SurveyDataView,
   SurveyView,
+  SurveyPublicationView,
   DashboardStats,
 } from "@/lib/types";
 
@@ -230,31 +233,83 @@ export async function getAllPublications(): Promise<PublicationView[]> {
   return pubs.map(mapPublicationAdmin);
 }
 
+export async function getSurveyPublications(): Promise<SurveyPublicationView[]> {
+  const [pubs, surveys] = await Promise.all([
+    prisma.publication.findMany({
+      where: { type: PublicationType.SURVEY_RESULT },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.survey.findMany({ select: { id: true, title: true } }),
+  ]);
+
+  const slugToSurveyId = new Map(
+    surveys.map((s) => [slugify(`hasil-survey-${s.title}`), s.id])
+  );
+
+  return pubs.map((pub) => {
+    const mapped = mapPublicationAdmin(pub);
+    return {
+      ...mapped,
+      chartData: mapped.chartData ?? null,
+      isPublished: mapped.isPublished ?? false,
+      surveyId: pub.slug ? (slugToSurveyId.get(pub.slug) ?? null) : null,
+    };
+  });
+}
+
+export async function getPerformancePublications(): Promise<PublicationView[]> {
+  const pubs = await prisma.publication.findMany({
+    where: { isPublished: true, type: { not: PublicationType.SURVEY_RESULT } },
+    orderBy: { publishedAt: "desc" },
+  });
+  return pubs.map(mapPublication);
+}
+
 export async function getPublicationById(id: string): Promise<PublicationView | null> {
   const pub = await prisma.publication.findUnique({ where: { id } });
   return pub ? mapPublicationAdmin(pub) : null;
 }
 
 export async function getSurveyData(): Promise<SurveyDataView> {
-  const live = await getLiveSurveyData();
-  if (live) return live;
-
-  const pub = await prisma.publication.findFirst({
+  // Sumber sama dengan default di halaman /kinerja: publikasi survey yang dipublikasikan
+  const publishedSurvey = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },
   });
 
-  if (!pub?.chartData) return defaultSurveyData;
+  if (publishedSurvey?.chartData) {
+    const data = publishedSurvey.chartData as unknown as SurveyDataView;
+    return {
+      satisfactionScore: data.satisfactionScore ?? 0,
+      npsScore: data.npsScore ?? 0,
+      respondents: data.respondents ?? 0,
+      target: data.target ?? 0,
+      aspects: data.aspects ?? [],
+      trend: data.trend ?? [],
+    };
+  }
 
-  const data = pub.chartData as unknown as SurveyDataView;
-  return {
-    satisfactionScore: data.satisfactionScore ?? 0,
-    npsScore: data.npsScore ?? 0,
-    respondents: data.respondents ?? 0,
-    target: data.target ?? 0,
-    aspects: data.aspects ?? [],
-    trend: data.trend ?? [],
-  };
+  const live = await getLiveSurveyData();
+  if (live) return live;
+
+  const draftSurvey = await prisma.publication.findFirst({
+    where: { type: PublicationType.SURVEY_RESULT },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (draftSurvey?.chartData) {
+    const data = draftSurvey.chartData as unknown as SurveyDataView;
+    return {
+      satisfactionScore: data.satisfactionScore ?? 0,
+      npsScore: data.npsScore ?? 0,
+      respondents: data.respondents ?? 0,
+      target: data.target ?? 0,
+      aspects: data.aspects ?? [],
+      trend: data.trend ?? [],
+    };
+  }
+
+  return defaultSurveyData;
 }
 
 export async function getArticleComments(articleId: string): Promise<CommentView[]> {
@@ -318,19 +373,24 @@ export async function getAllComments(): Promise<
 export async function getMenuDataByCategory(
   categoryId: MenuCategoryId
 ): Promise<MenuCategoryBundle> {
+  const { syncMenuItemsForCategory } = await import("@/lib/menu-sync");
+  await syncMenuItemsForCategory(categoryId);
+
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
 
   const [favorites, weekly] = await Promise.all([
     prisma.menuItem.findMany({
-      where: { category: categoryType, isActive: true },
-      orderBy: { votes: "desc" },
-      take: 10,
+      where: { category: categoryType },
+      orderBy: [{ votes: "desc" }, { name: "asc" }],
     }),
     prisma.weeklyMenuEntry.findMany({
       where: { category: categoryType, isActive: true },
-      orderBy: { sortOrder: "asc" },
     }),
   ]);
+
+  const sortedWeekly = [...weekly].sort(
+    (a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel)
+  );
 
   return {
     favorites: favorites.map((item) => ({
@@ -340,7 +400,9 @@ export async function getMenuDataByCategory(
       votes: item.votes,
       emoji: item.emoji ?? "🍽️",
     })),
-    thisWeek: weekly.map((entry) => `${entry.dayLabel}: ${entry.menuText}`),
+    thisWeek: sortedWeekly.map(
+      (entry) => `${entry.emoji ?? "🍽️"} ${entry.dayLabel}: ${entry.menuText}`
+    ),
   };
 }
 
@@ -365,7 +427,7 @@ export async function getMenuPreviewTopItems(): Promise<
 
   for (const type of Object.values(MenuCategoryType)) {
     const top = await prisma.menuItem.findFirst({
-      where: { category: type, isActive: true },
+      where: { category: type },
       orderBy: { votes: "desc" },
     });
     const id = MENU_CATEGORY_TYPE_TO_ID[type];
@@ -432,30 +494,35 @@ export async function getAllSurveys(): Promise<SurveyView[]> {
   }));
 }
 
-export async function getActiveSurvey(): Promise<SurveyView | null> {
-  const survey = await prisma.survey.findFirst({
+export async function getActiveSurveys(): Promise<SurveyView[]> {
+  const surveys = await prisma.survey.findMany({
     where: { isActive: true },
     include: {
       questions: { orderBy: { order: "asc" } },
       _count: { select: { responses: true } },
     },
+    orderBy: { updatedAt: "desc" },
   });
-  if (!survey) return null;
 
-  return {
-    id: survey.id,
-    title: survey.title,
-    description: survey.description,
-    isActive: survey.isActive,
-    responseCount: survey._count.responses,
-    questions: survey.questions.map((q) => ({
+  return surveys.map((s) => ({
+    id: s.id,
+    title: s.title,
+    description: s.description,
+    isActive: s.isActive,
+    responseCount: s._count.responses,
+    questions: s.questions.map((q) => ({
       id: q.id,
       question: q.question,
       type: q.type,
       options: q.options as string[] | null,
       order: q.order,
     })),
-  };
+  }));
+}
+
+export async function getActiveSurvey(): Promise<SurveyView | null> {
+  const surveys = await getActiveSurveys();
+  return surveys[0] ?? null;
 }
 
 export async function getSurveyById(id: string): Promise<SurveyView | null> {
@@ -505,6 +572,24 @@ export async function getMenuRequests(category?: MenuCategoryType) {
     where: category ? { category } : undefined,
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function getAdminMenuItems(categoryId: MenuCategoryId) {
+  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  return prisma.menuItem.findMany({
+    where: { category: categoryType },
+    orderBy: [{ votes: "desc" }, { name: "asc" }],
+  });
+}
+
+export async function getAdminWeeklyMenu(categoryId: MenuCategoryId) {
+  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const entries = await prisma.weeklyMenuEntry.findMany({
+    where: { category: categoryType },
+  });
+  return entries.sort(
+    (a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder
+  );
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

@@ -1,20 +1,34 @@
 import { NextResponse } from "next/server";
-import { MenuCategoryType } from "@prisma/client";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
+import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
 import { prisma } from "@/lib/prisma";
+import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
+import { normalizeMenuIcon } from "@/lib/menu-icons";
+import { sortOrderForDay } from "@/lib/week-days";
+
+const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
+
+function parseCategoryId(value: string | null): MenuCategoryId | null {
+  if (!value || !validCategoryIds.has(value)) return null;
+  return value as MenuCategoryId;
+}
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const { searchParams } = new URL(request.url);
-  const category = searchParams.get("category") as MenuCategoryType | null;
+  const categoryId = parseCategoryId(new URL(request.url).searchParams.get("category"));
+  if (!categoryId) return badRequest("Parameter category wajib diisi");
 
-  const entries = await prisma.weeklyMenuEntry.findMany({
-    where: category ? { category } : undefined,
-    orderBy: { sortOrder: "asc" },
-  });
-  return NextResponse.json(entries);
+  try {
+    const entries = await prisma.weeklyMenuEntry.findMany({
+      where: { category: MENU_CATEGORY_ID_TO_TYPE[categoryId] },
+      orderBy: { sortOrder: "asc" },
+    });
+    return NextResponse.json(entries);
+  } catch {
+    return serverError("Gagal memuat jadwal menu");
+  }
 }
 
 export async function POST(request: Request) {
@@ -23,24 +37,40 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { category, dayLabel, menuText, sortOrder, isActive } = body as Record<string, unknown>;
+    const { categoryId, dayLabel, menuText, emoji, isActive } = body as {
+      categoryId?: string;
+      dayLabel?: string;
+      menuText?: string;
+      emoji?: string;
+      isActive?: boolean;
+    };
 
-    if (!category || !dayLabel || !menuText) {
+    const catId = parseCategoryId(categoryId ?? null);
+    if (!catId || !dayLabel?.trim() || !menuText?.trim()) {
       return badRequest("Kategori, hari, dan menu wajib diisi");
     }
 
+    const trimmedDay = dayLabel.trim();
+
+    const categoryType = MENU_CATEGORY_ID_TO_TYPE[catId];
+    const trimmedMenu = menuText.trim();
+    const menuEmoji = normalizeMenuIcon(emoji);
+
     const entry = await prisma.weeklyMenuEntry.create({
       data: {
-        category: category as MenuCategoryType,
-        dayLabel: (dayLabel as string).trim(),
-        menuText: (menuText as string).trim(),
-        sortOrder: Number(sortOrder) || 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        category: categoryType,
+        dayLabel: trimmedDay,
+        menuText: trimmedMenu,
+        emoji: menuEmoji,
+        sortOrder: sortOrderForDay(trimmedDay),
+        isActive: isActive !== false,
       },
     });
 
+    await syncMenuItemFromWeekly(categoryType, trimmedMenu, menuEmoji);
+
     return NextResponse.json(entry, { status: 201 });
   } catch {
-    return serverError("Gagal membuat jadwal menu");
+    return serverError("Gagal menambah jadwal menu");
   }
 }

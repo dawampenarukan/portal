@@ -40,6 +40,12 @@ export interface PublicationView {
   isPublished?: boolean;
 }
 
+export interface SurveyPublicationView extends PublicationView {
+  chartData: SurveyDataView | null;
+  isPublished: boolean;
+  surveyId: string | null;
+}
+
 export interface CommentView {
   id: string;
   authorName: string;
@@ -100,4 +106,31 @@ export interface FavoriteMenuView {
 export interface MenuCategoryBundle {
   favorites: FavoriteMenuView[];
   thisWeek: string[];
+}
+
+export interface MenuItemAdminView {
+  id: string;
+  name: string;
+  description: string | null;
+  emoji: string | null;
+  votes: number;
+  isActive: boolean;
+}
+
+export interface WeeklyMenuEntryView {
+  id: string;
+  dayLabel: string;
+  menuText: string;
+  emoji: string | null;
+  sortOrder: number;
+  isActive: boolean;
+}
+
+export interface MenuRequestView {
+  id: string;
+  requesterName: string;
+  menuName: string;
+  reason: string | null;
+  status: string;
+  createdAt: string;
 }

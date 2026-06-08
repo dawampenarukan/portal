@@ -1,46 +1,97 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MenuAdminPanel } from "@/components/admin/menu-admin-panel";
-import { MENU_CATEGORIES, MenuCategoryId } from "@/lib/menu-meta";
-import { getMenuItemsByCategory, getWeeklyMenuEntries } from "@/lib/queries";
+import { Card, CardContent } from "@/components/ui/card";
+import { MenuFavoritesSummary } from "@/components/admin/menu-favorites-summary";
+import { WeeklyMenuManager } from "@/components/admin/weekly-menu-manager";
+import { MenuRequestsManager } from "@/components/admin/menu-requests-manager";
+import {
+  getMenuCategoryMeta,
+  MENU_CATEGORIES,
+  MENU_CATEGORY_ID_TO_TYPE,
+  type MenuCategoryId,
+} from "@/lib/menu-meta";
+import { syncMenuItemsForCategory } from "@/lib/menu-sync";
+import { getAdminMenuItems, getAdminWeeklyMenu, getMenuRequests } from "@/lib/queries";
 
-export const metadata = { title: "Kelola Menu Kategori" };
+export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ category: string }> };
 
-export default async function AdminMenuCategoryPage({ params }: Props) {
-  const { category } = await params;
-  const cat = MENU_CATEGORIES.find((c) => c.id === category);
-  if (!cat) notFound();
+const validIds = new Set(MENU_CATEGORIES.map((c) => c.id));
 
-  const [items, weekly] = await Promise.all([
-    getMenuItemsByCategory(category as MenuCategoryId),
-    getWeeklyMenuEntries(category as MenuCategoryId),
+export async function generateMetadata({ params }: Props) {
+  const { category } = await params;
+  if (!validIds.has(category)) return { title: "Kelola Menu" };
+  const meta = getMenuCategoryMeta(category as MenuCategoryId);
+  return { title: `Kelola ${meta.label}` };
+}
+
+export default async function AdminMenuCategoryPage({ params }: Props) {
+  const { category: rawId } = await params;
+  if (!validIds.has(rawId)) notFound();
+
+  const categoryId = rawId as MenuCategoryId;
+  const meta = getMenuCategoryMeta(categoryId);
+  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+
+  await syncMenuItemsForCategory(categoryId);
+
+  const [items, weekly, requests] = await Promise.all([
+    getAdminMenuItems(categoryId),
+    getAdminWeeklyMenu(categoryId),
+    getMenuRequests(categoryType),
   ]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">
-          {cat.emoji} {cat.label}
-        </h2>
-        <p className="text-muted-foreground">{cat.audience}</p>
+        <Link href="/admin/menu" className="text-sm text-primary hover:underline">
+          ← Kembali ke Kelola Menu
+        </Link>
+        <div className="mt-2 flex items-center gap-3">
+          <span className="text-3xl">{meta.emoji}</span>
+          <div>
+            <h2 className="text-2xl font-bold">{meta.label}</h2>
+            <p className="text-muted-foreground">{meta.audience}</p>
+          </div>
+        </div>
       </div>
-      <MenuAdminPanel
-        categoryId={category as MenuCategoryId}
-        categoryLabel={cat.label}
-        favorites={items.map((i) => ({
-          id: i.id,
-          name: i.name,
-          description: i.description ?? "",
-          votes: i.votes,
-          emoji: i.emoji ?? "🍽️",
-        }))}
-        weekly={weekly.map((w) => ({
-          id: w.id,
-          dayLabel: w.dayLabel,
-          menuText: w.menuText,
-        }))}
-      />
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardContent className="p-6">
+            <MenuFavoritesSummary items={items} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <WeeklyMenuManager categoryId={categoryId} initialEntries={weekly} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-6">
+          <MenuRequestsManager
+            initialRequests={requests.map((r) => ({
+              id: r.id,
+              requesterName: r.requesterName,
+              menuName: r.menuName,
+              reason: r.reason,
+              status: r.status,
+              createdAt: r.createdAt.toISOString(),
+            }))}
+          />
+        </CardContent>
+      </Card>
+
+      <p className="text-sm text-muted-foreground">
+        Perubahan langsung tampil di halaman publik{" "}
+        <Link href={`/menu?kategori=${categoryId}`} className="text-primary hover:underline">
+          /menu?kategori={categoryId}
+        </Link>
+      </p>
     </div>
   );
 }

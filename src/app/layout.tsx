@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
 };
 
+// Semua halaman baca database saat request — hindari cache build-time
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{

@@ -31,10 +31,6 @@ export async function POST(request: Request) {
 
     if (!title?.trim()) return badRequest("Judul survey wajib diisi");
 
-    if (isActive) {
-      await prisma.survey.updateMany({ data: { isActive: false } });
-    }
-
     const survey = await prisma.survey.create({
       data: {
         title: title.trim(),

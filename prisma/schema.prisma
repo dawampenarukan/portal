@@ -195,8 +195,20 @@ model MenuItem {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   requests    MenuRequest[]
+  itemVotes   MenuItemVote[]
 
   @@index([category, votes])
+}
+
+model MenuItemVote {
+  id         String   @id @default(cuid())
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  voterKey   String
+  createdAt  DateTime @default(now())
+
+  @@unique([menuItemId, voterKey])
+  @@index([voterKey])
 }
 
 model MenuRequest {
@@ -218,6 +230,7 @@ model WeeklyMenuEntry {
   category  MenuCategoryType
   dayLabel  String
   menuText  String
+  emoji     String?          @default("🍽️")
   sortOrder Int              @default(0)
   isActive  Boolean          @default(true)
   updatedAt DateTime         @updatedAt

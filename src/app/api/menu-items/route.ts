@@ -1,45 +1,36 @@
-import { NextResponse } from "next/server";
 import { MenuCategoryType } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
+import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
 import { prisma } from "@/lib/prisma";
+
+const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
+
+function parseCategoryId(value: string | null): MenuCategoryId | null {
+  if (!value || !validCategoryIds.has(value)) return null;
+  return value as MenuCategoryId;
+}
 
 export async function GET(request: Request) {
   const { error } = await requireAdmin();
   if (error) return error;
 
-  const { searchParams } = new URL(request.url);
-  const category = searchParams.get("category") as MenuCategoryType | null;
-
-  const items = await prisma.menuItem.findMany({
-    where: category ? { category } : undefined,
-    orderBy: { votes: "desc" },
-  });
-  return NextResponse.json(items);
-}
-
-export async function POST(request: Request) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  const categoryId = parseCategoryId(new URL(request.url).searchParams.get("category"));
+  if (!categoryId) return badRequest("Parameter category wajib diisi");
 
   try {
-    const body = await request.json();
-    const { name, description, emoji, category, votes, isActive } = body as Record<string, unknown>;
-
-    if (!name || !category) return badRequest("Nama dan kategori wajib diisi");
-
-    const item = await prisma.menuItem.create({
-      data: {
-        name: (name as string).trim(),
-        description: (description as string)?.trim() || null,
-        emoji: (emoji as string) || null,
-        category: category as MenuCategoryType,
-        votes: Number(votes) || 0,
-        isActive: isActive !== undefined ? Boolean(isActive) : true,
-      },
+    const items = await prisma.menuItem.findMany({
+      where: { category: MENU_CATEGORY_ID_TO_TYPE[categoryId] },
+      orderBy: [{ votes: "desc" }, { name: "asc" }],
     });
-
-    return NextResponse.json(item, { status: 201 });
+    return NextResponse.json(items);
   } catch {
-    return serverError("Gagal membuat menu");
+    return serverError("Gagal memuat menu favorit");
   }
+}
+
+export async function POST() {
+  const { error } = await requireAdmin();
+  if (error) return error;
+  return badRequest("Menu favorit diisi otomatis dari jadwal mingguan");
 }
