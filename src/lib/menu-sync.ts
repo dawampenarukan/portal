@@ -40,17 +40,21 @@ export async function syncMenuItemFromWeekly(
 }
 
 export async function syncMenuItemsForCategory(categoryId: MenuCategoryId) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
-  const entries = await prisma.weeklyMenuEntry.findMany({
-    where: { category: categoryType },
-    select: { menuText: true, emoji: true },
-  });
+  try {
+    const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+    const entries = await prisma.weeklyMenuEntry.findMany({
+      where: { category: categoryType },
+      select: { menuText: true, emoji: true },
+    });
 
-  const seen = new Set<string>();
-  for (const entry of entries) {
-    const key = entry.menuText.trim().toLowerCase();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    await syncMenuItemFromWeekly(categoryType, entry.menuText, entry.emoji ?? DEFAULT_MENU_ICON);
+    const seen = new Set<string>();
+    for (const entry of entries) {
+      const key = entry.menuText.trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      await syncMenuItemFromWeekly(categoryType, entry.menuText, entry.emoji ?? DEFAULT_MENU_ICON);
+    }
+  } catch (err) {
+    console.error(`[menu-sync] Gagal sinkron kategori ${categoryId}:`, err);
   }
 }

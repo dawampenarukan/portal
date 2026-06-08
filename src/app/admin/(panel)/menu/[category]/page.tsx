@@ -12,6 +12,8 @@ import {
 } from "@/lib/menu-meta";
 import { syncMenuItemsForCategory } from "@/lib/menu-sync";
 import { getAdminMenuItems, getAdminWeeklyMenu, getMenuRequests } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
+import type { MenuItemAdminView, MenuRequestView, WeeklyMenuEntryView } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +37,28 @@ export default async function AdminMenuCategoryPage({ params }: Props) {
   await syncMenuItemsForCategory(categoryId);
 
   const [items, weekly, requests] = await Promise.all([
-    getAdminMenuItems(categoryId),
-    getAdminWeeklyMenu(categoryId),
-    getMenuRequests(categoryType),
+    safeQuery(() => getAdminMenuItems(categoryId), [] as MenuItemAdminView[], "admin/getAdminMenuItems"),
+    safeQuery(
+      () => getAdminWeeklyMenu(categoryId),
+      [] as WeeklyMenuEntryView[],
+      "admin/getAdminWeeklyMenu"
+    ),
+    safeQuery(
+      () => getMenuRequests(categoryType).then((rows) =>
+        rows.map(
+          (r): MenuRequestView => ({
+            id: r.id,
+            requesterName: r.requesterName,
+            menuName: r.menuName,
+            reason: r.reason,
+            status: r.status,
+            createdAt: r.createdAt.toISOString(),
+          })
+        )
+      ),
+      [] as MenuRequestView[],
+      "admin/getMenuRequests"
+    ),
   ]);
 
   return (
@@ -71,16 +92,7 @@ export default async function AdminMenuCategoryPage({ params }: Props) {
 
       <Card>
         <CardContent className="p-6">
-          <MenuRequestsManager
-            initialRequests={requests.map((r) => ({
-              id: r.id,
-              requesterName: r.requesterName,
-              menuName: r.menuName,
-              reason: r.reason,
-              status: r.status,
-              createdAt: r.createdAt.toISOString(),
-            }))}
-          />
+          <MenuRequestsManager initialRequests={requests} />
         </CardContent>
       </Card>
 

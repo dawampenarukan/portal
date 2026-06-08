@@ -82,7 +82,13 @@ export async function GET() {
         prisma.survey.count(),
         prisma.surveyResponse.count(),
         prisma.publication.count({ where: { type: 'SURVEY_RESULT' } }),
+        prisma.weeklyMenuEntry.findFirst({ select: { id: true, emoji: true } }),
       ]);
+
+    const menuItemVoteReady = await prisma.menuItemVote
+      .findFirst({ select: { id: true } })
+      .then(() => true)
+      .catch(() => false);
 
     return NextResponse.json({
       ok: true,
@@ -96,6 +102,10 @@ export async function GET() {
         surveys: surveyCount,
         surveyResponses: surveyResponseCount,
         surveyPublications: publicationCount,
+      },
+      menuSchema: {
+        weeklyMenuEmojiColumn: true,
+        menuItemVoteTable: menuItemVoteReady,
       },
       adminExists: !!admin,
       blobReady: hasBlobStorage(),

@@ -2,7 +2,9 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MENU_CATEGORIES } from "@/lib/menu-meta";
+import { EMPTY_MENU_DATA, EMPTY_MENU_REQUEST_COUNTS } from "@/lib/menu-fallbacks";
 import { getAllMenuData, getMenuRequestCounts } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
 
 export const metadata = { title: "Kelola Menu" };
 
@@ -10,8 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminMenuPage() {
   const [menuData, requestCounts] = await Promise.all([
-    getAllMenuData(),
-    getMenuRequestCounts(),
+    safeQuery(() => getAllMenuData(), EMPTY_MENU_DATA, "admin/getAllMenuData"),
+    safeQuery(() => getMenuRequestCounts(), EMPTY_MENU_REQUEST_COUNTS, "admin/getMenuRequestCounts"),
   ]);
 
   return (
