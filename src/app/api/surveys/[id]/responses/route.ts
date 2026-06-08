@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { syncSurveyPublication } from "@/lib/survey-aggregation";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,6 +23,11 @@ export async function POST(request: Request, { params }: Params) {
 
     if (!answers?.length) return badRequest("Jawaban wajib diisi");
 
+    const validQuestionIds = new Set(survey.questions.map((q) => q.id));
+    if (answers.some((a) => !validQuestionIds.has(a.questionId))) {
+      return badRequest("Pertanyaan tidak valid untuk survey ini");
+    }
+
     const response = await prisma.surveyResponse.create({
       data: {
         surveyId: id,
@@ -35,8 +41,15 @@ export async function POST(request: Request, { params }: Params) {
       },
     });
 
+    try {
+      await syncSurveyPublication(id);
+    } catch (err) {
+      console.error("[survey:sync]", err);
+    }
+
     return NextResponse.json({ id: response.id }, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error("[survey:response]", err);
     return serverError("Gagal menyimpan jawaban survey");
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   Bar,
   BarChart,
@@ -20,9 +21,10 @@ const CHART_CORAL = "#ff8a65";
 
 interface SurveyWidgetProps {
   data: SurveyDataView;
+  fillSurveyHref?: string;
 }
 
-export function SurveyWidget({ data }: SurveyWidgetProps) {
+export function SurveyWidget({ data, fillSurveyHref }: SurveyWidgetProps) {
   const { satisfactionScore, npsScore, respondents, target, aspects, trend } = data;
   const hasData = respondents > 0;
 
@@ -30,8 +32,15 @@ export function SurveyWidget({ data }: SurveyWidgetProps) {
     return (
       <Card className="charming-card border-0">
         <CardContent className="p-8 text-center text-muted-foreground">
-          Data survey belum tersedia. Jalankan <code className="text-sm">npm run db:setup</code>{" "}
-          untuk mengisi data awal.
+          <p>Data survey belum tersedia.</p>
+          {fillSurveyHref && (
+            <Link
+              href={fillSurveyHref}
+              className="mt-3 inline-block rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Isi survey sekarang ⭐
+            </Link>
+          )}
         </CardContent>
       </Card>
     );

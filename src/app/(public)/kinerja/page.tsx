@@ -44,7 +44,10 @@ export default async function KinerjaPage() {
         )}
       </div>
 
-      <SurveyWidget data={surveyData} />
+      <SurveyWidget
+        data={surveyData}
+        fillSurveyHref={activeSurvey ? `/survey/${activeSurvey.id}` : undefined}
+      />
 
       <section className="mt-10">
         <h2 className="mb-4 text-lg font-semibold">Publikasi Fixed</h2>

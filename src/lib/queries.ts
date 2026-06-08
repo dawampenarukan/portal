@@ -7,6 +7,7 @@ import {
   PublicationType,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getLiveSurveyData } from "@/lib/survey-aggregation";
 import {
   MENU_CATEGORY_ID_TO_TYPE,
   MENU_CATEGORY_TYPE_TO_ID,
@@ -235,6 +236,9 @@ export async function getPublicationById(id: string): Promise<PublicationView | 
 }
 
 export async function getSurveyData(): Promise<SurveyDataView> {
+  const live = await getLiveSurveyData();
+  if (live) return live;
+
   const pub = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },

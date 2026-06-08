@@ -1,4 +1,6 @@
+import { Prisma, PublicationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { slugify } from "@/lib/slug";
 import type { SurveyDataView } from "@/lib/types";
 
 export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDataView> {
@@ -76,4 +78,72 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     aspects,
     trend: trend.length > 0 ? trend : [{ month: "Jun", score: satisfactionScore }],
   };
+}
+
+export async function syncSurveyPublication(surveyId: string): Promise<SurveyDataView | null> {
+  const survey = await prisma.survey.findUnique({ where: { id: surveyId } });
+  if (!survey) return null;
+
+  const chartData = await aggregateSurveyResults(surveyId);
+  const chartDataJson = chartData as unknown as Prisma.InputJsonValue;
+  const period = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+  const slug = slugify(`hasil-survey-${survey.title}`);
+
+  const existing = await prisma.publication.findFirst({
+    where: { slug, type: PublicationType.SURVEY_RESULT },
+  });
+
+  const summary = `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden.`;
+
+  if (existing) {
+    await prisma.publication.update({
+      where: { id: existing.id },
+      data: {
+        title: `Hasil Survey: ${survey.title}`,
+        summary,
+        chartData: chartDataJson,
+        isPublished: true,
+        publishedAt: new Date(),
+      },
+    });
+  } else {
+    await prisma.publication.create({
+      data: {
+        title: `Hasil Survey: ${survey.title}`,
+        slug,
+        period,
+        type: PublicationType.SURVEY_RESULT,
+        summary,
+        content: `Ringkasan hasil survey ${survey.title}.`,
+        chartData: chartDataJson,
+        isPublished: true,
+        publishedAt: new Date(),
+      },
+    });
+  }
+
+  return chartData;
+}
+
+export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
+  const activeSurvey = await prisma.survey.findFirst({
+    where: { isActive: true },
+    include: { _count: { select: { responses: true } } },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (activeSurvey && activeSurvey._count.responses > 0) {
+    return aggregateSurveyResults(activeSurvey.id);
+  }
+
+  const surveyWithResponses = await prisma.survey.findFirst({
+    where: { responses: { some: {} } },
+    orderBy: { updatedAt: "desc" },
+  });
+
+  if (surveyWithResponses) {
+    return aggregateSurveyResults(surveyWithResponses.id);
+  }
+
+  return null;
 }

@@ -8,14 +8,19 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDashboardStats, getSurveyData } from "@/lib/queries";
+import { SurveyWidget } from "@/components/dashboard/survey-widget";
+import { getActiveSurvey, getDashboardStats, getSurveyData } from "@/lib/queries";
 
 export const metadata = {
   title: "Dashboard Admin",
 };
 
 export default async function AdminDashboardPage() {
-  const [stats, surveyData] = await Promise.all([getDashboardStats(), getSurveyData()]);
+  const [stats, surveyData, activeSurvey] = await Promise.all([
+    getDashboardStats(),
+    getSurveyData(),
+    getActiveSurvey(),
+  ]);
 
   const statCards = [
     { label: "Total Berita", value: String(stats.articleCount), icon: Newspaper, color: "text-sky-600 bg-sky-100" },
@@ -59,13 +64,28 @@ export default async function AdminDashboardPage() {
             {surveyData.respondents > 0 ? (
               <>
                 <p>Skor kepuasan: <strong className="text-foreground">{surveyData.satisfactionScore}/5</strong></p>
-                <p className="mt-1">Responden: <strong className="text-foreground">{surveyData.respondents}</strong></p>
+                <p className="mt-1">Responden: <strong className="text-foreground">{surveyData.respondents}</strong> (total DB: {stats.surveyRespondents})</p>
+                <p className="mt-1">NPS: <strong className="text-foreground">{surveyData.npsScore}</strong></p>
                 <Link href="/admin/survey" className="mt-3 inline-block text-primary hover:underline">
                   Kelola survey →
                 </Link>
               </>
             ) : (
-              <p>Belum ada data survey. <Link href="/admin/survey/new" className="text-primary hover:underline">Buat survey</Link></p>
+              <p>
+                Belum ada data survey.{" "}
+                <Link href="/admin/survey/new" className="text-primary hover:underline">
+                  Buat survey
+                </Link>
+                {activeSurvey && (
+                  <>
+                    {" "}
+                    atau{" "}
+                    <Link href={`/survey/${activeSurvey.id}`} className="text-primary hover:underline">
+                      isi survey aktif
+                    </Link>
+                  </>
+                )}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -85,6 +105,16 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {surveyData.respondents > 0 && (
+        <section>
+          <h3 className="mb-4 text-lg font-semibold">Visualisasi Survey Live</h3>
+          <SurveyWidget
+            data={surveyData}
+            fillSurveyHref={activeSurvey ? `/survey/${activeSurvey.id}` : undefined}
+          />
+        </section>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   getPublishedArticles,
   getPublishedEvents,
   getPublishedPublications,
+  getActiveSurvey,
   getSurveyData,
 } from "@/lib/queries";
 import { safeQuery } from "@/lib/safe-db";
@@ -29,11 +30,12 @@ const emptySurvey: SurveyDataView = {
 };
 
 export default async function HomePage() {
-  const [articles, events, publications, surveyData] = await Promise.all([
+  const [articles, events, publications, surveyData, activeSurvey] = await Promise.all([
     safeQuery(() => getPublishedArticles(), [], "getPublishedArticles"),
     safeQuery(() => getPublishedEvents(), [], "getPublishedEvents"),
     safeQuery(() => getPublishedPublications(), [], "getPublishedPublications"),
     safeQuery(() => getSurveyData(), emptySurvey, "getSurveyData"),
+    safeQuery(() => getActiveSurvey(), null, "getActiveSurvey"),
   ]);
 
   const hero = articles[0];
@@ -65,7 +67,10 @@ export default async function HomePage() {
           href="/kinerja"
           linkLabel="Lihat detail"
         />
-        <SurveyWidget data={surveyData} />
+        <SurveyWidget
+          data={surveyData}
+          fillSurveyHref={activeSurvey ? `/survey/${activeSurvey.id}` : undefined}
+        />
       </section>
 
       <section className="grid gap-8 lg:grid-cols-3">

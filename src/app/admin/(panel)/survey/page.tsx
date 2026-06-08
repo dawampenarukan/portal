@@ -5,11 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SurveyActions } from "@/components/admin/survey-actions";
 import { getAllSurveys } from "@/lib/queries";
+import { syncSurveyPublication } from "@/lib/survey-aggregation";
 
 export const metadata = { title: "Kelola Survey" };
 
 export default async function AdminSurveyPage() {
   const surveys = await getAllSurveys();
+
+  const activeWithResponses = surveys.find((s) => s.isActive && s.responseCount > 0);
+  if (activeWithResponses) {
+    try {
+      await syncSurveyPublication(activeWithResponses.id);
+    } catch {
+      // publication sync is best-effort; charts still read live responses
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -17,7 +27,7 @@ export default async function AdminSurveyPage() {
         <div>
           <h2 className="text-2xl font-bold">Kelola Survey</h2>
           <p className="text-muted-foreground">
-            Buat kuesioner kepuasan dan publikasikan hasilnya ke beranda.
+            Buat kuesioner kepuasan. Hasil otomatis tampil di beranda setelah responden mengisi.
           </p>
         </div>
         <Link href="/admin/survey/new">
