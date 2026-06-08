@@ -2,13 +2,16 @@ import { Calendar } from "lucide-react";
 import { EventCarousel } from "@/components/event/event-carousel";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPublishedEvents } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
 
 export const metadata = {
   title: "Event",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function EventPage() {
-  const events = await getPublishedEvents();
+  const events = await safeQuery(() => getPublishedEvents(), [], "getPublishedEvents");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

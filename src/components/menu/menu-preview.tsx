@@ -1,10 +1,19 @@
 import Link from "next/link";
-import { MENU_CATEGORIES } from "@/lib/menu-meta";
+import { MENU_CATEGORIES, MenuCategoryId } from "@/lib/menu-meta";
 import { getMenuPreviewTopItems } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
 import { Card, CardContent } from "@/components/ui/card";
 
+const emptyTopItems = Object.fromEntries(
+  MENU_CATEGORIES.map((c) => [c.id, null])
+) as Record<MenuCategoryId, { emoji: string; name: string } | null>;
+
 export async function MenuPreview() {
-  const topItems = await getMenuPreviewTopItems();
+  const topItems = await safeQuery(
+    () => getMenuPreviewTopItems(),
+    emptyTopItems,
+    "getMenuPreviewTopItems"
+  );
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

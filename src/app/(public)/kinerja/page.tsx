@@ -3,16 +3,29 @@ import { SurveyWidget } from "@/components/dashboard/survey-widget";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getActiveSurvey, getPublishedPublications, getSurveyData } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
+import type { SurveyDataView } from "@/lib/types";
 
 export const metadata = {
   title: "Kinerja & Survey",
 };
 
+export const dynamic = "force-dynamic";
+
+const emptySurvey: SurveyDataView = {
+  satisfactionScore: 0,
+  npsScore: 0,
+  respondents: 0,
+  target: 0,
+  aspects: [],
+  trend: [],
+};
+
 export default async function KinerjaPage() {
   const [surveyData, publications, activeSurvey] = await Promise.all([
-    getSurveyData(),
-    getPublishedPublications(),
-    getActiveSurvey(),
+    safeQuery(() => getSurveyData(), emptySurvey, "getSurveyData"),
+    safeQuery(() => getPublishedPublications(), [], "getPublishedPublications"),
+    safeQuery(() => getActiveSurvey(), null, "getActiveSurvey"),
   ]);
 
   return (

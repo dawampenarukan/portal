@@ -3,6 +3,7 @@ import { NewsListItem } from "@/components/news/news-list-item";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPublishedArticles } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
 
 const categories = ["Semua", "Berita", "Kegiatan", "Pengumuman", "Event"];
 
@@ -10,8 +11,10 @@ export const metadata = {
   title: "Berita",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function BeritaPage() {
-  const articles = await getPublishedArticles();
+  const articles = await safeQuery(() => getPublishedArticles(), [], "getPublishedArticles");
   const popular = articles.filter((a) => a.isPopular);
 
   return (

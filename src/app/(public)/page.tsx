@@ -14,13 +14,26 @@ import {
   getPublishedPublications,
   getSurveyData,
 } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
+import type { SurveyDataView } from "@/lib/types";
+
+export const dynamic = "force-dynamic";
+
+const emptySurvey: SurveyDataView = {
+  satisfactionScore: 0,
+  npsScore: 0,
+  respondents: 0,
+  target: 0,
+  aspects: [],
+  trend: [],
+};
 
 export default async function HomePage() {
   const [articles, events, publications, surveyData] = await Promise.all([
-    getPublishedArticles(),
-    getPublishedEvents(),
-    getPublishedPublications(),
-    getSurveyData(),
+    safeQuery(() => getPublishedArticles(), [], "getPublishedArticles"),
+    safeQuery(() => getPublishedEvents(), [], "getPublishedEvents"),
+    safeQuery(() => getPublishedPublications(), [], "getPublishedPublications"),
+    safeQuery(() => getSurveyData(), emptySurvey, "getSurveyData"),
   ]);
 
   const hero = articles[0];

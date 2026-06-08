@@ -1,10 +1,22 @@
 import { MenuPageContent } from "@/components/menu/menu-page-content";
 import { getAllMenuData } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
+import type { MenuCategoryBundle } from "@/lib/types";
+import type { MenuCategoryId } from "@/lib/menu-meta";
 
 export const metadata = {
   title: "Menu Favorit & Request",
   description:
     "Lihat menu favorit dan ajukan request menu untuk Porsi Kecil, Porsi Besar, Ibu Hamil, dan Balita.",
+};
+
+export const dynamic = "force-dynamic";
+
+const emptyMenu: Record<MenuCategoryId, MenuCategoryBundle> = {
+  "porsi-kecil": { favorites: [], thisWeek: [] },
+  "porsi-besar": { favorites: [], thisWeek: [] },
+  "ibu-hamil": { favorites: [], thisWeek: [] },
+  balita: { favorites: [], thisWeek: [] },
 };
 
 interface PageProps {
@@ -13,7 +25,7 @@ interface PageProps {
 
 export default async function MenuPage({ searchParams }: PageProps) {
   const { kategori } = await searchParams;
-  const menuData = await getAllMenuData();
+  const menuData = await safeQuery(() => getAllMenuData(), emptyMenu, "getAllMenuData");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
