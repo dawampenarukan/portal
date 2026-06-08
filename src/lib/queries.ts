@@ -23,24 +23,23 @@ import type {
   DashboardStats,
 } from "@/lib/types";
 
-function mapArticle(
-  article: {
-    id: string;
-    slug: string;
-    title: string;
-    excerpt: string | null;
-    content: string;
-    coverImage: string | null;
-    isPopular: boolean;
-    isHighlight: boolean;
-    status?: ArticleStatus;
-    publishedAt: Date | null;
-    author: { name: string };
-    category: { id: string; name: string };
-  },
-  includeAdmin = false
-): ArticleView {
-  const base: ArticleView = {
+type ArticleRecord = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string;
+  coverImage: string | null;
+  isPopular: boolean;
+  isHighlight: boolean;
+  status?: ArticleStatus;
+  publishedAt: Date | null;
+  author: { name: string };
+  category: { id: string; name: string };
+};
+
+function mapArticle(article: ArticleRecord): ArticleView {
+  return {
     id: article.id,
     slug: article.slug,
     title: article.title,
@@ -53,11 +52,14 @@ function mapArticle(
     isPopular: article.isPopular,
     isHighlight: article.isHighlight,
   };
-  if (includeAdmin) {
-    base.status = article.status;
-    base.categoryId = article.category.id;
-  }
-  return base;
+}
+
+function mapArticleAdmin(article: ArticleRecord): ArticleView {
+  return {
+    ...mapArticle(article),
+    status: article.status,
+    categoryId: article.category.id,
+  };
 }
 
 function mapEventAdmin(event: {
@@ -139,7 +141,7 @@ export async function getPublishedArticles(): Promise<ArticleView[]> {
     include: { author: true, category: true },
     orderBy: { publishedAt: "desc" },
   });
-  return articles.map((a) => mapArticle(a));
+  return articles.map(mapArticle);
 }
 
 export async function getAllArticles(): Promise<ArticleView[]> {
@@ -147,7 +149,7 @@ export async function getAllArticles(): Promise<ArticleView[]> {
     include: { author: true, category: true },
     orderBy: { updatedAt: "desc" },
   });
-  return articles.map((a) => mapArticle(a, true));
+  return articles.map(mapArticleAdmin);
 }
 
 export async function getArticleById(id: string): Promise<ArticleView | null> {
@@ -155,7 +157,7 @@ export async function getArticleById(id: string): Promise<ArticleView | null> {
     where: { id },
     include: { author: true, category: true },
   });
-  return article ? mapArticle(article, true) : null;
+  return article ? mapArticleAdmin(article) : null;
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleView | null> {
