@@ -2,11 +2,23 @@ import { NextResponse } from "next/server";
 import { isLocalDatabaseUrl } from "@/lib/safe-db";
 import { prisma } from "@/lib/prisma";
 
+function checkAuthUrl(): string | undefined {
+  const url = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "";
+  if (!url) return "NEXTAUTH_URL belum di-set";
+  if (process.env.VERCEL && (url.includes("localhost") || url.includes("127.0.0.1"))) {
+    return "NEXTAUTH_URL masih localhost — ganti ke https://portalpenarukan2.vercel.app";
+  }
+  return undefined;
+}
+
 export async function GET() {
-  const checks: Record<string, string> = {
+  const authUrlIssue = checkAuthUrl();
+    checks: Record<string, string> = {
     DATABASE_URL: process.env.DATABASE_URL ? "set" : "missing",
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET ? "set" : "missing",
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL ? "set" : "missing",
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? "missing",
+    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN ? "set" : "missing",
+    VERCEL_URL: process.env.VERCEL_URL ?? "n/a",
   };
 
   if (!process.env.DATABASE_URL) {
@@ -22,6 +34,18 @@ export async function GET() {
         ok: false,
         checks,
         error: "DATABASE_URL masih localhost — ganti dengan URL PostgreSQL cloud (Neon/Supabase)",
+      },
+      { status: 503 }
+    );
+  }
+
+  if (authUrlIssue && process.env.VERCEL) {
+    return NextResponse.json(
+      {
+        ok: false,
+        checks,
+        error: authUrlIssue,
+        hint: "Vercel → Settings → Environment Variables → NEXTAUTH_URL = https://portalpenarukan2.vercel.app",
       },
       { status: 503 }
     );
