@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isLocalDatabaseUrl } from '@/lib/safe-db';
+import { hasBlobStorage } from '@/lib/upload';
 import { prisma } from '@/lib/prisma';
 
 function checkAuthUrl(): string | undefined {
@@ -23,9 +24,7 @@ export async function GET() {
         ? 'set'
         : 'missing',
     NEXTAUTH_URL: process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? 'missing',
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN
-      ? 'set'
-      : 'missing',
+    BLOB_READ_WRITE_TOKEN: hasBlobStorage() ? 'set' : 'missing',
     VERCEL_URL: process.env.VERCEL_URL ?? 'n/a',
   };
 
@@ -77,6 +76,10 @@ export async function GET() {
       checks,
       database: 'connected',
       adminExists: !!admin,
+      blobReady: hasBlobStorage(),
+      blobHint: hasBlobStorage()
+        ? 'Upload gambar siap'
+        : 'Blob belum connect — Storage → portalpenarukan2-blob → Connect Project → Redeploy',
       adminHint: admin
         ? 'Admin tersedia — login dengan admin@sppgpenarukan2.id / admin123'
         : 'Admin belum ada — jalankan: npm run db:ensure-admin',

@@ -15,6 +15,8 @@ export async function generateMetadata({ params }: PageProps) {
   return { title: article?.title ?? "Berita" };
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function BeritaDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);

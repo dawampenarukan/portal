@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         articleId,
         guestName: guestName.trim(),
         content: content.trim(),
-        isApproved: false,
+        isApproved: true,
       },
     });
 

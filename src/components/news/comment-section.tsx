@@ -26,13 +26,14 @@ interface CommentSectionProps {
   comments: Comment[];
 }
 
-export function CommentSection({ articleId, comments }: CommentSectionProps) {
+export function CommentSection({ articleId, comments: initialComments }: CommentSectionProps) {
   const router = useRouter();
+  const [comments, setComments] = useState(initialComments);
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [pendingNotice, setPendingNotice] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,22 +41,37 @@ export function CommentSection({ articleId, comments }: CommentSectionProps) {
 
     setSubmitting(true);
     setError("");
+    setSuccess(false);
 
     try {
       const res = await fetch("/api/comments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ articleId, guestName: name, content }),
+        body: JSON.stringify({
+          articleId,
+          guestName: name.trim(),
+          content: content.trim(),
+        }),
       });
 
+      const data = await res.json();
+
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error ?? "Gagal mengirim komentar");
       }
 
+      const newComment: Comment = {
+        id: data.id,
+        authorName: name.trim(),
+        content: content.trim(),
+        createdAt: new Date().toISOString(),
+        replies: [],
+      };
+
+      setComments((prev) => [newComment, ...prev]);
       setName("");
       setContent("");
-      setPendingNotice(true);
+      setSuccess(true);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengirim komentar");
@@ -79,63 +95,66 @@ export function CommentSection({ articleId, comments }: CommentSectionProps) {
           placeholder="Nama Anda"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          required
         />
         <Textarea
           placeholder="Tulis komentar Anda..."
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          rows={3}
+          required
         />
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {pendingNotice && (
-          <p className="text-sm text-primary">
-            Komentar terkirim! Akan tampil setelah disetujui admin.
-          </p>
+        {success && (
+          <p className="text-sm text-primary">Komentar berhasil dikirim! 🎉</p>
         )}
-        <Button type="submit" disabled={!name.trim() || !content.trim() || submitting}>
+        <Button type="submit" disabled={submitting}>
           {submitting ? "Mengirim..." : "Kirim Komentar"}
         </Button>
       </form>
 
-      <div className="space-y-6">
-        {comments.map((comment) => (
-          <div key={comment.id} className="border-b pb-6 last:border-b-0">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-                {comment.authorName.charAt(0)}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{comment.authorName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatRelativeTime(comment.createdAt)}
-                  </span>
+      {comments.length === 0 ? (
+        <p className="text-center text-sm text-muted-foreground">
+          Belum ada komentar. Jadilah yang pertama berkomentar!
+        </p>
+      ) : (
+        <div className="space-y-6">
+          {comments.map((comment) => (
+            <div key={comment.id} className="border-b pb-6 last:border-b-0">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {comment.authorName.charAt(0).toUpperCase()}
                 </div>
-                <p className="mt-1 text-sm leading-relaxed">{comment.content}</p>
-                <button className="mt-2 flex items-center gap-1 text-xs text-primary hover:underline">
-                  <Reply className="h-3 w-3" />
-                  Balas
-                </button>
-
-                {comment.replies.length > 0 && (
-                  <div className="mt-4 space-y-4 border-l-2 border-primary/20 pl-4">
-                    {comment.replies.map((reply) => (
-                      <div key={reply.id}>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold">{reply.authorName}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatRelativeTime(reply.createdAt)}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-sm">{reply.content}</p>
-                      </div>
-                    ))}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">{comment.authorName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatRelativeTime(comment.createdAt)}
+                    </span>
                   </div>
-                )}
+                  <p className="mt-1 text-sm leading-relaxed">{comment.content}</p>
+
+                  {comment.replies.length > 0 && (
+                    <div className="mt-4 space-y-4 border-l-2 border-primary/20 pl-4">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold">{reply.authorName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {formatRelativeTime(reply.createdAt)}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm">{reply.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
