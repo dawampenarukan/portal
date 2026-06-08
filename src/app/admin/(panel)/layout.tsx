@@ -1,12 +1,17 @@
+import { redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { AdminSidebar } from "@/components/layout/admin-sidebar";
 
 export const dynamic = "force-dynamic";
 
-export default function AdminPanelLayout({
+export default async function AdminPanelLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  if (!session?.user) redirect("/admin/login");
+
   return (
     <div className="flex min-h-screen bg-muted/30">
       <AdminSidebar />
