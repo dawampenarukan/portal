@@ -29,7 +29,21 @@ export async function GET() {
 
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return NextResponse.json({ ok: true, checks, database: "connected" });
+
+    const admin = await prisma.user.findUnique({
+      where: { email: "admin@sppgpenarukan2.id" },
+      select: { id: true, email: true },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      checks,
+      database: "connected",
+      adminExists: !!admin,
+      adminHint: admin
+        ? "Admin tersedia — login dengan admin@sppgpenarukan2.id / admin123"
+        : "Admin belum ada — jalankan: npm run db:ensure-admin",
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(

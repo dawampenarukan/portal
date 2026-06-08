@@ -17,18 +17,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const password = credentials?.password as string | undefined;
         if (!email?.trim() || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email: email.trim() } });
-        if (!user) return null;
+        try {
+          const user = await prisma.user.findUnique({ where: { email: email.trim() } });
+          if (!user) return null;
 
-        const valid = await bcrypt.compare(password, user.passwordHash);
-        if (!valid) return null;
+          // Legacy seed used plain text "placeholder" before bcrypt
+          if (user.passwordHash === "placeholder" && password === "admin123") {
+            const passwordHash = await bcrypt.hash(password, 10);
+            await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              role: user.role,
+            };
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
+          const valid = await bcrypt.compare(password, user.passwordHash);
+          if (!valid) return null;
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          };
+        } catch (err) {
+          console.error("[auth] authorize error:", err);
+          return null;
+        }
       },
     }),
   ],
