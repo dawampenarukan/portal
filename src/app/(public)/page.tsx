@@ -9,21 +9,29 @@ import { NewsListItem } from "@/components/news/news-list-item";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  mockArticles,
-  mockEvents,
-  mockPublications,
-} from "@/lib/mock-data";
+  getPublishedArticles,
+  getPublishedEvents,
+  getPublishedPublications,
+  getSurveyData,
+} from "@/lib/queries";
 
-export default function HomePage() {
-  const hero = mockArticles[0];
-  const highlights = mockArticles.filter((a) => a.isHighlight);
-  const popular = mockArticles.filter((a) => a.isPopular);
-  const latest = mockArticles;
+export default async function HomePage() {
+  const [articles, events, publications, surveyData] = await Promise.all([
+    getPublishedArticles(),
+    getPublishedEvents(),
+    getPublishedPublications(),
+    getSurveyData(),
+  ]);
+
+  const hero = articles[0];
+  const highlights = articles.filter((a) => a.isHighlight);
+  const popular = articles.filter((a) => a.isPopular);
+  const latest = articles;
 
   return (
     <div className="mx-auto max-w-7xl space-y-12 px-4 py-8">
       <WelcomeBanner />
-      <HeroArticle {...hero} />
+      {hero && <HeroArticle {...hero} />}
 
       <section>
         <SectionTitle
@@ -44,7 +52,7 @@ export default function HomePage() {
           href="/kinerja"
           linkLabel="Lihat detail"
         />
-        <SurveyWidget />
+        <SurveyWidget data={surveyData} />
       </section>
 
       <section className="grid gap-8 lg:grid-cols-3">
@@ -83,7 +91,7 @@ export default function HomePage() {
           title="Acara Seru Mendatang"
           subtitle="Yuk ikutan kegiatan edukasi gizi!"
         />
-        <EventCarousel events={mockEvents} />
+        <EventCarousel events={events} />
       </section>
 
       <section>
@@ -95,7 +103,7 @@ export default function HomePage() {
           linkLabel="Semua laporan"
         />
         <div className="grid gap-4 sm:grid-cols-2">
-          {mockPublications.map((pub) => (
+          {publications.map((pub) => (
             <Card key={pub.id} className="charming-card border-0">
               <CardContent className="p-5">
                 <p className="text-xs font-bold text-primary">{pub.period}</p>
@@ -108,12 +116,7 @@ export default function HomePage() {
       </section>
 
       <section>
-        <SectionTitle
-          emoji="📰"
-          title="Berita Terbaru"
-          href="/berita"
-          linkLabel="Lihat semua"
-        />
+        <SectionTitle emoji="📰" title="Berita Terbaru" href="/berita" linkLabel="Lihat semua" />
         <Card className="charming-card border-0">
           <CardContent className="p-4">
             {latest.map((article) => (

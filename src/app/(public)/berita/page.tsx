@@ -2,7 +2,7 @@ import Link from "next/link";
 import { NewsListItem } from "@/components/news/news-list-item";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockArticles } from "@/lib/mock-data";
+import { getPublishedArticles } from "@/lib/queries";
 
 const categories = ["Semua", "Berita", "Kegiatan", "Pengumuman", "Event"];
 
@@ -10,8 +10,9 @@ export const metadata = {
   title: "Berita",
 };
 
-export default function BeritaPage() {
-  const popular = mockArticles.filter((a) => a.isPopular);
+export default async function BeritaPage() {
+  const articles = await getPublishedArticles();
+  const popular = articles.filter((a) => a.isPopular);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -38,7 +39,7 @@ export default function BeritaPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardContent className="p-4">
-              {mockArticles.map((article) => (
+              {articles.map((article) => (
                 <NewsListItem key={article.id} {...article} />
               ))}
             </CardContent>

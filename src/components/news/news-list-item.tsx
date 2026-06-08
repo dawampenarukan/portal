@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { ArticleCoverImage } from "@/components/news/article-cover-image";
 import { formatRelativeTime } from "@/lib/utils";
 
 interface NewsListItemProps {
@@ -8,6 +9,7 @@ interface NewsListItemProps {
   excerpt: string;
   category: string;
   publishedAt: string;
+  coverImage?: string | null;
   isPopular?: boolean;
 }
 
@@ -17,12 +19,13 @@ export function NewsListItem({
   excerpt,
   category,
   publishedAt,
+  coverImage,
   isPopular,
 }: NewsListItemProps) {
   return (
     <article className="flex gap-4 border-b border-border/60 py-4 last:border-b-0">
-      <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-secondary/70 to-accent text-3xl">
-        📰
+      <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl">
+        <ArticleCoverImage src={coverImage} alt={title} fallbackEmoji="📰" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2">

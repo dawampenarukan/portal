@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { MenuCategory } from "@/lib/menu-data";
+import { MENU_CATEGORY_ID_TO_TYPE, MenuCategory } from "@/lib/menu-meta";
 
 interface MenuRequestFormProps {
   category: MenuCategory;
@@ -13,6 +13,44 @@ interface MenuRequestFormProps {
 
 export function MenuRequestForm({ category }: MenuRequestFormProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [requesterName, setRequesterName] = useState("");
+  const [menuName, setMenuName] = useState("");
+  const [reason, setReason] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/menu-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requesterName,
+          category: MENU_CATEGORY_ID_TO_TYPE[category.id],
+          menuName,
+          reason,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Gagal mengirim request");
+      }
+
+      setSubmitted(true);
+      setRequesterName("");
+      setMenuName("");
+      setReason("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengirim request");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (submitted) {
     return (
@@ -40,34 +78,41 @@ export function MenuRequestForm({ category }: MenuRequestFormProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Nama Kamu *</label>
-            <Input required placeholder="Contoh: Rina / Budi" />
+            <Input
+              required
+              placeholder="Contoh: Rina / Budi"
+              value={requesterName}
+              onChange={(e) => setRequesterName(e.target.value)}
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Kelas / Kategori *</label>
-            <Input required placeholder={category.audience} defaultValue={category.audience} readOnly />
+            <Input required placeholder={category.audience} value={category.audience} readOnly />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Menu yang Diinginkan *</label>
-            <Input required placeholder="Contoh: Nasi Ayam Bakar Sayur" />
+            <Input
+              required
+              placeholder="Contoh: Nasi Ayam Bakar Sayur"
+              value={menuName}
+              onChange={(e) => setMenuName(e.target.value)}
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Kenapa Menu Ini Disukai?</label>
             <Textarea
               rows={3}
               placeholder="Ceritakan kenapa kamu suka menu ini..."
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
             />
           </div>
-          <Button type="submit" className="w-full sm:w-auto">
-            📨 Kirim Request Menu
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full sm:w-auto" disabled={submitting}>
+            {submitting ? "Mengirim..." : "📨 Kirim Request Menu"}
           </Button>
         </form>
       </CardContent>

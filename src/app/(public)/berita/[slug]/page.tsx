@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { ArticleCoverImage } from "@/components/news/article-cover-image";
 import { CommentSection } from "@/components/news/comment-section";
 import { formatDate } from "@/lib/utils";
-import { mockArticles, mockComments } from "@/lib/mock-data";
+import { getArticleBySlug, getArticleComments } from "@/lib/queries";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -10,15 +11,17 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
-  const article = mockArticles.find((a) => a.slug === slug);
+  const article = await getArticleBySlug(slug);
   return { title: article?.title ?? "Berita" };
 }
 
 export default async function BeritaDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const article = mockArticles.find((a) => a.slug === slug);
+  const article = await getArticleBySlug(slug);
 
   if (!article) notFound();
+
+  const comments = await getArticleComments(article.id);
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-8">
@@ -32,24 +35,22 @@ export default async function BeritaDetailPage({ params }: PageProps) {
         Oleh {article.author} · {formatDate(article.publishedAt)} · 3 menit baca
       </p>
 
-      <div className="my-6 aspect-video rounded-xl bg-gradient-to-br from-primary/20 to-secondary/30" />
+      <div className="relative my-6 aspect-video overflow-hidden rounded-xl">
+        <ArticleCoverImage
+          src={article.coverImage}
+          alt={article.title}
+          fill
+          fallbackEmoji="📰"
+        />
+      </div>
 
-      <div className="prose prose-slate max-w-none">
+      <div className="prose prose-slate max-w-none whitespace-pre-line">
         <p className="text-lg leading-relaxed text-muted-foreground">{article.excerpt}</p>
-        <p className="mt-4 leading-relaxed">
-          Konten artikel lengkap akan ditampilkan di sini setelah modul CMS berita
-          terhubung ke database. Saat ini halaman ini menggunakan data contoh untuk
-          demonstrasi tampilan detail berita dan fitur komentar.
-        </p>
-        <p className="mt-4 leading-relaxed">
-          SPPG Penarukan 2 berkomitmen menyampaikan informasi yang akurat dan bermanfaat
-          bagi masyarakat, orang tua siswa, dan seluruh pemangku kepentingan program
-          makan bergizi.
-        </p>
+        <p className="mt-4 leading-relaxed">{article.content}</p>
       </div>
 
       <div className="mt-10">
-        <CommentSection comments={mockComments} />
+        <CommentSection articleId={article.id} comments={comments} />
       </div>
     </article>
   );

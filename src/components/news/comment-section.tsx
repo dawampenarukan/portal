@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageSquare, Reply } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,12 +22,47 @@ interface Comment {
 }
 
 interface CommentSectionProps {
+  articleId: string;
   comments: Comment[];
 }
 
-export function CommentSection({ comments }: CommentSectionProps) {
+export function CommentSection({ articleId, comments }: CommentSectionProps) {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [pendingNotice, setPendingNotice] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !content.trim()) return;
+
+    setSubmitting(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ articleId, guestName: name, content }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Gagal mengirim komentar");
+      }
+
+      setName("");
+      setContent("");
+      setPendingNotice(true);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengirim komentar");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <section className="rounded-xl border bg-card p-6">
@@ -37,7 +73,7 @@ export function CommentSection({ comments }: CommentSectionProps) {
 
       <form
         className="mb-8 space-y-3 rounded-lg border bg-muted/30 p-4"
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={handleSubmit}
       >
         <Input
           placeholder="Nama Anda"
@@ -49,8 +85,14 @@ export function CommentSection({ comments }: CommentSectionProps) {
           value={content}
           onChange={(e) => setContent(e.target.value)}
         />
-        <Button type="submit" disabled={!name.trim() || !content.trim()}>
-          Kirim Komentar
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {pendingNotice && (
+          <p className="text-sm text-primary">
+            Komentar terkirim! Akan tampil setelah disetujui admin.
+          </p>
+        )}
+        <Button type="submit" disabled={!name.trim() || !content.trim() || submitting}>
+          {submitting ? "Mengirim..." : "Kirim Komentar"}
         </Button>
       </form>
 

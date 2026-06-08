@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { ArticleCoverImage } from "@/components/news/article-cover-image";
 import { formatRelativeTime } from "@/lib/utils";
 
 interface HeroArticleProps {
@@ -9,6 +10,7 @@ interface HeroArticleProps {
   category: string;
   author: string;
   publishedAt: string;
+  coverImage?: string | null;
 }
 
 export function HeroArticle({
@@ -18,6 +20,7 @@ export function HeroArticle({
   category,
   author,
   publishedAt,
+  coverImage,
 }: HeroArticleProps) {
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-coral via-primary to-sky text-white shadow-xl">
@@ -45,8 +48,14 @@ export function HeroArticle({
             Baca selengkapnya →
           </Link>
         </div>
-        <div className="flex aspect-video items-center justify-center rounded-2xl bg-white/15 text-6xl backdrop-blur-sm md:text-8xl">
-          🍽️
+        <div className="relative aspect-video overflow-hidden rounded-2xl bg-white/15 backdrop-blur-sm">
+          <ArticleCoverImage
+            src={coverImage}
+            alt={title}
+            fill
+            fallbackEmoji="🍽️"
+            className="rounded-2xl"
+          />
         </div>
       </div>
     </section>

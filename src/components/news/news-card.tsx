@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ArticleCoverImage } from "@/components/news/article-cover-image";
 import { formatRelativeTime } from "@/lib/utils";
 
 const categoryEmoji: Record<string, string> = {
@@ -17,6 +18,7 @@ interface NewsCardProps {
   category: string;
   author: string;
   publishedAt: string;
+  coverImage?: string | null;
   isPopular?: boolean;
   isHighlight?: boolean;
 }
@@ -28,13 +30,18 @@ export function NewsCard({
   category,
   author,
   publishedAt,
+  coverImage,
   isPopular,
   isHighlight,
 }: NewsCardProps) {
   return (
     <Card className="charming-card group overflow-hidden border-0">
-      <div className="flex aspect-video items-center justify-center bg-gradient-to-br from-secondary/60 via-accent to-sky/40 text-5xl">
-        {categoryEmoji[category] ?? "📄"}
+      <div className="relative aspect-video overflow-hidden">
+        <ArticleCoverImage
+          src={coverImage}
+          alt={title}
+          fallbackEmoji={categoryEmoji[category] ?? "📄"}
+        />
       </div>
       <CardContent className="p-5">
         <div className="mb-2 flex flex-wrap gap-2">

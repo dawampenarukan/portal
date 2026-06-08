@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SurveyActions } from "@/components/admin/survey-actions";
+import { getAllSurveys } from "@/lib/queries";
 
 export const metadata = { title: "Kelola Survey" };
 
-export default function AdminSurveyPage() {
+export default async function AdminSurveyPage() {
+  const surveys = await getAllSurveys();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -15,37 +20,53 @@ export default function AdminSurveyPage() {
             Buat kuesioner kepuasan dan publikasikan hasilnya ke beranda.
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4" />
-          Buat Survey
-        </Button>
+        <Link href="/admin/survey/new">
+          <Button>
+            <Plus className="h-4 w-4" />
+            Buat Survey
+          </Button>
+        </Link>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Survey Aktif</CardTitle>
+          <CardTitle className="text-base">Daftar Survey</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold">Survey Kepuasan Pelanggan Juni 2026</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  5 pertanyaan · 347 responden · Periode Juni 2026
-                </p>
+        <CardContent className="space-y-4">
+          {surveys.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Belum ada survey.{" "}
+              <Link href="/admin/survey/new" className="text-primary hover:underline">
+                Buat survey pertama
+              </Link>
+            </p>
+          )}
+          {surveys.map((survey) => (
+            <div key={survey.id} className="rounded-lg border p-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold">{survey.title}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {survey.questions.length} pertanyaan · {survey.responseCount} responden
+                  </p>
+                  {survey.description && (
+                    <p className="mt-1 text-sm text-muted-foreground">{survey.description}</p>
+                  )}
+                  {survey.isActive && (
+                    <Link href={`/survey/${survey.id}`} className="mt-2 inline-block text-xs text-primary hover:underline">
+                      Lihat halaman publik →
+                    </Link>
+                  )}
+                </div>
+                <Badge variant={survey.isActive ? "success" : "secondary"}>
+                  {survey.isActive ? "Aktif" : "Nonaktif"}
+                </Badge>
               </div>
-              <Badge variant="success">Aktif</Badge>
+              <div className="mt-4">
+                <SurveyActions survey={survey} />
+              </div>
             </div>
-            <div className="mt-4 flex gap-2">
-              <Button size="sm" variant="outline">
-                Edit Pertanyaan
-              </Button>
-              <Button size="sm" variant="outline">
-                Lihat Hasil
-              </Button>
-              <Button size="sm">Publikasikan ke Beranda</Button>
-            </div>
-          </div>
+          ))}
         </CardContent>
       </Card>
     </div>

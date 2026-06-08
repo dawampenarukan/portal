@@ -1,12 +1,14 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { mockComments } from "@/lib/mock-data";
+import { CommentActions } from "@/components/admin/comment-actions";
+import { getAllComments } from "@/lib/queries";
 import { formatRelativeTime } from "@/lib/utils";
 
 export const metadata = { title: "Moderasi Komentar" };
 
-export default function AdminKomentarPage() {
+export default async function AdminKomentarPage() {
+  const comments = await getAllComments();
+
   return (
     <div className="space-y-6">
       <div>
@@ -16,27 +18,37 @@ export default function AdminKomentarPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Komentar Menunggu Review</CardTitle>
+          <CardTitle className="text-base">Semua Komentar</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {mockComments.map((comment) => (
+          {comments.length === 0 && (
+            <p className="text-sm text-muted-foreground">Belum ada komentar.</p>
+          )}
+          {comments.map((comment) => (
             <div key={comment.id} className="rounded-lg border p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="font-semibold">{comment.authorName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {formatRelativeTime(comment.createdAt)}
+                    {comment.articleTitle} · {formatRelativeTime(comment.createdAt)}
                   </p>
                   <p className="mt-2 text-sm">{comment.content}</p>
+                  {comment.replies.length > 0 && (
+                    <div className="mt-3 space-y-2 border-l-2 pl-3">
+                      {comment.replies.map((r) => (
+                        <div key={r.id} className="text-sm">
+                          <p className="font-medium">{r.authorName}</p>
+                          <p className="text-muted-foreground">{r.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <Badge variant="secondary">Pending</Badge>
+                <Badge variant={comment.isApproved ? "success" : "secondary"}>
+                  {comment.isApproved ? "Disetujui" : "Pending"}
+                </Badge>
               </div>
-              <div className="mt-3 flex gap-2">
-                <Button size="sm">Setujui</Button>
-                <Button size="sm" variant="outline">
-                  Tolak
-                </Button>
-              </div>
+              <CommentActions commentId={comment.id} isApproved={comment.isApproved ?? false} />
             </div>
           ))}
         </CardContent>

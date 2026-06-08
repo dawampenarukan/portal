@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/layout/brand-logo";
-import { Button } from "@/components/ui/button";
+import { LoginForm } from "@/components/admin/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { SITE_NAME } from "@/lib/constants";
 
 export const metadata = {
@@ -43,19 +42,7 @@ export default function AdminLoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4" action="/admin">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Email</label>
-                <Input type="email" placeholder="admin@sppg-penarukan2.id" required />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium">Password</label>
-                <Input type="password" placeholder="••••••••" required />
-              </div>
-              <Button type="submit" className="w-full">
-                Masuk
-              </Button>
-            </form>
+            <LoginForm />
             <p className="mt-6 text-center text-sm text-muted-foreground">
               <Link href="/" className="text-primary hover:underline">
                 ← Kembali ke portal publik

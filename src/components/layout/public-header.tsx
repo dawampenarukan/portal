@@ -6,10 +6,13 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { NAV_ITEMS, SITE_TAGLINE } from "@/lib/constants";
-import { trendingTopics } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 
-export function PublicHeader() {
+interface PublicHeaderProps {
+  trendingTopics: string[];
+}
+
+export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 

@@ -6,27 +6,28 @@ import { MenuRequestForm } from "@/components/menu/menu-request-form";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MENU_CATEGORIES,
-  MENU_DATA,
   MenuCategoryId,
   getMenuCategory,
-} from "@/lib/menu-data";
+  getMenuCategoryMeta,
+} from "@/lib/menu-meta";
+import type { MenuCategoryBundle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface MenuPageContentProps {
   initialCategory?: string;
+  menuData: Record<MenuCategoryId, MenuCategoryBundle>;
 }
 
-export function MenuPageContent({ initialCategory }: MenuPageContentProps) {
+export function MenuPageContent({ initialCategory, menuData }: MenuPageContentProps) {
   const [activeId, setActiveId] = useState<MenuCategoryId>(
     getMenuCategory(initialCategory ?? "porsi-kecil")
   );
 
-  const data = MENU_DATA[activeId];
-  const { category, favorites, thisWeek } = data;
+  const category = getMenuCategoryMeta(activeId);
+  const { favorites, thisWeek } = menuData[activeId];
 
   return (
     <div className="space-y-8">
-      {/* Category tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {MENU_CATEGORIES.map((cat) => (
           <button
@@ -47,13 +48,7 @@ export function MenuPageContent({ initialCategory }: MenuPageContentProps) {
         ))}
       </div>
 
-      {/* Category intro */}
-      <div
-        className={cn(
-          "rounded-3xl bg-gradient-to-r p-6 md:p-8",
-          category.color
-        )}
-      >
+      <div className={cn("rounded-3xl bg-gradient-to-r p-6 md:p-8", category.color)}>
         <div className="flex items-start gap-4">
           <span className="text-5xl">{category.emoji}</span>
           <div>
@@ -69,7 +64,6 @@ export function MenuPageContent({ initialCategory }: MenuPageContentProps) {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-5">
-        {/* Favorites */}
         <div className="lg:col-span-3">
           <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-coral/20 text-lg">
@@ -80,13 +74,10 @@ export function MenuPageContent({ initialCategory }: MenuPageContentProps) {
           <MenuFavorites favorites={favorites} />
         </div>
 
-        {/* Sidebar: this week + request */}
         <div className="space-y-6 lg:col-span-2">
           <Card className="charming-card border-0">
             <CardContent className="p-5">
-              <h3 className="mb-3 flex items-center gap-2 font-extrabold">
-                📅 Menu Minggu Ini
-              </h3>
+              <h3 className="mb-3 flex items-center gap-2 font-extrabold">📅 Menu Minggu Ini</h3>
               <ul className="space-y-2">
                 {thisWeek.map((item) => (
                   <li

@@ -13,14 +13,29 @@ import {
 } from "recharts";
 import { Heart, Star, TrendingUp, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockSurveyData } from "@/lib/mock-data";
+import type { SurveyDataView } from "@/lib/types";
 
 const CHART_GREEN = "#2e9b6a";
 const CHART_CORAL = "#ff8a65";
 
-export function SurveyWidget() {
-  const { satisfactionScore, npsScore, respondents, target, aspects, trend } =
-    mockSurveyData;
+interface SurveyWidgetProps {
+  data: SurveyDataView;
+}
+
+export function SurveyWidget({ data }: SurveyWidgetProps) {
+  const { satisfactionScore, npsScore, respondents, target, aspects, trend } = data;
+  const hasData = respondents > 0;
+
+  if (!hasData) {
+    return (
+      <Card className="charming-card border-0">
+        <CardContent className="p-8 text-center text-muted-foreground">
+          Data survey belum tersedia. Jalankan <code className="text-sm">npm run db:setup</code>{" "}
+          untuk mengisi data awal.
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -65,7 +80,7 @@ export function SurveyWidget() {
             </div>
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Target Tercapai</p>
-              <p className="text-2xl font-extrabold text-primary">{target} ✓</p>
+              <p className="text-2xl font-extrabold text-primary">{target}% ✓</p>
             </div>
           </CardContent>
         </Card>

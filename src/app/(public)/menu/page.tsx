@@ -1,4 +1,5 @@
 import { MenuPageContent } from "@/components/menu/menu-page-content";
+import { getAllMenuData } from "@/lib/queries";
 
 export const metadata = {
   title: "Menu Favorit & Request",
@@ -12,6 +13,7 @@ interface PageProps {
 
 export default async function MenuPage({ searchParams }: PageProps) {
   const { kategori } = await searchParams;
+  const menuData = await getAllMenuData();
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -21,12 +23,12 @@ export default async function MenuPage({ searchParams }: PageProps) {
           Menu Favorit & Request
         </h1>
         <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
-          Lihat menu yang paling disukai dan ajukan menu impianmu! Tersedia untuk
-          siswa SD, SMP, ibu hamil, dan balita.
+          Lihat menu yang paling disukai dan ajukan menu impianmu! Tersedia untuk siswa SD,
+          SMP, ibu hamil, dan balita.
         </p>
       </div>
 
-      <MenuPageContent initialCategory={kategori} />
+      <MenuPageContent initialCategory={kategori} menuData={menuData} />
     </div>
   );
 }

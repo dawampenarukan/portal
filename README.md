@@ -7,6 +7,7 @@ Portal publikasi berita, event, hasil survey kepuasan, dan layanan masukan masya
 - **Next.js 16** (App Router) + TypeScript
 - **Tailwind CSS v4** + komponen UI custom
 - **Prisma** + PostgreSQL
+- **NextAuth v5** — autentikasi admin
 - **Recharts** — grafik survey di beranda
 
 ## Memulai
@@ -22,15 +23,21 @@ Portal publikasi berita, event, hasil survey kepuasan, dan layanan masukan masya
 cd portal
 npm install
 cp .env.example .env
-# Edit DATABASE_URL di .env
+# Edit DATABASE_URL dan NEXTAUTH_SECRET di .env
 
-npx prisma generate
-npx prisma db push
-
+npm run db:setup   # generate, push schema, seed data
 npm run dev
 ```
 
 Buka [http://localhost:3000](http://localhost:3000)
+
+### Login Admin
+
+| Field | Nilai |
+|-------|-------|
+| URL | `/admin/login` |
+| Email | `admin@sppgpenarukan2.id` |
+| Password | `admin123` |
 
 ## Struktur Halaman
 
@@ -42,25 +49,53 @@ Buka [http://localhost:3000](http://localhost:3000)
 | `/berita/[slug]` | Detail berita + komentar |
 | `/event` | Daftar event |
 | `/kinerja` | Hasil survey & publikasi fixed |
-| `/masukan` | Form masukan & kritik |
+| `/survey/[id]` | Isi survey aktif |
+| `/masukan` | Form masukan & kritik (dengan upload foto) |
+| `/menu` | Menu favorit & request |
 
-### Admin
+### Admin (memerlukan login)
 | Route | Deskripsi |
 |-------|-----------|
-| `/admin/login` | Login admin (gaya OCTO split-screen) |
-| `/admin` | Dashboard |
-| `/admin/berita` | Kelola berita |
+| `/admin/login` | Login admin |
+| `/admin` | Dashboard live stats |
+| `/admin/berita` | CMS berita (CRUD) |
 | `/admin/event` | Kelola event |
 | `/admin/publikasi` | Publikasi fixed |
 | `/admin/komentar` | Moderasi komentar |
-| `/admin/masukan` | Inbox masukan |
-| `/admin/survey` | Kelola survey |
+| `/admin/masukan` | Inbox masukan + status |
+| `/admin/menu` | Kelola menu favorit & jadwal |
+| `/admin/survey` | Survey builder + publikasi hasil |
+
+## API Routes
+
+| Endpoint | Auth | Deskripsi |
+|----------|------|-----------|
+| `POST /api/feedback` | Public | Kirim masukan |
+| `POST /api/comments` | Public | Kirim komentar (pending moderasi) |
+| `POST /api/menu-requests` | Public | Request menu |
+| `POST /api/upload` | Public | Upload gambar |
+| `POST /api/surveys/[id]/responses` | Public | Jawab survey |
+| `GET/POST /api/articles` | Admin | CRUD berita |
+| `GET/PATCH/DELETE /api/articles/[id]` | Admin | Edit/hapus berita |
+| `GET/POST /api/events` | Admin | CRUD event |
+| `GET/POST /api/publications` | Admin | CRUD publikasi |
+| `GET/POST /api/surveys` | Admin | Survey builder |
+| `POST /api/surveys/[id]/publish` | Admin | Agregasi & publikasi ke beranda |
+
+## Scripts
+
+```bash
+npm run dev          # Development server
+npm run build        # Production build
+npm run db:setup     # Setup database + seed
+npm run db:studio    # Prisma Studio
+```
 
 ## Status Development
 
-Saat ini menggunakan **mock data** untuk demonstrasi UI. Fase berikutnya:
-1. Koneksi database & API routes
-2. Autentikasi admin (NextAuth)
-3. Upload gambar masukan
-4. CMS berita lengkap
-5. Survey builder & agregasi hasil
+Semua item roadmap selesai:
+1. ✅ Koneksi database & API routes CRUD lengkap
+2. ✅ Autentikasi admin (NextAuth + middleware)
+3. ✅ Upload gambar masukan
+4. ✅ CMS berita lengkap
+5. ✅ Survey builder & agregasi hasil ke beranda

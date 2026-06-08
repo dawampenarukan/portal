@@ -1,8 +1,8 @@
-import { FavoriteMenu } from "@/lib/menu-data";
+import type { FavoriteMenuView } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface MenuFavoritesProps {
-  favorites: FavoriteMenu[];
+  favorites: FavoriteMenuView[];
 }
 
 export function MenuFavorites({ favorites }: MenuFavoritesProps) {

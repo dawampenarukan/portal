@@ -9,11 +9,11 @@ import {
   ClipboardList,
   Inbox,
   LayoutDashboard,
-  LogOut,
   MessageSquare,
   Newspaper,
   UtensilsCrossed,
 } from "lucide-react";
+import { LogoutButton } from "@/components/admin/logout-button";
 import { ADMIN_NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -63,14 +63,14 @@ export function AdminSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
+      <div className="border-t border-white/10 p-3 space-y-1">
         <Link
           href="/"
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-primary-foreground/80 transition hover:bg-white/10 hover:text-white"
         >
-          <LogOut className="h-4 w-4" />
-          Kembali ke Portal
+          ← Portal Publik
         </Link>
+        <LogoutButton />
       </div>
     </aside>
   );

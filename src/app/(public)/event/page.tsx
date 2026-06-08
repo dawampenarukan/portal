@@ -1,13 +1,15 @@
 import { Calendar } from "lucide-react";
 import { EventCarousel } from "@/components/event/event-carousel";
 import { Card, CardContent } from "@/components/ui/card";
-import { mockEvents } from "@/lib/mock-data";
+import { getPublishedEvents } from "@/lib/queries";
 
 export const metadata = {
   title: "Event",
 };
 
-export default function EventPage() {
+export default async function EventPage() {
+  const events = await getPublishedEvents();
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <div className="mb-8">
@@ -22,13 +24,13 @@ export default function EventPage() {
 
       <section className="mb-10">
         <h2 className="mb-4 text-lg font-semibold">Event Mendatang</h2>
-        <EventCarousel events={mockEvents} />
+        <EventCarousel events={events} />
       </section>
 
       <section>
         <h2 className="mb-4 text-lg font-semibold">Semua Event</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {mockEvents.map((event) => (
+          {events.map((event) => (
             <Card key={event.id}>
               <CardContent className="p-5">
                 <div className="mb-3 aspect-video rounded-lg bg-gradient-to-br from-primary/15 to-secondary/25" />

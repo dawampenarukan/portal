@@ -212,3 +212,15 @@ model MenuRequest {
 
   @@index([category, status])
 }
+
+model WeeklyMenuEntry {
+  id        String           @id @default(cuid())
+  category  MenuCategoryType
+  dayLabel  String
+  menuText  String
+  sortOrder Int              @default(0)
+  isActive  Boolean          @default(true)
+  updatedAt DateTime         @updatedAt
+
+  @@index([category, sortOrder])
+}

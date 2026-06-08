@@ -1,11 +1,14 @@
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { mockPublications } from "@/lib/mock-data";
+import { getAllPublications } from "@/lib/queries";
 
 export const metadata = { title: "Publikasi Fixed" };
 
-export default function AdminPublikasiPage() {
+export default async function AdminPublikasiPage() {
+  const publications = await getAllPublications();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -15,14 +18,16 @@ export default function AdminPublikasiPage() {
             Kelola laporan kinerja dan hasil survey yang ditampilkan di beranda.
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4" />
-          Buat Publikasi
-        </Button>
+        <Link href="/admin/publikasi/new">
+          <Button>
+            <Plus className="h-4 w-4" />
+            Buat Publikasi
+          </Button>
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {mockPublications.map((pub) => (
+        {publications.map((pub) => (
           <Card key={pub.id}>
             <CardHeader>
               <CardTitle className="text-base">{pub.title}</CardTitle>
@@ -30,9 +35,11 @@ export default function AdminPublikasiPage() {
             <CardContent>
               <p className="text-sm text-primary">{pub.period}</p>
               <p className="mt-2 text-sm text-muted-foreground">{pub.summary}</p>
-              <Button variant="outline" size="sm" className="mt-4">
-                Edit
-              </Button>
+              <Link href={`/admin/publikasi/${pub.id}/edit`}>
+                <Button variant="outline" size="sm" className="mt-4">
+                  Edit
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         ))}
