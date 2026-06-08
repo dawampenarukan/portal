@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
+import { MENU_DATA_TAG } from "@/lib/cached-queries";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
     });
 
     await syncMenuItemFromWeekly(categoryType, trimmedMenu, menuEmoji);
+    revalidatePublicContent({ menu: true });
+    revalidateTag(MENU_DATA_TAG);
 
     return NextResponse.json(entry, { status: 201 });
   } catch {

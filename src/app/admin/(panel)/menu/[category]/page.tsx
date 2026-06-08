@@ -1,18 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
-import { MenuFavoritesSummary } from "@/components/admin/menu-favorites-summary";
-import { WeeklyMenuManager } from "@/components/admin/weekly-menu-manager";
-import { MenuRequestsManager } from "@/components/admin/menu-requests-manager";
-import {
-  getMenuCategoryMeta,
-  isMenuCategoryId,
-  MENU_CATEGORY_ID_TO_TYPE,
-  type MenuCategoryId,
-} from "@/lib/menu-meta";
-import { getAdminMenuItems, getAdminWeeklyMenu, getMenuRequests } from "@/lib/queries";
-import { safeQuery } from "@/lib/safe-db";
-import type { MenuItemAdminView, MenuRequestView, WeeklyMenuEntryView } from "@/lib/types";
+import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
+import { AdminMenuFavoritesSection } from "@/components/admin/admin-menu-favorites-section";
+import { AdminMenuWeeklySection } from "@/components/admin/admin-menu-weekly-section";
+import { AdminMenuRequestsSection } from "@/components/admin/admin-menu-requests-section";
+import { getMenuCategoryMeta, isMenuCategoryId, type MenuCategoryId } from "@/lib/menu-meta";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -29,37 +22,11 @@ export default async function AdminMenuCategoryPage({ params }: Props) {
 
   const categoryId: MenuCategoryId = rawId;
   const meta = getMenuCategoryMeta(categoryId);
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
-
-  const [items, weekly, requests] = await Promise.all([
-    safeQuery(() => getAdminMenuItems(categoryId), [] as MenuItemAdminView[], "admin/getAdminMenuItems"),
-    safeQuery(
-      () => getAdminWeeklyMenu(categoryId),
-      [] as WeeklyMenuEntryView[],
-      "admin/getAdminWeeklyMenu"
-    ),
-    safeQuery(
-      () => getMenuRequests(categoryType).then((rows) =>
-        rows.map(
-          (r): MenuRequestView => ({
-            id: r.id,
-            requesterName: r.requesterName,
-            menuName: r.menuName,
-            reason: r.reason,
-            status: r.status,
-            createdAt: r.createdAt.toISOString(),
-          })
-        )
-      ),
-      [] as MenuRequestView[],
-      "admin/getMenuRequests"
-    ),
-  ]);
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/admin/menu" className="text-sm text-primary hover:underline">
+        <Link href="/admin/menu" prefetch={false} className="text-sm text-primary hover:underline">
           ← Kembali ke Kelola Menu
         </Link>
         <div className="mt-2 flex items-center gap-3">
@@ -72,24 +39,17 @@ export default async function AdminMenuCategoryPage({ params }: Props) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardContent className="p-6">
-            <MenuFavoritesSummary items={items} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <WeeklyMenuManager categoryId={categoryId} initialEntries={weekly} />
-          </CardContent>
-        </Card>
+        <Suspense fallback={<AdminCardSkeleton rows={5} />}>
+          <AdminMenuFavoritesSection categoryId={categoryId} />
+        </Suspense>
+        <Suspense fallback={<AdminCardSkeleton rows={6} />}>
+          <AdminMenuWeeklySection categoryId={categoryId} />
+        </Suspense>
       </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <MenuRequestsManager initialRequests={requests} />
-        </CardContent>
-      </Card>
+      <Suspense fallback={<AdminCardSkeleton rows={3} />}>
+        <AdminMenuRequestsSection categoryId={categoryId} />
+      </Suspense>
 
       <p className="text-sm text-muted-foreground">
         Perubahan langsung tampil di halaman publik{" "}

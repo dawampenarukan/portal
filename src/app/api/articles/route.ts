@@ -3,6 +3,7 @@ import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -61,6 +62,8 @@ export async function POST(request: Request) {
         categoryId: categoryId as string,
       },
     });
+
+    revalidatePublicContent({ articles: true });
 
     return NextResponse.json(article, { status: 201 });
   } catch {

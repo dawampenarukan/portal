@@ -1,8 +1,10 @@
 import { MenuPageContent } from "@/components/menu/menu-page-content";
-import { getAllMenuData } from "@/lib/queries";
-import { getFavoritedMenuItemIds, getVoterKeyFromCookies } from "@/lib/menu-vote";
+import { getMenuDataByCategoryCached } from "@/lib/cached-queries";
+import { getMenuCategory } from "@/lib/menu-meta";
 import { safeQuery } from "@/lib/safe-db";
-import { EMPTY_MENU_DATA } from "@/lib/menu-fallbacks";
+import type { MenuCategoryBundle } from "@/lib/types";
+
+export const revalidate = 30;
 
 export const metadata = {
   title: "Menu Favorit & Request",
@@ -10,17 +12,21 @@ export const metadata = {
     "Lihat menu favorit dan ajukan request menu untuk Porsi Kecil, Porsi Besar, Ibu Hamil, dan Balita.",
 };
 
+const emptyBundle: MenuCategoryBundle = { favorites: [], thisWeek: [] };
+
 interface PageProps {
   searchParams: Promise<{ kategori?: string }>;
 }
 
 export default async function MenuPage({ searchParams }: PageProps) {
   const { kategori } = await searchParams;
-  const [menuData, voterKey] = await Promise.all([
-    safeQuery(() => getAllMenuData(), EMPTY_MENU_DATA, "getAllMenuData"),
-    getVoterKeyFromCookies(),
-  ]);
-  const favoritedIds = await getFavoritedMenuItemIds(voterKey);
+  const categoryId = getMenuCategory(kategori ?? "porsi-kecil");
+
+  const initialMenuData = await safeQuery(
+    () => getMenuDataByCategoryCached(categoryId),
+    emptyBundle,
+    "getMenuDataByCategory"
+  );
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -35,11 +41,7 @@ export default async function MenuPage({ searchParams }: PageProps) {
         </p>
       </div>
 
-      <MenuPageContent
-        initialCategory={kategori}
-        menuData={menuData}
-        favoritedIds={favoritedIds}
-      />
+      <MenuPageContent initialCategory={kategori} initialMenuData={initialMenuData} />
     </div>
   );
 }

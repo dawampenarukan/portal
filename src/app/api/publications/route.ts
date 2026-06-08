@@ -3,6 +3,7 @@ import { PublicationType } from "@prisma/client";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
         publishedAt: isPublished ? (publishedAt ? new Date(publishedAt as string) : new Date()) : null,
       },
     });
+
+    revalidatePublicContent({ publications: true, survey: true });
 
     return NextResponse.json(pub, { status: 201 });
   } catch {

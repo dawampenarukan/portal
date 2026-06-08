@@ -6,15 +6,18 @@ import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { NAV_ITEMS, SITE_TAGLINE } from "@/lib/constants";
+import { normalizeTrendingTopics } from "@/lib/trending-topics";
+import type { TrendingTopicView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface PublicHeaderProps {
-  trendingTopics: string[];
+  trendingTopics: TrendingTopicView[];
 }
 
 export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const topics = normalizeTrendingTopics(trendingTopics);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-white/90 backdrop-blur-md">
@@ -23,13 +26,14 @@ export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
           <span className="shrink-0 rounded-full bg-white/25 px-2.5 py-0.5 font-bold text-white">
             ✨ Lagi ramai
           </span>
-          {trendingTopics.map((topic) => (
+          {topics.map((topic) => (
             <Link
-              key={topic}
-              href="/berita"
+              key={topic.id}
+              href={topic.href}
+              prefetch={true}
               className="shrink-0 rounded-full bg-white/20 px-3 py-1 font-medium text-white transition hover:bg-white/35"
             >
-              {topic}
+              {topic.title}
             </Link>
           ))}
         </div>

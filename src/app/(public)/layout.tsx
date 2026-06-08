@@ -2,13 +2,7 @@ import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
 import { getTrendingTopicsCached } from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
-
-const FALLBACK_TOPICS = [
-  "Menu Favorit Minggu Ini 🍽️",
-  "Request Menu Porsi Kecil 🧒",
-  "Tips Gizi Buat Ibu Hamil 🤰",
-  "Yuk Isi Survey! ⭐",
-];
+import { FALLBACK_TRENDING_TOPICS, normalizeTrendingTopics } from "@/lib/trending-topics";
 
 export const revalidate = 60;
 
@@ -17,10 +11,12 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const trendingTopics = await safeQuery(
-    () => getTrendingTopicsCached(),
-    FALLBACK_TOPICS,
-    "getTrendingTopics"
+  const trendingTopics = normalizeTrendingTopics(
+    await safeQuery(
+      () => getTrendingTopicsCached(),
+      FALLBACK_TRENDING_TOPICS,
+      "getTrendingTopics"
+    )
   );
 
   return (

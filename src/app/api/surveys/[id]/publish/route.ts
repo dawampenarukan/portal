@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { syncSurveyPublication } from "@/lib/survey-aggregation";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +18,8 @@ export async function POST(_request: Request, { params }: Params) {
 
     const chartData = await syncSurveyPublication(id, { publish: true });
     if (!chartData) return notFound("Survey tidak ditemukan");
+
+    revalidatePublicContent({ survey: true, publications: true });
 
     return NextResponse.json({ chartData });
   } catch {

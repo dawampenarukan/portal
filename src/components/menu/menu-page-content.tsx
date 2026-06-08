@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { MenuFavorites } from "@/components/menu/menu-favorites";
 import { MenuRequestForm } from "@/components/menu/menu-request-form";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,17 +15,64 @@ import { cn } from "@/lib/utils";
 
 interface MenuPageContentProps {
   initialCategory?: string;
-  menuData: Record<MenuCategoryId, MenuCategoryBundle>;
-  favoritedIds: string[];
+  initialMenuData: MenuCategoryBundle;
 }
 
-export function MenuPageContent({ initialCategory, menuData, favoritedIds }: MenuPageContentProps) {
-  const [activeId, setActiveId] = useState<MenuCategoryId>(
-    getMenuCategory(initialCategory ?? "porsi-kecil")
+export function MenuPageContent({
+  initialCategory,
+  initialMenuData,
+}: MenuPageContentProps) {
+  const activeIdDefault = getMenuCategory(initialCategory ?? "porsi-kecil");
+  const [activeId, setActiveId] = useState<MenuCategoryId>(activeIdDefault);
+  const [bundles, setBundles] = useState<Record<MenuCategoryId, MenuCategoryBundle | undefined>>({
+    [activeIdDefault]: initialMenuData,
+  });
+  const [loadingCategory, setLoadingCategory] = useState<MenuCategoryId | null>(null);
+  const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/menu-votes/mine")
+      .then((res) => (res.ok ? res.json() : { favoritedIds: [] }))
+      .then((data: { favoritedIds: string[] }) => setFavoritedIds(data.favoritedIds ?? []))
+      .catch(() => setFavoritedIds([]));
+  }, []);
+
+  const prefetchCategory = useCallback(
+    (id: MenuCategoryId) => {
+      if (bundles[id]) return;
+      fetch(`/api/menu-data?category=${id}`).then(async (res) => {
+        if (res.ok) {
+          const data = (await res.json()) as MenuCategoryBundle;
+          setBundles((prev) => (prev[id] ? prev : { ...prev, [id]: data }));
+        }
+      });
+    },
+    [bundles]
+  );
+
+  const switchCategory = useCallback(
+    async (id: MenuCategoryId) => {
+      setActiveId(id);
+      if (bundles[id]) return;
+
+      setLoadingCategory(id);
+      try {
+        const res = await fetch(`/api/menu-data?category=${id}`);
+        if (res.ok) {
+          const data = (await res.json()) as MenuCategoryBundle;
+          setBundles((prev) => ({ ...prev, [id]: data }));
+        }
+      } finally {
+        setLoadingCategory(null);
+      }
+    },
+    [bundles]
   );
 
   const category = getMenuCategoryMeta(activeId);
-  const { favorites, thisWeek } = menuData[activeId];
+  const bundle = bundles[activeId];
+  const favorites = bundle?.favorites ?? [];
+  const thisWeek = bundle?.thisWeek ?? [];
 
   return (
     <div className="space-y-8">
@@ -34,7 +81,9 @@ export function MenuPageContent({ initialCategory, menuData, favoritedIds }: Men
           <button
             key={cat.id}
             type="button"
-            onClick={() => setActiveId(cat.id)}
+            onClick={() => switchCategory(cat.id)}
+            onMouseEnter={() => prefetchCategory(cat.id)}
+            onFocus={() => prefetchCategory(cat.id)}
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-all",
               activeId === cat.id
@@ -72,11 +121,19 @@ export function MenuPageContent({ initialCategory, menuData, favoritedIds }: Men
             </span>
             Menu Favorit
           </h3>
-          <MenuFavorites
-            key={activeId}
-            favorites={favorites}
-            favoritedIds={favoritedIds}
-          />
+          {loadingCategory === activeId ? (
+            <div className="space-y-3 animate-pulse">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-24 rounded-xl bg-muted/60" />
+              ))}
+            </div>
+          ) : (
+            <MenuFavorites
+              key={activeId}
+              favorites={favorites}
+              favoritedIds={favoritedIds}
+            />
+          )}
         </div>
 
         <div className="space-y-6 lg:col-span-2">

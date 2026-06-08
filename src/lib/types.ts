@@ -14,6 +14,12 @@ export interface ArticleView {
   status?: string;
 }
 
+export interface TrendingTopicView {
+  id: string;
+  title: string;
+  href: string;
+}
+
 export interface EventView {
   id: string;
   title: string;
@@ -133,4 +139,10 @@ export interface MenuRequestView {
   reason: string | null;
   status: string;
   createdAt: string;
+}
+
+export interface AdminMenuOverviewCard {
+  topFavorite: { name: string; votes: number } | null;
+  weeklyCount: number;
+  newRequests: number;
 }

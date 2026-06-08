@@ -28,7 +28,11 @@ const iconMap = {
   ClipboardList,
 };
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  newFeedbackCount?: number;
+}
+
+export function AdminSidebar({ newFeedbackCount = 0 }: AdminSidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -58,7 +62,12 @@ export function AdminSidebar() {
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.href === "/admin/masukan" && newFeedbackCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-coral px-1.5 text-[10px] font-bold text-white">
+                  {newFeedbackCount > 99 ? "99+" : newFeedbackCount}
+                </span>
+              )}
             </Link>
           );
         })}

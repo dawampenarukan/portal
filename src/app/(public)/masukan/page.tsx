@@ -5,13 +5,27 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  FEEDBACK_CATEGORIES,
+  validateFeedbackEmail,
+  validateFeedbackForm,
+  validateFeedbackPhone,
+} from "@/lib/feedback-form";
+import { cn } from "@/lib/utils";
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="mt-1 text-xs text-destructive">{message}</p>;
+}
 
 export default function MasukanPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -20,6 +34,15 @@ export default function MasukanPage() {
   const [description, setDescription] = useState("");
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 5);
@@ -32,10 +55,29 @@ export default function MasukanPage() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function validateField(field: "email" | "phone") {
+    const errorMsg =
+      field === "email" ? validateFeedbackEmail(email) : validateFeedbackPhone(phone);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (errorMsg) next[field] = errorMsg;
+      else delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError("");
+
+    const errors = validateFeedbackForm({ name, email, phone, category, title, description });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+    setSubmitting(true);
 
     try {
       let images: string[] = [];
@@ -57,6 +99,7 @@ export default function MasukanPage() {
 
       if (!res.ok) {
         const data = await res.json();
+        if (data.errors) setFieldErrors(data.errors);
         throw new Error(data.error ?? "Gagal mengirim masukan");
       }
 
@@ -66,6 +109,20 @@ export default function MasukanPage() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function resetForm() {
+    setSubmitted(false);
+    setName("");
+    setEmail("");
+    setPhone("");
+    setCategory("");
+    setTitle("");
+    setDescription("");
+    setImageFiles([]);
+    setImagePreviews([]);
+    setFieldErrors({});
+    setError("");
   }
 
   if (submitted) {
@@ -78,20 +135,7 @@ export default function MasukanPage() {
         <p className="mt-2 text-muted-foreground">
           Masukan kamu sudah kami terima. Tim SPPG akan segera meninjau dan menindaklanjuti.
         </p>
-        <Button
-          className="mt-6"
-          onClick={() => {
-            setSubmitted(false);
-            setName("");
-            setEmail("");
-            setPhone("");
-            setCategory("");
-            setTitle("");
-            setDescription("");
-            setImageFiles([]);
-            setImagePreviews([]);
-          }}
-        >
+        <Button className="mt-6" onClick={resetForm}>
           Kirim Masukan Lain
         </Button>
       </div>
@@ -117,7 +161,7 @@ export default function MasukanPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-4" onSubmit={handleSubmit} noValidate>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Nama Lengkap *</label>
@@ -125,8 +169,13 @@ export default function MasukanPage() {
                   required
                   placeholder="Nama Anda"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    clearFieldError("name");
+                  }}
+                  className={cn(fieldErrors.name && "border-destructive")}
                 />
+                <FieldError message={fieldErrors.name} />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Email</label>
@@ -134,8 +183,14 @@ export default function MasukanPage() {
                   type="email"
                   placeholder="email@contoh.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearFieldError("email");
+                  }}
+                  onBlur={() => validateField("email")}
+                  className={cn(fieldErrors.email && "border-destructive")}
                 />
+                <FieldError message={fieldErrors.email} />
               </div>
             </div>
 
@@ -143,18 +198,38 @@ export default function MasukanPage() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Telepon</label>
                 <Input
+                  type="tel"
+                  inputMode="tel"
                   placeholder="08xxxxxxxxxx"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    clearFieldError("phone");
+                  }}
+                  onBlur={() => validateField("phone")}
+                  className={cn(fieldErrors.phone && "border-destructive")}
                 />
+                <FieldError message={fieldErrors.phone} />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Kategori</label>
-                <Input
-                  placeholder="Saran / Kritik / Laporan Temuan"
+                <label className="mb-1.5 block text-sm font-medium">Kategori *</label>
+                <Select
+                  required
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                />
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    clearFieldError("category");
+                  }}
+                  className={cn(fieldErrors.category && "border-destructive")}
+                >
+                  <option value="">Pilih kategori</option>
+                  {FEEDBACK_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </Select>
+                <FieldError message={fieldErrors.category} />
               </div>
             </div>
 
@@ -164,8 +239,13 @@ export default function MasukanPage() {
                 required
                 placeholder="Ringkasan masukan Anda"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  clearFieldError("title");
+                }}
+                className={cn(fieldErrors.title && "border-destructive")}
               />
+              <FieldError message={fieldErrors.title} />
             </div>
 
             <div>
@@ -175,8 +255,13 @@ export default function MasukanPage() {
                 rows={5}
                 placeholder="Jelaskan masukan atau temuan Anda secara detail..."
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => {
+                  setDescription(e.target.value);
+                  clearFieldError("description");
+                }}
+                className={cn(fieldErrors.description && "border-destructive")}
               />
+              <FieldError message={fieldErrors.description} />
             </div>
 
             <div>

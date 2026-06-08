@@ -1,7 +1,7 @@
 import { Calendar } from "lucide-react";
 import { EventCarousel } from "@/components/event/event-carousel";
 import { Card, CardContent } from "@/components/ui/card";
-import { getPublishedEvents } from "@/lib/queries";
+import { getPublishedEventsCached } from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
 
 export const metadata = {
@@ -11,7 +11,7 @@ export const metadata = {
 export const revalidate = 60;
 
 export default async function EventPage() {
-  const events = await safeQuery(() => getPublishedEvents(), [], "getPublishedEvents");
+  const events = await safeQuery(() => getPublishedEventsCached(), [], "getPublishedEvents");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">

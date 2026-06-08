@@ -4,19 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { SurveyView } from "@/lib/types";
-
 interface SurveyActionsProps {
-  survey: SurveyView;
+  surveyId: string;
 }
 
-export function SurveyActions({ survey }: SurveyActionsProps) {
+export function SurveyActions({ surveyId }: SurveyActionsProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handlePublish() {
     setLoading(true);
-    await fetch(`/api/surveys/${survey.id}/publish`, { method: "POST" });
+    await fetch(`/api/surveys/${surveyId}/publish`, { method: "POST" });
     setLoading(false);
     router.refresh();
   }
@@ -24,14 +22,14 @@ export function SurveyActions({ survey }: SurveyActionsProps) {
   async function handleDelete() {
     if (!confirm("Hapus survey ini?")) return;
     setLoading(true);
-    await fetch(`/api/surveys/${survey.id}`, { method: "DELETE" });
+    await fetch(`/api/surveys/${surveyId}`, { method: "DELETE" });
     setLoading(false);
     router.refresh();
   }
 
   return (
     <div className="flex gap-2">
-      <Link href={`/admin/survey/${survey.id}/edit`}>
+      <Link href={`/admin/survey/${surveyId}/edit`} prefetch={false}>
         <Button size="sm" variant="outline">Edit</Button>
       </Link>
       <Button size="sm" variant="secondary" onClick={handlePublish} disabled={loading}>

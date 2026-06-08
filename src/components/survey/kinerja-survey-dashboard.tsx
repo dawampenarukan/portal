@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { SurveyWidget } from "@/components/dashboard/survey-widget";
+import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
 import { FillSurveyButton } from "@/components/survey/fill-survey-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -90,7 +90,7 @@ export function KinerjaSurveyDashboard({
         <FillSurveyButton surveys={activeSurveys} />
       </div>
 
-      <SurveyWidget data={surveyData} fillSurveyHref={fillHref} />
+      <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillHref} />
 
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

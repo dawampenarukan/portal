@@ -15,6 +15,7 @@ import {
   MENU_CATEGORY_TYPE_TO_ID,
   MenuCategoryId,
 } from "@/lib/menu-meta";
+import { FALLBACK_TRENDING_TOPICS } from "@/lib/trending-topics";
 import type {
   ArticleView,
   CommentView,
@@ -25,6 +26,8 @@ import type {
   SurveyView,
   SurveyPublicationView,
   DashboardStats,
+  AdminMenuOverviewCard,
+  TrendingTopicView,
 } from "@/lib/types";
 
 type ArticleRecord = {
@@ -232,12 +235,32 @@ export async function getPublishedEvents(): Promise<EventView[]> {
   const events = await prisma.event.findMany({
     where: { isPublished: true },
     orderBy: { startAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      location: true,
+      startAt: true,
+      endAt: true,
+    },
   });
   return events.map(mapEvent);
 }
 
 export async function getAllEvents(): Promise<EventView[]> {
-  const events = await prisma.event.findMany({ orderBy: { startAt: "asc" } });
+  const events = await prisma.event.findMany({
+    orderBy: { startAt: "asc" },
+    select: {
+      id: true,
+      title: true,
+      location: true,
+      startAt: true,
+      endAt: true,
+      slug: true,
+      description: true,
+      coverImage: true,
+      isPublished: true,
+    },
+  });
   return events.map(mapEventAdmin);
 }
 
@@ -250,6 +273,13 @@ export async function getPublishedPublications(): Promise<PublicationView[]> {
   const pubs = await prisma.publication.findMany({
     where: { isPublished: true },
     orderBy: { publishedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      period: true,
+      type: true,
+      summary: true,
+    },
   });
   return pubs.map(mapPublication);
 }
@@ -324,6 +354,17 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
     prisma.publication.findMany({
       where: { type: PublicationType.SURVEY_RESULT },
       orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        period: true,
+        type: true,
+        summary: true,
+        content: true,
+        chartData: true,
+        isPublished: true,
+      },
     }),
     prisma.survey.findMany({ select: { id: true, title: true } }),
   ]);
@@ -347,6 +388,13 @@ export async function getPerformancePublications(): Promise<PublicationView[]> {
   const pubs = await prisma.publication.findMany({
     where: { isPublished: true, type: { not: PublicationType.SURVEY_RESULT } },
     orderBy: { publishedAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      period: true,
+      type: true,
+      summary: true,
+    },
   });
   return pubs.map(mapPublication);
 }
@@ -595,20 +643,73 @@ export async function getAllMenuData(): Promise<
 export async function getMenuPreviewTopItems(): Promise<
   Record<MenuCategoryId, { emoji: string; name: string } | null>
 > {
-  const items = await prisma.menuItem.findMany({
-    select: { category: true, emoji: true, name: true, votes: true },
-    orderBy: { votes: "desc" },
-  });
-
   const result = {} as Record<MenuCategoryId, { emoji: string; name: string } | null>;
 
-  for (const type of Object.values(MenuCategoryType)) {
-    const id = MENU_CATEGORY_TYPE_TO_ID[type];
-    const top = items.find((item) => item.category === type);
-    result[id] = top ? { emoji: top.emoji ?? "🍽️", name: top.name } : null;
-  }
+  await Promise.all(
+    Object.values(MenuCategoryType).map(async (type) => {
+      const top = await prisma.menuItem.findFirst({
+        where: { category: type },
+        orderBy: { votes: "desc" },
+        select: { emoji: true, name: true },
+      });
+      const id = MENU_CATEGORY_TYPE_TO_ID[type];
+      result[id] = top ? { emoji: top.emoji ?? "🍽️", name: top.name } : null;
+    })
+  );
 
   return result;
+}
+
+export async function getAdminMenuOverview(): Promise<
+  Record<MenuCategoryId, AdminMenuOverviewCard>
+> {
+  const ids: MenuCategoryId[] = ["porsi-kecil", "porsi-besar", "ibu-hamil", "balita"];
+  const requestCounts = await getMenuRequestCounts();
+
+  const stats = await Promise.all(
+    ids.map(async (id) => {
+      const categoryType = MENU_CATEGORY_ID_TO_TYPE[id];
+      const [topFavorite, weeklyCount] = await Promise.all([
+        prisma.menuItem.findFirst({
+          where: { category: categoryType },
+          orderBy: { votes: "desc" },
+          select: { name: true, votes: true },
+        }),
+        prisma.weeklyMenuEntry.count({
+          where: { category: categoryType, isActive: true },
+        }),
+      ]);
+
+      return {
+        id,
+        topFavorite,
+        weeklyCount,
+      };
+    })
+  );
+
+  return {
+    "porsi-kecil": {
+      topFavorite: stats[0].topFavorite,
+      weeklyCount: stats[0].weeklyCount,
+      newRequests: requestCounts["porsi-kecil"],
+    },
+    "porsi-besar": {
+      topFavorite: stats[1].topFavorite,
+      weeklyCount: stats[1].weeklyCount,
+      newRequests: requestCounts["porsi-besar"],
+    },
+    "ibu-hamil": {
+      topFavorite: stats[2].topFavorite,
+      weeklyCount: stats[2].weeklyCount,
+      newRequests: requestCounts["ibu-hamil"],
+    },
+    balita: {
+      topFavorite: stats[3].topFavorite,
+      weeklyCount: stats[3].weeklyCount,
+      newRequests: requestCounts.balita,
+    },
+  };
 }
 
 export async function getMenuRequestCounts(): Promise<Record<MenuCategoryId, number>> {
@@ -693,6 +794,27 @@ export async function getAllSurveys(): Promise<SurveyView[]> {
   }));
 }
 
+export async function getAdminSurveysList() {
+  return prisma.survey.findMany({
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      isActive: true,
+      _count: { select: { responses: true, questions: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
+export async function getActiveSurveySummaries() {
+  return prisma.survey.findMany({
+    where: { isActive: true },
+    select: { id: true, title: true },
+    orderBy: { updatedAt: "desc" },
+  });
+}
+
 export async function getActiveSurveys(): Promise<SurveyView[]> {
   const surveys = await prisma.survey.findMany({
     where: { isActive: true },
@@ -766,10 +888,19 @@ export async function getMenuItemsByCategory(categoryId: MenuCategoryId) {
   });
 }
 
-export async function getMenuRequests(category?: MenuCategoryType) {
+export async function getMenuRequests(category?: MenuCategoryType, limit = 50) {
   return prisma.menuRequest.findMany({
     where: category ? { category } : undefined,
     orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      requesterName: true,
+      menuName: true,
+      reason: true,
+      status: true,
+      createdAt: true,
+    },
   });
 }
 
@@ -778,6 +909,14 @@ export async function getAdminMenuItems(categoryId: MenuCategoryId) {
   return prisma.menuItem.findMany({
     where: { category: categoryType },
     orderBy: [{ votes: "desc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      emoji: true,
+      votes: true,
+      isActive: true,
+    },
   });
 }
 
@@ -785,10 +924,22 @@ export async function getAdminWeeklyMenu(categoryId: MenuCategoryId) {
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
   const entries = await prisma.weeklyMenuEntry.findMany({
     where: { category: categoryType },
+    select: {
+      id: true,
+      dayLabel: true,
+      menuText: true,
+      emoji: true,
+      sortOrder: true,
+      isActive: true,
+    },
   });
   return entries.sort(
     (a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder
   );
+}
+
+export async function getNewFeedbackCount(): Promise<number> {
+  return prisma.feedback.count({ where: { status: FeedbackStatus.NEW } });
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -802,21 +953,32 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   return { articleCount, pendingComments, newFeedbacks, surveyRespondents };
 }
 
-export async function getTrendingTopics(): Promise<string[]> {
-  const popular = await prisma.article.findMany({
+export async function getTrendingTopics(): Promise<TrendingTopicView[]> {
+  const select = { id: true, title: true, slug: true } as const;
+
+  let articles = await prisma.article.findMany({
     where: { status: ArticleStatus.PUBLISHED, isPopular: true },
     take: 4,
     orderBy: { publishedAt: "desc" },
+    select,
   });
 
-  if (popular.length === 0) {
-    return [
-      "Menu Favorit Minggu Ini 🍽️",
-      "Request Menu Porsi Kecil 🧒",
-      "Tips Gizi Buat Ibu Hamil 🤰",
-      "Yuk Isi Survey! ⭐",
-    ];
+  if (articles.length === 0) {
+    articles = await prisma.article.findMany({
+      where: { status: ArticleStatus.PUBLISHED },
+      take: 4,
+      orderBy: { publishedAt: "desc" },
+      select,
+    });
   }
 
-  return popular.map((a) => a.title);
+  if (articles.length === 0) {
+    return FALLBACK_TRENDING_TOPICS;
+  }
+
+  return articles.map((a) => ({
+    id: a.id,
+    title: a.title,
+    href: `/berita/${a.slug}`,
+  }));
 }

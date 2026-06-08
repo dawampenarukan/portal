@@ -1,10 +1,11 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ArticleCoverImage } from "@/components/news/article-cover-image";
-import { CommentSection } from "@/components/news/comment-section";
+import { ArticleCommentsSection } from "@/components/news/article-comments-section";
+import { ListSkeleton } from "@/components/ui/route-skeletons";
 import { formatDate } from "@/lib/utils";
 import { getArticleBySlugCached } from "@/lib/cached-queries";
-import { getArticleComments } from "@/lib/queries";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -23,8 +24,6 @@ export default async function BeritaDetailPage({ params }: PageProps) {
   const article = await getArticleBySlugCached(slug);
 
   if (!article) notFound();
-
-  const comments = await getArticleComments(article.id);
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-8">
@@ -53,7 +52,9 @@ export default async function BeritaDetailPage({ params }: PageProps) {
       </div>
 
       <div className="mt-10">
-        <CommentSection articleId={article.id} comments={comments} />
+        <Suspense fallback={<ListSkeleton rows={3} />}>
+          <ArticleCommentsSection articleId={article.id} />
+        </Suspense>
       </div>
     </article>
   );

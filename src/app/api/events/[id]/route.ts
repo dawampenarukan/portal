@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,8 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     });
 
+    revalidatePublicContent({ events: true });
+
     return NextResponse.json(event);
   } catch {
     return serverError("Gagal memperbarui event");
@@ -54,6 +57,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
   try {
     await prisma.event.delete({ where: { id } });
+    revalidatePublicContent({ events: true });
     return NextResponse.json({ ok: true });
   } catch {
     return notFound();

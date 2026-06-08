@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
         isPublished: Boolean(isPublished),
       },
     });
+
+    revalidatePublicContent({ events: true });
 
     return NextResponse.json(event, { status: 201 });
   } catch {

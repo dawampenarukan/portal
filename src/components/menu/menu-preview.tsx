@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MENU_CATEGORIES, MenuCategoryId } from "@/lib/menu-meta";
-import { getMenuPreviewTopItems } from "@/lib/queries";
+import { getMenuPreviewTopItemsCached } from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -10,7 +10,7 @@ const emptyTopItems = Object.fromEntries(
 
 export async function MenuPreview() {
   const topItems = await safeQuery(
-    () => getMenuPreviewTopItems(),
+    () => getMenuPreviewTopItemsCached(),
     emptyTopItems,
     "getMenuPreviewTopItems"
   );
@@ -21,7 +21,7 @@ export async function MenuPreview() {
         const topMenu = topItems[cat.id];
 
         return (
-          <Link key={cat.id} href={`/menu?kategori=${cat.id}`}>
+          <Link key={cat.id} href={`/menu?kategori=${cat.id}`} prefetch={true}>
             <Card className="charming-card group h-full border-0">
               <CardContent className="p-5">
                 <span className="text-3xl">{cat.emoji}</span>

@@ -1,9 +1,9 @@
-import { KinerjaSurveyDashboard } from "@/components/survey/kinerja-survey-dashboard";
+import { KinerjaSurveyDashboardLoader } from "@/components/survey/kinerja-survey-dashboard-loader";
 import {
-  getActiveSurveys,
-  getPerformancePublications,
-  getSurveyPublications,
-} from "@/lib/queries";
+  getActiveSurveySummariesCached,
+  getPerformancePublicationsCached,
+  getSurveyPublicationsCached,
+} from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
 
 export const metadata = {
@@ -14,9 +14,9 @@ export const revalidate = 60;
 
 export default async function KinerjaPage() {
   const [surveyPublications, performancePublications, activeSurveys] = await Promise.all([
-    safeQuery(() => getSurveyPublications(), [], "getSurveyPublications"),
-    safeQuery(() => getPerformancePublications(), [], "getPerformancePublications"),
-    safeQuery(() => getActiveSurveys(), [], "getActiveSurveys"),
+    safeQuery(() => getSurveyPublicationsCached(), [], "getSurveyPublications"),
+    safeQuery(() => getPerformancePublicationsCached(), [], "getPerformancePublications"),
+    safeQuery(() => getActiveSurveySummariesCached(), [], "getActiveSurveySummaries"),
   ]);
 
   const defaultPublicationId =
@@ -27,10 +27,10 @@ export default async function KinerjaPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <KinerjaSurveyDashboard
+      <KinerjaSurveyDashboardLoader
         publications={surveyPublications}
         performancePublications={performancePublications}
-        activeSurveys={activeSurveys.map((s) => ({ id: s.id, title: s.title }))}
+        activeSurveys={activeSurveys}
         defaultPublicationId={defaultPublicationId}
       />
     </div>
