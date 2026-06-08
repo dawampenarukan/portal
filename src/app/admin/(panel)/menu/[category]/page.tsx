@@ -6,7 +6,7 @@ import { WeeklyMenuManager } from "@/components/admin/weekly-menu-manager";
 import { MenuRequestsManager } from "@/components/admin/menu-requests-manager";
 import {
   getMenuCategoryMeta,
-  MENU_CATEGORIES,
+  isMenuCategoryId,
   MENU_CATEGORY_ID_TO_TYPE,
   type MenuCategoryId,
 } from "@/lib/menu-meta";
@@ -17,20 +17,18 @@ export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ category: string }> };
 
-const validIds = new Set(MENU_CATEGORIES.map((c) => c.id));
-
 export async function generateMetadata({ params }: Props) {
   const { category } = await params;
-  if (!validIds.has(category)) return { title: "Kelola Menu" };
-  const meta = getMenuCategoryMeta(category as MenuCategoryId);
+  if (!isMenuCategoryId(category)) return { title: "Kelola Menu" };
+  const meta = getMenuCategoryMeta(category);
   return { title: `Kelola ${meta.label}` };
 }
 
 export default async function AdminMenuCategoryPage({ params }: Props) {
   const { category: rawId } = await params;
-  if (!validIds.has(rawId)) notFound();
+  if (!isMenuCategoryId(rawId)) notFound();
 
-  const categoryId = rawId as MenuCategoryId;
+  const categoryId: MenuCategoryId = rawId;
   const meta = getMenuCategoryMeta(categoryId);
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
 

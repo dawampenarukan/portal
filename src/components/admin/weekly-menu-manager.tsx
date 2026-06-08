@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MenuIconPicker } from "@/components/admin/menu-icon-picker";
-import { DEFAULT_MENU_ICON, normalizeMenuIcon } from "@/lib/menu-icons";
+import { DEFAULT_MENU_ICON, normalizeMenuIcon, type MenuFoodIcon } from "@/lib/menu-icons";
 import { WEEK_DAYS, getDaySortOrder, sortOrderForDay } from "@/lib/week-days";
 import type { WeeklyMenuEntryView } from "@/lib/types";
 import type { MenuCategoryId } from "@/lib/menu-meta";
@@ -31,7 +31,11 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    dayLabel: string;
+    menuText: string;
+    emoji: MenuFoodIcon;
+  }>({
     dayLabel: "",
     menuText: "",
     emoji: DEFAULT_MENU_ICON,
@@ -199,7 +203,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
           </div>
           <MenuIconPicker
             value={form.emoji}
-            onChange={(emoji) => setForm({ ...form, emoji })}
+            onChange={(emoji: MenuFoodIcon) => setForm({ ...form, emoji })}
           />
           <div className="flex gap-2">
             <Button type="submit" size="sm" disabled={loading}>

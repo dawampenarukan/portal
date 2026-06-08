@@ -1,11 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { DEFAULT_MENU_ICON, MENU_FOOD_ICONS } from "@/lib/menu-icons";
+import { DEFAULT_MENU_ICON, MENU_FOOD_ICONS, type MenuFoodIcon } from "@/lib/menu-icons";
 
 interface MenuIconPickerProps {
-  value: string;
-  onChange: (emoji: string) => void;
+  value: MenuFoodIcon;
+  onChange: (emoji: MenuFoodIcon) => void;
 }
 
 export function MenuIconPicker({ value, onChange }: MenuIconPickerProps) {

@@ -73,6 +73,10 @@ export function getMenuCategory(id: string): MenuCategoryId {
   return found?.id ?? "porsi-kecil";
 }
 
+export function isMenuCategoryId(value: string): value is MenuCategoryId {
+  return value in MENU_CATEGORY_ID_TO_TYPE;
+}
+
 export function getMenuCategoryMeta(id: MenuCategoryId): MenuCategory {
   return MENU_CATEGORIES.find((c) => c.id === id) ?? MENU_CATEGORIES[0];
 }
