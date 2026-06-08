@@ -1,6 +1,6 @@
 import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
-import { getTrendingTopics } from "@/lib/queries";
+import { getTrendingTopicsCached } from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
 
 const FALLBACK_TOPICS = [
@@ -10,8 +10,7 @@ const FALLBACK_TOPICS = [
   "Yuk Isi Survey! ⭐",
 ];
 
-// Render at request time — avoids DB connection during Vercel build
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function PublicLayout({
   children,
@@ -19,7 +18,7 @@ export default async function PublicLayout({
   children: React.ReactNode;
 }) {
   const trendingTopics = await safeQuery(
-    () => getTrendingTopics(),
+    () => getTrendingTopicsCached(),
     FALLBACK_TOPICS,
     "getTrendingTopics"
   );

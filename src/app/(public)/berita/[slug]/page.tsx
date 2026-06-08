@@ -3,7 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { ArticleCoverImage } from "@/components/news/article-cover-image";
 import { CommentSection } from "@/components/news/comment-section";
 import { formatDate } from "@/lib/utils";
-import { getArticleBySlug, getArticleComments } from "@/lib/queries";
+import { getArticleBySlugCached } from "@/lib/cached-queries";
+import { getArticleComments } from "@/lib/queries";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -11,15 +12,15 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
+  const article = await getArticleBySlugCached(slug);
   return { title: article?.title ?? "Berita" };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function BeritaDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
+  const article = await getArticleBySlugCached(slug);
 
   if (!article) notFound();
 

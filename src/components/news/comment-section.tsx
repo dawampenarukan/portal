@@ -1,7 +1,6 @@
 "use client";
 
-import { MessageSquare, Reply } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +26,6 @@ interface CommentSectionProps {
 }
 
 export function CommentSection({ articleId, comments: initialComments }: CommentSectionProps) {
-  const router = useRouter();
   const [comments, setComments] = useState(initialComments);
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
@@ -72,7 +70,6 @@ export function CommentSection({ articleId, comments: initialComments }: Comment
       setName("");
       setContent("");
       setSuccess(true);
-      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal mengirim komentar");
     } finally {

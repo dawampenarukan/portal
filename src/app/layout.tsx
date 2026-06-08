@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { Nunito } from "next/font/google";
-import { AuthSessionProvider } from "@/components/providers/session-provider";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/constants";
 import "./globals.css";
 
 const nunito = Nunito({
   variable: "--font-nunito",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -18,9 +17,6 @@ export const metadata: Metadata = {
   description: SITE_DESCRIPTION,
 };
 
-// Semua halaman baca database saat request — hindari cache build-time
-export const dynamic = "force-dynamic";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,9 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" className={`${nunito.variable} h-full antialiased`}>
-      <body className="min-h-full">
-        <AuthSessionProvider>{children}</AuthSessionProvider>
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }

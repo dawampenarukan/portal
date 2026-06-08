@@ -10,12 +10,9 @@ import {
   MENU_CATEGORY_ID_TO_TYPE,
   type MenuCategoryId,
 } from "@/lib/menu-meta";
-import { syncMenuItemsForCategory } from "@/lib/menu-sync";
 import { getAdminMenuItems, getAdminWeeklyMenu, getMenuRequests } from "@/lib/queries";
 import { safeQuery } from "@/lib/safe-db";
 import type { MenuItemAdminView, MenuRequestView, WeeklyMenuEntryView } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 type Props = { params: Promise<{ category: string }> };
 
@@ -33,8 +30,6 @@ export default async function AdminMenuCategoryPage({ params }: Props) {
   const categoryId: MenuCategoryId = rawId;
   const meta = getMenuCategoryMeta(categoryId);
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
-
-  await syncMenuItemsForCategory(categoryId);
 
   const [items, weekly, requests] = await Promise.all([
     safeQuery(() => getAdminMenuItems(categoryId), [] as MenuItemAdminView[], "admin/getAdminMenuItems"),

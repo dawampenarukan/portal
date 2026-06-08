@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { SurveyWidget } from "@/components/dashboard/survey-widget";
+import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
 import { getActiveSurvey, getDashboardStats, getSurveyData } from "@/lib/queries";
 
 export const metadata = {
@@ -109,7 +109,7 @@ export default async function AdminDashboardPage() {
       {surveyData.respondents > 0 && (
         <section>
           <h3 className="mb-4 text-lg font-semibold">Visualisasi Survey Live</h3>
-          <SurveyWidget
+          <SurveyWidgetLoader
             data={surveyData}
             fillSurveyHref={activeSurvey ? `/survey/${activeSurvey.id}` : undefined}
           />

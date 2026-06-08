@@ -49,6 +49,7 @@ export function AdminSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
                 isActive
@@ -66,6 +67,7 @@ export function AdminSidebar() {
       <div className="border-t border-white/10 p-3 space-y-1">
         <Link
           href="/"
+          prefetch={false}
           className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-primary-foreground/80 transition hover:bg-white/10 hover:text-white"
         >
           ← Portal Publik

@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { FeedbackDetail } from "@/components/admin/feedback-detail";
-import { getAllFeedbacks } from "@/lib/queries";
+import { PaginationNav } from "@/components/admin/pagination-nav";
+import { getAdminFeedbacksList } from "@/lib/queries";
+import { parsePage } from "@/lib/pagination";
 
 export const metadata = { title: "Inbox Masukan" };
 
@@ -12,8 +14,12 @@ const statusLabel: Record<string, string> = {
   REJECTED: "Ditolak",
 };
 
-export default async function AdminMasukanPage() {
-  const feedbacks = await getAllFeedbacks();
+type Props = { searchParams: Promise<{ page?: string }> };
+
+export default async function AdminMasukanPage({ searchParams }: Props) {
+  const { page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const { items: feedbacks, total } = await getAdminFeedbacksList(page);
 
   return (
     <div className="space-y-6">
@@ -52,13 +58,14 @@ export default async function AdminMasukanPage() {
                       </Badge>
                     </td>
                     <td className="py-3">
-                      <FeedbackDetail feedback={fb} />
+                      <FeedbackDetail feedbackId={fb.id} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <PaginationNav basePath="/admin/masukan" page={page} total={total} />
         </CardContent>
       </Card>
     </div>

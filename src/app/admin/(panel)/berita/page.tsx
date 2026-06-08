@@ -3,7 +3,9 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getAllArticles } from "@/lib/queries";
+import { PaginationNav } from "@/components/admin/pagination-nav";
+import { getAdminArticlesList } from "@/lib/queries";
+import { parsePage } from "@/lib/pagination";
 
 export const metadata = { title: "Kelola Berita" };
 
@@ -19,8 +21,12 @@ const statusLabel: Record<string, string> = {
   ARCHIVED: "Archived",
 };
 
-export default async function AdminBeritaPage() {
-  const articles = await getAllArticles();
+type Props = { searchParams: Promise<{ page?: string }> };
+
+export default async function AdminBeritaPage({ searchParams }: Props) {
+  const { page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const { items: articles, total } = await getAdminArticlesList(page);
 
   return (
     <div className="space-y-6">
@@ -64,7 +70,9 @@ export default async function AdminBeritaPage() {
                     </td>
                     <td className="py-3">
                       <Link href={`/admin/berita/${article.id}/edit`}>
-                        <Button variant="ghost" size="sm">Edit</Button>
+                        <Button variant="ghost" size="sm">
+                          Edit
+                        </Button>
                       </Link>
                     </td>
                   </tr>
@@ -72,6 +80,7 @@ export default async function AdminBeritaPage() {
               </tbody>
             </table>
           </div>
+          <PaginationNav basePath="/admin/berita" page={page} total={total} />
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { FeedbackStatus } from "@prisma/client";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -10,9 +9,14 @@ export async function GET(_request: Request, { params }: Params) {
   if (error) return error;
 
   const { id } = await params;
-  const feedback = await prisma.feedback.findUnique({ where: { id } });
-  if (!feedback) return notFound();
-  return NextResponse.json(feedback);
+
+  try {
+    const feedback = await prisma.feedback.findUnique({ where: { id } });
+    if (!feedback) return notFound("Masukan tidak ditemukan");
+    return NextResponse.json(feedback);
+  } catch {
+    return serverError("Gagal memuat masukan");
+  }
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -22,15 +26,16 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
   try {
-    const body = await request.json();
     const existing = await prisma.feedback.findUnique({ where: { id } });
-    if (!existing) return notFound();
+    if (!existing) return notFound("Masukan tidak ditemukan");
 
+    const body = await request.json();
     const feedback = await prisma.feedback.update({
       where: { id },
       data: {
-        status: (body.status as FeedbackStatus) ?? existing.status,
-        adminNotes: body.adminNotes !== undefined ? body.adminNotes?.trim() || null : existing.adminNotes,
+        status: body.status ?? existing.status,
+        adminNotes:
+          body.adminNotes !== undefined ? body.adminNotes?.trim() || null : existing.adminNotes,
       },
     });
 

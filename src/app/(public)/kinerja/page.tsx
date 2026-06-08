@@ -10,7 +10,7 @@ export const metadata = {
   title: "Kinerja & Survey",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function KinerjaPage() {
   const [surveyPublications, performancePublications, activeSurveys] = await Promise.all([

@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { WelcomeBanner } from "@/components/home/welcome-banner";
 import { MenuPreview } from "@/components/menu/menu-preview";
-import { SurveyWidget } from "@/components/dashboard/survey-widget";
+import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
 import { EventCarousel } from "@/components/event/event-carousel";
 import { HeroArticle } from "@/components/news/hero-article";
 import { NewsCard } from "@/components/news/news-card";
 import { NewsListItem } from "@/components/news/news-list-item";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Card, CardContent } from "@/components/ui/card";
+import { getPublishedArticlesForListCached } from "@/lib/cached-queries";
 import {
-  getPublishedArticles,
   getPublishedEvents,
   getPublishedPublications,
   getActiveSurveys,
@@ -18,7 +18,7 @@ import {
 import { safeQuery } from "@/lib/safe-db";
 import type { SurveyDataView } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 const emptySurvey: SurveyDataView = {
   satisfactionScore: 0,
@@ -31,7 +31,7 @@ const emptySurvey: SurveyDataView = {
 
 export default async function HomePage() {
   const [articles, events, publications, surveyData, activeSurveys] = await Promise.all([
-    safeQuery(() => getPublishedArticles(), [], "getPublishedArticles"),
+    safeQuery(() => getPublishedArticlesForListCached(), [], "getPublishedArticles"),
     safeQuery(() => getPublishedEvents(), [], "getPublishedEvents"),
     safeQuery(() => getPublishedPublications(), [], "getPublishedPublications"),
     safeQuery(() => getSurveyData(), emptySurvey, "getSurveyData"),
@@ -74,7 +74,7 @@ export default async function HomePage() {
           href="/kinerja"
           linkLabel="Lihat detail"
         />
-        <SurveyWidget data={surveyData} fillSurveyHref={fillSurveyHref} />
+        <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillSurveyHref} />
       </section>
 
       <section className="grid gap-8 lg:grid-cols-3">

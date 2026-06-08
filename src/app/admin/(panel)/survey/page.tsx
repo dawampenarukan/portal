@@ -5,21 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SurveyActions } from "@/components/admin/survey-actions";
 import { getAllSurveys } from "@/lib/queries";
-import { syncSurveyPublication } from "@/lib/survey-aggregation";
 
 export const metadata = { title: "Kelola Survey" };
 
 export default async function AdminSurveyPage() {
   const surveys = await getAllSurveys();
-
-  const activeWithResponses = surveys.find((s) => s.isActive && s.responseCount > 0);
-  if (activeWithResponses) {
-    try {
-      await syncSurveyPublication(activeWithResponses.id);
-    } catch {
-      // publication sync is best-effort; charts still read live responses
-    }
-  }
 
   return (
     <div className="space-y-6">

@@ -8,8 +8,6 @@ import { safeQuery } from "@/lib/safe-db";
 
 export const metadata = { title: "Kelola Menu" };
 
-export const dynamic = "force-dynamic";
-
 export default async function AdminMenuPage() {
   const [menuData, requestCounts] = await Promise.all([
     safeQuery(() => getAllMenuData(), EMPTY_MENU_DATA, "admin/getAllMenuData"),

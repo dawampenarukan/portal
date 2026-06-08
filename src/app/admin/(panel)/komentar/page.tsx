@@ -1,13 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CommentActions } from "@/components/admin/comment-actions";
-import { getAllComments } from "@/lib/queries";
+import { PaginationNav } from "@/components/admin/pagination-nav";
+import { getAdminCommentsList } from "@/lib/queries";
+import { parsePage } from "@/lib/pagination";
 import { formatRelativeTime } from "@/lib/utils";
 
 export const metadata = { title: "Moderasi Komentar" };
 
-export default async function AdminKomentarPage() {
-  const comments = await getAllComments();
+type Props = { searchParams: Promise<{ page?: string }> };
+
+export default async function AdminKomentarPage({ searchParams }: Props) {
+  const { page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const { items: comments, total } = await getAdminCommentsList(page);
 
   return (
     <div className="space-y-6">
@@ -51,6 +57,7 @@ export default async function AdminKomentarPage() {
               <CommentActions commentId={comment.id} isApproved={comment.isApproved ?? false} />
             </div>
           ))}
+          <PaginationNav basePath="/admin/komentar" page={page} total={total} />
         </CardContent>
       </Card>
     </div>

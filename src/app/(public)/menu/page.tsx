@@ -2,22 +2,12 @@ import { MenuPageContent } from "@/components/menu/menu-page-content";
 import { getAllMenuData } from "@/lib/queries";
 import { getFavoritedMenuItemIds, getVoterKeyFromCookies } from "@/lib/menu-vote";
 import { safeQuery } from "@/lib/safe-db";
-import type { MenuCategoryBundle } from "@/lib/types";
-import type { MenuCategoryId } from "@/lib/menu-meta";
+import { EMPTY_MENU_DATA } from "@/lib/menu-fallbacks";
 
 export const metadata = {
   title: "Menu Favorit & Request",
   description:
     "Lihat menu favorit dan ajukan request menu untuk Porsi Kecil, Porsi Besar, Ibu Hamil, dan Balita.",
-};
-
-export const dynamic = "force-dynamic";
-
-const emptyMenu: Record<MenuCategoryId, MenuCategoryBundle> = {
-  "porsi-kecil": { favorites: [], thisWeek: [] },
-  "porsi-besar": { favorites: [], thisWeek: [] },
-  "ibu-hamil": { favorites: [], thisWeek: [] },
-  balita: { favorites: [], thisWeek: [] },
 };
 
 interface PageProps {
@@ -27,7 +17,7 @@ interface PageProps {
 export default async function MenuPage({ searchParams }: PageProps) {
   const { kategori } = await searchParams;
   const [menuData, voterKey] = await Promise.all([
-    safeQuery(() => getAllMenuData(), emptyMenu, "getAllMenuData"),
+    safeQuery(() => getAllMenuData(), EMPTY_MENU_DATA, "getAllMenuData"),
     getVoterKeyFromCookies(),
   ]);
   const favoritedIds = await getFavoritedMenuItemIds(voterKey);

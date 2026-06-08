@@ -2,7 +2,7 @@ import Link from "next/link";
 import { NewsListItem } from "@/components/news/news-list-item";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPublishedArticles } from "@/lib/queries";
+import { getPublishedArticlesForListCached } from "@/lib/cached-queries";
 import { safeQuery } from "@/lib/safe-db";
 
 const categories = ["Semua", "Berita", "Kegiatan", "Pengumuman", "Event"];
@@ -11,10 +11,14 @@ export const metadata = {
   title: "Berita",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function BeritaPage() {
-  const articles = await safeQuery(() => getPublishedArticles(), [], "getPublishedArticles");
+  const articles = await safeQuery(
+    () => getPublishedArticlesForListCached(),
+    [],
+    "getPublishedArticles"
+  );
   const popular = articles.filter((a) => a.isPopular);
 
   return (

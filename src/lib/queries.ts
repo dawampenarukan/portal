@@ -7,9 +7,9 @@ import {
   PublicationType,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getLiveSurveyData } from "@/lib/survey-aggregation";
 import { slugify } from "@/lib/slug";
 import { getDaySortOrder } from "@/lib/week-days";
+import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
 import {
   MENU_CATEGORY_ID_TO_TYPE,
   MENU_CATEGORY_TYPE_TO_ID,
@@ -140,12 +140,40 @@ const defaultSurveyData: SurveyDataView = {
 };
 
 export async function getPublishedArticles(): Promise<ArticleView[]> {
+  return getPublishedArticlesForList();
+}
+
+export async function getPublishedArticlesForList(): Promise<ArticleView[]> {
   const articles = await prisma.article.findMany({
     where: { status: ArticleStatus.PUBLISHED },
-    include: { author: true, category: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      coverImage: true,
+      isPopular: true,
+      isHighlight: true,
+      publishedAt: true,
+      author: { select: { name: true } },
+      category: { select: { name: true } },
+    },
     orderBy: { publishedAt: "desc" },
   });
-  return articles.map(mapArticle);
+
+  return articles.map((article) => ({
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt ?? "",
+    content: "",
+    category: article.category.name,
+    author: article.author.name,
+    publishedAt: (article.publishedAt ?? new Date()).toISOString(),
+    coverImage: article.coverImage,
+    isPopular: article.isPopular,
+    isHighlight: article.isHighlight,
+  }));
 }
 
 export async function getAllArticles(): Promise<ArticleView[]> {
@@ -154,6 +182,34 @@ export async function getAllArticles(): Promise<ArticleView[]> {
     orderBy: { updatedAt: "desc" },
   });
   return articles.map(mapArticleAdmin);
+}
+
+export async function getAdminArticlesList(page = 1) {
+  const skip = pageOffset(page);
+  const [articles, total] = await Promise.all([
+    prisma.article.findMany({
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        category: { select: { name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+    }),
+    prisma.article.count(),
+  ]);
+
+  return {
+    total,
+    items: articles.map((article) => ({
+      id: article.id,
+      title: article.title,
+      category: article.category.name,
+      status: article.status,
+    })),
+  };
 }
 
 export async function getArticleById(id: string): Promise<ArticleView | null> {
@@ -233,6 +289,36 @@ export async function getAllPublications(): Promise<PublicationView[]> {
   return pubs.map(mapPublicationAdmin);
 }
 
+export async function getAdminPublicationsList() {
+  const pubs = await prisma.publication.findMany({
+    select: {
+      id: true,
+      title: true,
+      period: true,
+      summary: true,
+      type: true,
+      isPublished: true,
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+  });
+
+  const typeMap: Record<PublicationType, string> = {
+    SURVEY_RESULT: "survey",
+    PERFORMANCE_REPORT: "performance",
+    INFOGRAPHIC: "infographic",
+  };
+
+  return pubs.map((pub) => ({
+    id: pub.id,
+    title: pub.title,
+    period: pub.period,
+    type: typeMap[pub.type],
+    summary: pub.summary ?? "",
+    isPublished: pub.isPublished,
+  }));
+}
+
 export async function getSurveyPublications(): Promise<SurveyPublicationView[]> {
   const [pubs, surveys] = await Promise.all([
     prisma.publication.findMany({
@@ -270,43 +356,37 @@ export async function getPublicationById(id: string): Promise<PublicationView | 
   return pub ? mapPublicationAdmin(pub) : null;
 }
 
+function parseSurveyChartData(raw: unknown): SurveyDataView {
+  const data = raw as SurveyDataView;
+  return {
+    satisfactionScore: data.satisfactionScore ?? 0,
+    npsScore: data.npsScore ?? 0,
+    respondents: data.respondents ?? 0,
+    target: data.target ?? 0,
+    aspects: data.aspects ?? [],
+    trend: data.trend ?? [],
+  };
+}
+
 export async function getSurveyData(): Promise<SurveyDataView> {
-  // Sumber sama dengan default di halaman /kinerja: publikasi survey yang dipublikasikan
   const publishedSurvey = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },
+    select: { chartData: true },
   });
 
   if (publishedSurvey?.chartData) {
-    const data = publishedSurvey.chartData as unknown as SurveyDataView;
-    return {
-      satisfactionScore: data.satisfactionScore ?? 0,
-      npsScore: data.npsScore ?? 0,
-      respondents: data.respondents ?? 0,
-      target: data.target ?? 0,
-      aspects: data.aspects ?? [],
-      trend: data.trend ?? [],
-    };
+    return parseSurveyChartData(publishedSurvey.chartData);
   }
-
-  const live = await getLiveSurveyData();
-  if (live) return live;
 
   const draftSurvey = await prisma.publication.findFirst({
     where: { type: PublicationType.SURVEY_RESULT },
     orderBy: { updatedAt: "desc" },
+    select: { chartData: true },
   });
 
   if (draftSurvey?.chartData) {
-    const data = draftSurvey.chartData as unknown as SurveyDataView;
-    return {
-      satisfactionScore: data.satisfactionScore ?? 0,
-      npsScore: data.npsScore ?? 0,
-      respondents: data.respondents ?? 0,
-      target: data.target ?? 0,
-      aspects: data.aspects ?? [],
-      trend: data.trend ?? [],
-    };
+    return parseSurveyChartData(draftSurvey.chartData);
   }
 
   return defaultSurveyData;
@@ -342,18 +422,47 @@ export async function getArticleComments(articleId: string): Promise<CommentView
 export async function getAllComments(): Promise<
   (CommentView & { articleTitle: string })[]
 > {
-  const comments = await prisma.comment.findMany({
-    include: {
-      article: true,
-      replies: true,
-      author: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const result = await getAdminCommentsList(1);
+  return result.items;
+}
 
-  return comments
-    .filter((c) => !c.parentId)
-    .map((c) => ({
+export async function getAdminCommentsList(page = 1) {
+  const skip = pageOffset(page);
+  const where = { parentId: null };
+
+  const [comments, total] = await Promise.all([
+    prisma.comment.findMany({
+      where,
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isApproved: true,
+        articleId: true,
+        guestName: true,
+        author: { select: { name: true } },
+        article: { select: { title: true } },
+        replies: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            guestName: true,
+          },
+          orderBy: { createdAt: "asc" },
+          take: 5,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+    }),
+    prisma.comment.count({ where }),
+  ]);
+
+  return {
+    total,
+    items: comments.map((c) => ({
       id: c.id,
       authorName: c.guestName ?? c.author?.name ?? "Anonim",
       content: c.content,
@@ -367,70 +476,135 @@ export async function getAllComments(): Promise<
         content: r.content,
         createdAt: r.createdAt.toISOString(),
       })),
-    }));
+    })),
+  };
 }
 
-export async function getMenuDataByCategory(
-  categoryId: MenuCategoryId
-): Promise<MenuCategoryBundle> {
-  const { syncMenuItemsForCategory } = await import("@/lib/menu-sync");
-  await syncMenuItemsForCategory(categoryId);
-
+function buildMenuBundle(
+  categoryId: MenuCategoryId,
+  items: {
+    id: string;
+    name: string;
+    description: string | null;
+    votes: number;
+    emoji: string | null;
+    category: MenuCategoryType;
+  }[],
+  weekly: {
+    category: MenuCategoryType;
+    dayLabel: string;
+    menuText: string;
+    emoji: string | null;
+    sortOrder: number;
+  }[]
+): MenuCategoryBundle {
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
-
-  const [favorites, weekly] = await Promise.all([
-    prisma.menuItem.findMany({
-      where: { category: categoryType },
-      orderBy: [{ votes: "desc" }, { name: "asc" }],
-    }),
-    prisma.weeklyMenuEntry.findMany({
-      where: { category: categoryType, isActive: true },
-    }),
-  ]);
-
-  const sortedWeekly = [...weekly].sort(
-    (a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel)
-  );
-
-  return {
-    favorites: favorites.map((item) => ({
+  const favorites = items
+    .filter((item) => item.category === categoryType)
+    .sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name))
+    .map((item) => ({
       id: item.id,
       name: item.name,
       description: item.description ?? "",
       votes: item.votes,
       emoji: item.emoji ?? "🍽️",
-    })),
+    }));
+
+  const sortedWeekly = weekly
+    .filter((entry) => entry.category === categoryType)
+    .sort((a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder);
+
+  return {
+    favorites,
     thisWeek: sortedWeekly.map(
       (entry) => `${entry.emoji ?? "🍽️"} ${entry.dayLabel}: ${entry.menuText}`
     ),
   };
 }
 
+export async function getMenuDataByCategory(
+  categoryId: MenuCategoryId
+): Promise<MenuCategoryBundle> {
+  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+
+  const [favorites, weekly] = await Promise.all([
+    prisma.menuItem.findMany({
+      where: { category: categoryType },
+      orderBy: [{ votes: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        votes: true,
+        emoji: true,
+        category: true,
+      },
+    }),
+    prisma.weeklyMenuEntry.findMany({
+      where: { category: categoryType, isActive: true },
+      select: {
+        category: true,
+        dayLabel: true,
+        menuText: true,
+        emoji: true,
+        sortOrder: true,
+      },
+    }),
+  ]);
+
+  return buildMenuBundle(categoryId, favorites, weekly);
+}
+
 export async function getAllMenuData(): Promise<
   Record<MenuCategoryId, MenuCategoryBundle>
 > {
   const ids: MenuCategoryId[] = ["porsi-kecil", "porsi-besar", "ibu-hamil", "balita"];
-  const entries = await Promise.all(ids.map((id) => getMenuDataByCategory(id)));
+
+  const [allItems, allWeekly] = await Promise.all([
+    prisma.menuItem.findMany({
+      orderBy: [{ votes: "desc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        votes: true,
+        emoji: true,
+        category: true,
+      },
+    }),
+    prisma.weeklyMenuEntry.findMany({
+      where: { isActive: true },
+      select: {
+        category: true,
+        dayLabel: true,
+        menuText: true,
+        emoji: true,
+        sortOrder: true,
+      },
+    }),
+  ]);
 
   return {
-    "porsi-kecil": entries[0],
-    "porsi-besar": entries[1],
-    "ibu-hamil": entries[2],
-    balita: entries[3],
+    "porsi-kecil": buildMenuBundle("porsi-kecil", allItems, allWeekly),
+    "porsi-besar": buildMenuBundle("porsi-besar", allItems, allWeekly),
+    "ibu-hamil": buildMenuBundle("ibu-hamil", allItems, allWeekly),
+    balita: buildMenuBundle("balita", allItems, allWeekly),
   };
 }
 
 export async function getMenuPreviewTopItems(): Promise<
   Record<MenuCategoryId, { emoji: string; name: string } | null>
 > {
+  const items = await prisma.menuItem.findMany({
+    select: { category: true, emoji: true, name: true, votes: true },
+    orderBy: { votes: "desc" },
+  });
+
   const result = {} as Record<MenuCategoryId, { emoji: string; name: string } | null>;
 
   for (const type of Object.values(MenuCategoryType)) {
-    const top = await prisma.menuItem.findFirst({
-      where: { category: type },
-      orderBy: { votes: "desc" },
-    });
     const id = MENU_CATEGORY_TYPE_TO_ID[type];
+    const top = items.find((item) => item.category === type);
     result[id] = top ? { emoji: top.emoji ?? "🍽️", name: top.name } : null;
   }
 
@@ -463,6 +637,31 @@ export async function getAllFeedbacks() {
   return prisma.feedback.findMany({
     orderBy: { createdAt: "desc" },
   });
+}
+
+export async function getAdminFeedbacksList(page = 1) {
+  const skip = pageOffset(page);
+  const [items, total] = await Promise.all([
+    prisma.feedback.findMany({
+      select: {
+        id: true,
+        name: true,
+        title: true,
+        category: true,
+        status: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+    }),
+    prisma.feedback.count(),
+  ]);
+
+  return { total, items };
+}
+
+export async function getFeedbackById(id: string) {
+  return prisma.feedback.findUnique({ where: { id } });
 }
 
 export async function getCategories() {

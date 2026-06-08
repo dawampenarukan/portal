@@ -8,7 +8,7 @@ export const metadata = {
   title: "Event",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function EventPage() {
   const events = await safeQuery(() => getPublishedEvents(), [], "getPublishedEvents");

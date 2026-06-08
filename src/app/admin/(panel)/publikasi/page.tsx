@@ -2,12 +2,12 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getAllPublications } from "@/lib/queries";
+import { getAdminPublicationsList } from "@/lib/queries";
 
 export const metadata = { title: "Publikasi Fixed" };
 
 export default async function AdminPublikasiPage() {
-  const publications = await getAllPublications();
+  const publications = await getAdminPublicationsList();
 
   return (
     <div className="space-y-6">
