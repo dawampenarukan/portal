@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { MenuFavorites } from "@/components/menu/menu-favorites";
 import { MenuRequestForm } from "@/components/menu/menu-request-form";
+import { MenuTopRequests } from "@/components/menu/menu-top-requests";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MENU_CATEGORIES,
@@ -10,7 +11,7 @@ import {
   getMenuCategory,
   getMenuCategoryMeta,
 } from "@/lib/menu-meta";
-import type { MenuCategoryBundle } from "@/lib/types";
+import type { MenuCategoryBundle, TopMenuRequestView } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface MenuPageContentProps {
@@ -50,6 +51,23 @@ export function MenuPageContent({
     [bundles]
   );
 
+  const fetchCategoryData = useCallback(async (id: MenuCategoryId) => {
+    const res = await fetch(`/api/menu-data?category=${id}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as MenuCategoryBundle;
+  }, []);
+
+  const handleRequestSubmitted = useCallback(
+    (topRequests: TopMenuRequestView[]) => {
+      setBundles((prev) => {
+        const current = prev[activeId];
+        if (!current) return prev;
+        return { ...prev, [activeId]: { ...current, topRequests } };
+      });
+    },
+    [activeId]
+  );
+
   const switchCategory = useCallback(
     async (id: MenuCategoryId) => {
       setActiveId(id);
@@ -57,22 +75,22 @@ export function MenuPageContent({
 
       setLoadingCategory(id);
       try {
-        const res = await fetch(`/api/menu-data?category=${id}`);
-        if (res.ok) {
-          const data = (await res.json()) as MenuCategoryBundle;
+        const data = await fetchCategoryData(id);
+        if (data) {
           setBundles((prev) => ({ ...prev, [id]: data }));
         }
       } finally {
         setLoadingCategory(null);
       }
     },
-    [bundles]
+    [bundles, fetchCategoryData]
   );
 
   const category = getMenuCategoryMeta(activeId);
   const bundle = bundles[activeId];
   const favorites = bundle?.favorites ?? [];
   const thisWeek = bundle?.thisWeek ?? [];
+  const topRequests = bundle?.topRequests ?? [];
 
   return (
     <div className="space-y-8">
@@ -153,7 +171,25 @@ export function MenuPageContent({
             </CardContent>
           </Card>
 
-          <MenuRequestForm category={category} />
+          <MenuRequestForm category={category} onSubmitted={handleRequestSubmitted} />
+
+          <div>
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-lg">
+                🙋
+              </span>
+              Request Menu Terbanyak
+            </h3>
+            {loadingCategory === activeId ? (
+              <div className="space-y-3 animate-pulse">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="h-24 rounded-xl bg-muted/60" />
+                ))}
+              </div>
+            ) : (
+              <MenuTopRequests key={`top-requests-${activeId}`} items={topRequests} />
+            )}
+          </div>
         </div>
       </div>
     </div>

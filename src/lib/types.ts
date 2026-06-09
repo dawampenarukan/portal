@@ -110,9 +110,23 @@ export interface FavoriteMenuView {
   emoji: string;
 }
 
+export interface MenuNameSuggestion {
+  name: string;
+  requestCount: number;
+}
+
+export interface TopMenuRequestView {
+  id: string;
+  name: string;
+  description: string;
+  requestCount: number;
+  emoji: string;
+}
+
 export interface MenuCategoryBundle {
   favorites: FavoriteMenuView[];
   thisWeek: string[];
+  topRequests: TopMenuRequestView[];
 }
 
 export interface MenuItemAdminView {

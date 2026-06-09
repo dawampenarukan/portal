@@ -7,6 +7,7 @@ import {
   PublicationType,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { filterMenuNameSuggestions } from "@/lib/menu-request-suggestions";
 import { slugify } from "@/lib/slug";
 import { getDaySortOrder } from "@/lib/week-days";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
@@ -28,6 +29,8 @@ import type {
   CommentView,
   EventView,
   MenuCategoryBundle,
+  MenuNameSuggestion,
+  TopMenuRequestView,
   PublicationView,
   SurveyDataView,
   SurveyView,
@@ -513,6 +516,54 @@ export async function getAdminCommentsList(page = 1) {
   };
 }
 
+function aggregateTopMenuRequests(
+  requests: { menuName: string; reason: string | null }[],
+  menuItems: { name: string; emoji: string | null }[],
+  limit = 2
+): TopMenuRequestView[] {
+  const counts = new Map<string, { name: string; count: number; reason: string | null }>();
+
+  for (const request of requests) {
+    const trimmed = request.menuName.trim();
+    if (!trimmed) continue;
+
+    const key = trimmed.toLowerCase();
+    const existing = counts.get(key);
+    if (existing) {
+      existing.count += 1;
+      if (!existing.reason && request.reason?.trim()) {
+        existing.reason = request.reason.trim();
+      }
+    } else {
+      counts.set(key, {
+        name: trimmed,
+        count: 1,
+        reason: request.reason?.trim() || null,
+      });
+    }
+  }
+
+  const findEmoji = (name: string) => {
+    const lower = name.toLowerCase();
+    const match = menuItems.find(
+      (item) =>
+        item.name.toLowerCase() === lower || lower.includes(item.name.toLowerCase())
+    );
+    return match?.emoji ?? "🍽️";
+  };
+
+  return Array.from(counts.values())
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, limit)
+    .map((item, index) => ({
+      id: `top-request-${index}-${item.name}`,
+      name: item.name,
+      description: item.reason || "Menu yang banyak diminta warga.",
+      requestCount: item.count,
+      emoji: findEmoji(item.name),
+    }));
+}
+
 function buildMenuBundle(
   categoryId: MenuCategoryId,
   items: {
@@ -529,7 +580,8 @@ function buildMenuBundle(
     menuText: string;
     emoji: string | null;
     sortOrder: number;
-  }[]
+  }[],
+  requests: { menuName: string; reason: string | null }[] = []
 ): MenuCategoryBundle {
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
   const favorites = items
@@ -547,12 +599,53 @@ function buildMenuBundle(
     .filter((entry) => entry.category === categoryType)
     .sort((a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder);
 
+  const categoryItems = items.filter((item) => item.category === categoryType);
+
   return {
     favorites,
     thisWeek: sortedWeekly.map(
       (entry) => `${entry.emoji ?? "🍽️"} ${entry.dayLabel}: ${entry.menuText}`
     ),
+    topRequests: aggregateTopMenuRequests(requests, categoryItems, 2),
   };
+}
+
+function aggregateMenuRequestNames(
+  requests: { menuName: string }[]
+): MenuNameSuggestion[] {
+  const counts = new Map<string, { name: string; requestCount: number }>();
+
+  for (const request of requests) {
+    const trimmed = request.menuName.trim();
+    if (!trimmed) continue;
+
+    const key = trimmed.toLowerCase();
+    const existing = counts.get(key);
+    if (existing) {
+      existing.requestCount += 1;
+    } else {
+      counts.set(key, { name: trimmed, requestCount: 1 });
+    }
+  }
+
+  return Array.from(counts.values()).sort(
+    (a, b) => b.requestCount - a.requestCount || a.name.localeCompare(b.name, "id")
+  );
+}
+
+export async function getMenuRequestNameSuggestions(
+  categoryId: MenuCategoryId,
+  query: string,
+  limit = 6
+): Promise<MenuNameSuggestion[]> {
+  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const requests = await prisma.menuRequest.findMany({
+    where: { category: categoryType },
+    select: { menuName: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return filterMenuNameSuggestions(aggregateMenuRequestNames(requests), query, limit);
 }
 
 export async function getMenuDataByCategory(
@@ -560,7 +653,7 @@ export async function getMenuDataByCategory(
 ): Promise<MenuCategoryBundle> {
   const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
 
-  const [favorites, weekly] = await Promise.all([
+  const [favorites, weekly, requests] = await Promise.all([
     prisma.menuItem.findMany({
       where: { category: categoryType },
       orderBy: [{ votes: "desc" }, { name: "asc" }],
@@ -583,9 +676,14 @@ export async function getMenuDataByCategory(
         sortOrder: true,
       },
     }),
+    prisma.menuRequest.findMany({
+      where: { category: categoryType },
+      select: { menuName: true, reason: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
-  return buildMenuBundle(categoryId, favorites, weekly);
+  return buildMenuBundle(categoryId, favorites, weekly, requests);
 }
 
 export async function getAllMenuData(): Promise<
@@ -593,7 +691,7 @@ export async function getAllMenuData(): Promise<
 > {
   const ids: MenuCategoryId[] = ["porsi-kecil", "porsi-besar", "ibu-hamil", "balita"];
 
-  const [allItems, allWeekly] = await Promise.all([
+  const [allItems, allWeekly, allRequests] = await Promise.all([
     prisma.menuItem.findMany({
       orderBy: [{ votes: "desc" }, { name: "asc" }],
       select: {
@@ -615,13 +713,40 @@ export async function getAllMenuData(): Promise<
         sortOrder: true,
       },
     }),
+    prisma.menuRequest.findMany({
+      select: { menuName: true, reason: true, category: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
 
+  const requestsByCategory = (categoryType: MenuCategoryType) =>
+    allRequests.filter((request) => request.category === categoryType);
+
   return {
-    "porsi-kecil": buildMenuBundle("porsi-kecil", allItems, allWeekly),
-    "porsi-besar": buildMenuBundle("porsi-besar", allItems, allWeekly),
-    "ibu-hamil": buildMenuBundle("ibu-hamil", allItems, allWeekly),
-    balita: buildMenuBundle("balita", allItems, allWeekly),
+    "porsi-kecil": buildMenuBundle(
+      "porsi-kecil",
+      allItems,
+      allWeekly,
+      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["porsi-kecil"])
+    ),
+    "porsi-besar": buildMenuBundle(
+      "porsi-besar",
+      allItems,
+      allWeekly,
+      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["porsi-besar"])
+    ),
+    "ibu-hamil": buildMenuBundle(
+      "ibu-hamil",
+      allItems,
+      allWeekly,
+      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["ibu-hamil"])
+    ),
+    balita: buildMenuBundle(
+      "balita",
+      allItems,
+      allWeekly,
+      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE.balita)
+    ),
   };
 }
 

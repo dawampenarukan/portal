@@ -12,7 +12,7 @@ export const metadata = {
     "Lihat menu favorit dan ajukan request menu untuk Porsi Kecil, Porsi Besar, Ibu Hamil, dan Balita.",
 };
 
-const emptyBundle: MenuCategoryBundle = { favorites: [], thisWeek: [] };
+const emptyBundle: MenuCategoryBundle = { favorites: [], thisWeek: [], topRequests: [] };
 
 interface PageProps {
   searchParams: Promise<{ kategori?: string }>;

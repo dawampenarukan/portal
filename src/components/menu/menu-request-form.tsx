@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MenuNameAutocomplete } from "@/components/menu/menu-name-autocomplete";
 import { MENU_CATEGORY_ID_TO_TYPE, MenuCategory } from "@/lib/menu-meta";
+import type { TopMenuRequestView } from "@/lib/types";
 
 interface MenuRequestFormProps {
   category: MenuCategory;
+  onSubmitted?: (topRequests: TopMenuRequestView[]) => void | Promise<void>;
 }
 
-export function MenuRequestForm({ category }: MenuRequestFormProps) {
+export function MenuRequestForm({ category, onSubmitted }: MenuRequestFormProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -41,6 +44,8 @@ export function MenuRequestForm({ category }: MenuRequestFormProps) {
         throw new Error(data.error ?? "Gagal mengirim request");
       }
 
+      const data = (await res.json()) as { topRequests?: TopMenuRequestView[] };
+      await onSubmitted?.(data.topRequests ?? []);
       setSubmitted(true);
       setRequesterName("");
       setMenuName("");
@@ -94,11 +99,12 @@ export function MenuRequestForm({ category }: MenuRequestFormProps) {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold">Menu yang Diinginkan *</label>
-            <Input
+            <MenuNameAutocomplete
+              categoryId={category.id}
               required
               placeholder="Contoh: Nasi Ayam Bakar Sayur"
               value={menuName}
-              onChange={(e) => setMenuName(e.target.value)}
+              onChange={setMenuName}
             />
           </div>
           <div>

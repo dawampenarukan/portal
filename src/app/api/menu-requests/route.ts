@@ -2,6 +2,9 @@ import { MenuCategoryType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { MENU_CATEGORY_TYPE_TO_ID } from "@/lib/menu-meta";
+import { getMenuDataByCategory } from "@/lib/queries";
+import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 const validCategories = new Set<string>(Object.values(MenuCategoryType));
 
@@ -53,7 +56,12 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ id: menuRequest.id }, { status: 201 });
+    revalidatePublicContent({ menu: true });
+
+    const categoryId = MENU_CATEGORY_TYPE_TO_ID[category as MenuCategoryType];
+    const { topRequests } = await getMenuDataByCategory(categoryId);
+
+    return NextResponse.json({ id: menuRequest.id, topRequests }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Gagal menyimpan request menu" }, { status: 500 });
   }
