@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
-import { MENU_DATA_TAG } from "@/lib/cached-queries";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
@@ -39,7 +37,6 @@ export async function PATCH(request: Request, { params }: Params) {
 
     await syncMenuItemFromWeekly(existing.category, nextMenuText, nextEmoji);
     revalidatePublicContent({ menu: true });
-    revalidateTag(MENU_DATA_TAG);
 
     return NextResponse.json(entry);
   } catch {
@@ -56,7 +53,6 @@ export async function DELETE(_request: Request, { params }: Params) {
   try {
     await prisma.weeklyMenuEntry.delete({ where: { id } });
     revalidatePublicContent({ menu: true });
-    revalidateTag(MENU_DATA_TAG);
     return NextResponse.json({ ok: true });
   } catch {
     return notFound("Jadwal tidak ditemukan");

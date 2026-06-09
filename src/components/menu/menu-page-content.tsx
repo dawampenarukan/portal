@@ -25,9 +25,14 @@ export function MenuPageContent({
 }: MenuPageContentProps) {
   const activeIdDefault = getMenuCategory(initialCategory ?? "porsi-kecil");
   const [activeId, setActiveId] = useState<MenuCategoryId>(activeIdDefault);
-  const [bundles, setBundles] = useState<Record<MenuCategoryId, MenuCategoryBundle | undefined>>({
-    [activeIdDefault]: initialMenuData,
-  });
+  const [bundles, setBundles] = useState<Record<MenuCategoryId, MenuCategoryBundle | undefined>>(
+    () => ({
+      "porsi-kecil": activeIdDefault === "porsi-kecil" ? initialMenuData : undefined,
+      "porsi-besar": activeIdDefault === "porsi-besar" ? initialMenuData : undefined,
+      "ibu-hamil": activeIdDefault === "ibu-hamil" ? initialMenuData : undefined,
+      balita: activeIdDefault === "balita" ? initialMenuData : undefined,
+    })
+  );
   const [loadingCategory, setLoadingCategory] = useState<MenuCategoryId | null>(null);
   const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
 
