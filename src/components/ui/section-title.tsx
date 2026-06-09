@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 interface SectionTitleProps {
   emoji: string;
@@ -15,15 +15,20 @@ export function SectionTitle({
   title,
   subtitle,
   href,
-  linkLabel = "Lihat semua",
+  linkLabel = 'Lihat semua',
   className,
 }: SectionTitleProps) {
   return (
-    <div className={cn("mb-5 flex flex-wrap items-end justify-between gap-3", className)}>
+    <div
+      className={cn(
+        'mb-5 flex flex-wrap items-end justify-between gap-3',
+        className
+      )}
+    >
       <div>
-        <h2 className="flex items-center gap-2 text-xl font-extrabold text-foreground md:text-2xl">
+        <h2 className='flex items-center gap-2 text-xl font-extrabold text-foreground md:text-2xl'>
           <span
-            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-secondary text-xl shadow-sm"
+            className='atm-section-badge flex h-10 w-10 items-center justify-center rounded-2xl text-xl'
             aria-hidden
           >
             {emoji}
@@ -31,13 +36,13 @@ export function SectionTitle({
           {title}
         </h2>
         {subtitle && (
-          <p className="mt-1 pl-12 text-sm text-muted-foreground">{subtitle}</p>
+          <p className='mt-1 pl-12 text-sm text-muted-foreground'>{subtitle}</p>
         )}
       </div>
       {href && (
         <Link
           href={href}
-          className="rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition hover:bg-primary/15 hover:text-primary"
+          className='rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground transition hover:bg-primary/15 hover:text-primary'
         >
           {linkLabel} →
         </Link>

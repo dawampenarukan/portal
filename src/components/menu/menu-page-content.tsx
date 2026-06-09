@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MenuFavorites } from "@/components/menu/menu-favorites";
 import { MenuRequestForm } from "@/components/menu/menu-request-form";
 import { MenuTopRequests } from "@/components/menu/menu-top-requests";
+import { AtmPagePanel, AtmPageShell } from "@/components/layout/atm-page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   MENU_CATEGORIES,
@@ -13,6 +14,17 @@ import {
 } from "@/lib/menu-meta";
 import type { MenuCategoryBundle, TopMenuRequestView } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const TAB_IDLE_COLORS: Record<MenuCategoryId, string> = {
+  "porsi-kecil":
+    "border border-sky/35 bg-sky/25 text-sky-950 hover:bg-sky/40 hover:border-sky/50",
+  "porsi-besar":
+    "border border-sunny/45 bg-sunny/35 text-amber-900 hover:bg-sunny/50 hover:border-sunny/60",
+  "ibu-hamil":
+    "border border-lavender/35 bg-lavender/25 text-purple-900 hover:bg-lavender/40 hover:border-lavender/50",
+  balita:
+    "border border-secondary/45 bg-secondary/55 text-secondary-foreground hover:bg-secondary/75 hover:border-secondary/60",
+};
 
 interface MenuPageContentProps {
   initialCategory?: string;
@@ -98,7 +110,7 @@ export function MenuPageContent({
   const topRequests = bundle?.topRequests ?? [];
 
   return (
-    <div className="space-y-8">
+    <AtmPageShell theme="menu" innerClassName="space-y-8">
       <div className="flex gap-2 overflow-x-auto pb-1">
         {MENU_CATEGORIES.map((cat) => (
           <button
@@ -110,8 +122,8 @@ export function MenuPageContent({
             className={cn(
               "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-all",
               activeId === cat.id
-                ? "bg-primary text-white shadow-md shadow-primary/25"
-                : "bg-white text-foreground/80 hover:bg-accent"
+                ? "bg-gradient-to-r from-primary to-[#3cb88a] text-white shadow-lg shadow-primary/30 ring-2 ring-white/60"
+                : TAB_IDLE_COLORS[cat.id]
             )}
           >
             <span className="text-lg">{cat.emoji}</span>
@@ -121,7 +133,12 @@ export function MenuPageContent({
         ))}
       </div>
 
-      <div className={cn("rounded-3xl bg-gradient-to-r p-6 md:p-8", category.color)}>
+      <div
+        className={cn(
+          "atm-hero-banner rounded-3xl bg-gradient-to-r p-6 ring-2 ring-white/60 md:p-8",
+          category.color
+        )}
+      >
         <div className="flex items-start gap-4">
           <span className="text-5xl">{category.emoji}</span>
           <div>
@@ -137,9 +154,9 @@ export function MenuPageContent({
       </div>
 
       <div className="grid gap-8 lg:grid-cols-5">
-        <div className="lg:col-span-3">
+        <AtmPagePanel variant="main" className="lg:col-span-3">
           <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-coral/20 text-lg">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-coral/35 to-sunny/40 text-lg shadow-sm">
               ❤️
             </span>
             Menu Favorit
@@ -157,17 +174,22 @@ export function MenuPageContent({
               favoritedIds={favoritedIds}
             />
           )}
-        </div>
+        </AtmPagePanel>
 
-        <div className="space-y-6 lg:col-span-2">
-          <Card className="charming-card border-0">
+        <AtmPagePanel variant="sidebar" className="space-y-6 lg:col-span-2">
+          <Card className="charming-card border-0 bg-white/75 backdrop-blur-sm">
             <CardContent className="p-5">
-              <h3 className="mb-3 flex items-center gap-2 font-extrabold">📅 Menu Minggu Ini</h3>
+              <h3 className="mb-3 flex items-center gap-2 font-extrabold">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky/35 to-primary/20 text-base">
+                  📅
+                </span>
+                Menu Minggu Ini
+              </h3>
               <ul className="space-y-2">
                 {thisWeek.map((item) => (
                   <li
                     key={item}
-                    className="rounded-xl bg-accent/60 px-3 py-2 text-sm font-medium text-accent-foreground"
+                    className="atm-stripe-item rounded-xl px-3 py-2 text-sm font-semibold text-foreground/85"
                   >
                     {item}
                   </li>
@@ -180,7 +202,7 @@ export function MenuPageContent({
 
           <div>
             <h3 className="mb-4 flex items-center gap-2 text-lg font-extrabold">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-lg">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/25 to-sky/35 text-lg shadow-sm">
                 🙋
               </span>
               Request Menu Terbanyak
@@ -195,8 +217,8 @@ export function MenuPageContent({
               <MenuTopRequests key={`top-requests-${activeId}`} items={topRequests} />
             )}
           </div>
-        </div>
+        </AtmPagePanel>
       </div>
-    </div>
+    </AtmPageShell>
   );
 }

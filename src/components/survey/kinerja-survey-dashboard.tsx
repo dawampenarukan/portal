@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
+import { AtmPagePanel } from "@/components/layout/atm-page-shell";
 import { FillSurveyButton } from "@/components/survey/fill-survey-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,9 +71,9 @@ export function KinerjaSurveyDashboard({
     <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">
-            {selected?.title ?? "Kinerja & Hasil Survey"}
-          </h1>
+          <h2 className="text-2xl font-bold">
+            {selected?.title ?? "Ringkasan Kinerja"}
+          </h2>
           <p className="mt-1 text-muted-foreground">
             {selected
               ? selected.summary
@@ -90,7 +91,9 @@ export function KinerjaSurveyDashboard({
         <FillSurveyButton surveys={activeSurveys} />
       </div>
 
-      <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillHref} />
+      <AtmPagePanel variant="glass">
+        <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillHref} />
+      </AtmPagePanel>
 
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">

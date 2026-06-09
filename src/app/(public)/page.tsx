@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { WelcomeBanner } from "@/components/home/welcome-banner";
+import { Suspense } from 'react';
+import { WelcomeBanner } from '@/components/home/welcome-banner';
 import {
   HomeEventsSection,
   HomeHeroSection,
@@ -8,48 +8,65 @@ import {
   HomeMenuSection,
   HomePublicationsSection,
   HomeSurveySection,
-} from "@/components/home/home-sections";
+} from '@/components/home/home-sections';
+import { AtmPageShell } from '@/components/layout/atm-page-shell';
 import {
   CardGridSkeleton,
   ChartSkeleton,
   HeroSkeleton,
   ListSkeleton,
-} from "@/components/ui/route-skeletons";
+} from '@/components/ui/route-skeletons';
 
 export const revalidate = 60;
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-7xl space-y-12 px-4 py-8">
-      <WelcomeBanner />
+    <div className='mx-auto max-w-7xl px-4 py-8'>
+      <AtmPageShell theme='home' innerClassName='space-y-12'>
+        <WelcomeBanner />
 
-      <Suspense fallback={<HeroSkeleton />}>
-        <HomeHeroSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<HeroSkeleton />}>
+            <HomeHeroSection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<CardGridSkeleton count={4} />}>
-        <HomeMenuSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<CardGridSkeleton count={4} />}>
+            <HomeMenuSection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<ChartSkeleton />}>
-        <HomeSurveySection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<ChartSkeleton />}>
+            <HomeSurveySection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<CardGridSkeleton count={2} cols="sm:grid-cols-2" />}>
-        <HomeHighlightsSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<CardGridSkeleton count={2} cols='sm:grid-cols-2' />}>
+            <HomeHighlightsSection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<CardGridSkeleton count={3} cols="md:grid-cols-3" />}>
-        <HomeEventsSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<CardGridSkeleton count={3} cols='md:grid-cols-3' />}>
+            <HomeEventsSection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<CardGridSkeleton count={2} cols="sm:grid-cols-2" />}>
-        <HomePublicationsSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<CardGridSkeleton count={2} cols='sm:grid-cols-2' />}>
+            <HomePublicationsSection />
+          </Suspense>
+        </div>
 
-      <Suspense fallback={<ListSkeleton rows={5} />}>
-        <HomeLatestNewsSection />
-      </Suspense>
+        <div className='atm-section-block'>
+          <Suspense fallback={<ListSkeleton rows={5} />}>
+            <HomeLatestNewsSection />
+          </Suspense>
+        </div>
+      </AtmPageShell>
     </div>
   );
 }

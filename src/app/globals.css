@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --background: #fffbf6;
@@ -52,9 +52,21 @@
 body {
   background-color: var(--background);
   background-image:
-    radial-gradient(circle at 10% 20%, rgba(46, 155, 106, 0.06) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(255, 212, 168, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 50% 0%, rgba(137, 207, 240, 0.08) 0%, transparent 30%);
+    radial-gradient(
+      circle at 10% 20%,
+      rgba(46, 155, 106, 0.06) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 90% 80%,
+      rgba(255, 212, 168, 0.15) 0%,
+      transparent 40%
+    ),
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(137, 207, 240, 0.08) 0%,
+      transparent 30%
+    );
   color: var(--foreground);
   font-family: var(--font-nunito), system-ui, sans-serif;
 }
@@ -64,11 +76,630 @@ body {
   border: 2px solid transparent;
   background: var(--card);
   box-shadow: 0 4px 20px rgba(46, 155, 106, 0.06);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .charming-card:hover {
   transform: translateY(-2px);
   border-color: rgba(46, 155, 106, 0.15);
   box-shadow: 0 8px 28px rgba(46, 155, 106, 0.1);
+}
+
+/* ── ATM page shell (BNI-style gradients, shared across public modules) ── */
+
+.atm-page-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2rem;
+  padding: 1.25rem;
+  border: 2px solid transparent;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell::before,
+.atm-page-shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.atm-page-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.atm-page-blob {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* menu — kuning → mint → biru → peach */
+.atm-page-shell[data-theme="menu"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 224, 138, 0.38) 0%,
+    rgba(232, 248, 240, 0.55) 32%,
+    rgba(137, 207, 240, 0.28) 68%,
+    rgba(255, 212, 168, 0.35) 100%
+  );
+  border-color: rgba(46, 155, 106, 0.14);
+  box-shadow:
+    0 16px 48px rgba(46, 155, 106, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="menu"]::before {
+  width: min(320px, 55vw);
+  height: min(320px, 55vw);
+  top: -6rem;
+  right: -4rem;
+  background: radial-gradient(circle, rgba(255, 138, 101, 0.28) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="menu"]::after {
+  width: min(360px, 60vw);
+  height: min(360px, 60vw);
+  bottom: -7rem;
+  left: -5rem;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.32) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="menu"] .atm-page-blob-a {
+  width: 220px;
+  height: 220px;
+  top: 38%;
+  left: 42%;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.12) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="menu"] .atm-page-blob-b {
+  width: 180px;
+  height: 180px;
+  top: 12%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.35) 0%, transparent 70%);
+}
+
+/* home — rose → mint → sky */
+.atm-page-shell[data-theme="home"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 230, 230, 0.55) 0%,
+    rgba(232, 248, 240, 0.6) 42%,
+    rgba(137, 207, 240, 0.32) 100%
+  );
+  border-color: rgba(196, 30, 58, 0.12);
+  box-shadow:
+    0 16px 48px rgba(196, 30, 58, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="home"]::before {
+  width: min(300px, 50vw);
+  height: min(300px, 50vw);
+  top: -5rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(255, 138, 101, 0.22) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="home"]::after {
+  width: min(340px, 55vw);
+  height: min(340px, 55vw);
+  bottom: -6rem;
+  left: -4rem;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.18) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="home"] .atm-page-blob-a {
+  width: 200px;
+  height: 200px;
+  top: 35%;
+  left: 50%;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.28) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="home"] .atm-page-blob-b {
+  width: 160px;
+  height: 160px;
+  top: 8%;
+  left: 10%;
+  background: radial-gradient(circle, rgba(255, 224, 138, 0.35) 0%, transparent 70%);
+}
+
+/* berita — biru → lavender → mint */
+.atm-page-shell[data-theme="berita"] {
+  background: linear-gradient(
+    135deg,
+    rgba(137, 207, 240, 0.38) 0%,
+    rgba(212, 184, 255, 0.28) 48%,
+    rgba(232, 248, 240, 0.5) 100%
+  );
+  border-color: rgba(100, 149, 237, 0.18);
+  box-shadow:
+    0 16px 48px rgba(79, 70, 229, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="berita"]::before {
+  width: min(280px, 48vw);
+  height: min(280px, 48vw);
+  top: -5rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.35) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="berita"]::after {
+  width: min(320px, 52vw);
+  height: min(320px, 52vw);
+  bottom: -6rem;
+  left: -4rem;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.3) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="berita"] .atm-page-blob-a {
+  width: 190px;
+  height: 190px;
+  top: 30%;
+  left: 45%;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.12) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="berita"] .atm-page-blob-b {
+  width: 150px;
+  height: 150px;
+  top: 10%;
+  left: 6%;
+  background: radial-gradient(circle, rgba(255, 212, 168, 0.3) 0%, transparent 70%);
+}
+
+/* event — kuning → coral → peach */
+.atm-page-shell[data-theme="event"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 224, 138, 0.48) 0%,
+    rgba(255, 138, 101, 0.22) 45%,
+    rgba(255, 212, 168, 0.42) 100%
+  );
+  border-color: rgba(255, 138, 101, 0.2);
+  box-shadow:
+    0 16px 48px rgba(234, 88, 12, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="event"]::before {
+  width: min(300px, 50vw);
+  height: min(300px, 50vw);
+  top: -5rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(255, 224, 138, 0.4) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="event"]::after {
+  width: min(320px, 52vw);
+  height: min(320px, 52vw);
+  bottom: -6rem;
+  left: -4rem;
+  background: radial-gradient(circle, rgba(255, 138, 101, 0.25) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="event"] .atm-page-blob-a {
+  width: 200px;
+  height: 200px;
+  top: 40%;
+  left: 40%;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.22) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="event"] .atm-page-blob-b {
+  width: 170px;
+  height: 170px;
+  top: 8%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.25) 0%, transparent 70%);
+}
+
+/* kinerja — mint → cyan → hijau */
+.atm-page-shell[data-theme="kinerja"] {
+  background: linear-gradient(
+    135deg,
+    rgba(232, 248, 240, 0.65) 0%,
+    rgba(137, 207, 240, 0.32) 55%,
+    rgba(46, 155, 106, 0.14) 100%
+  );
+  border-color: rgba(46, 155, 106, 0.18);
+  box-shadow:
+    0 16px 48px rgba(8, 145, 178, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="kinerja"]::before {
+  width: min(280px, 48vw);
+  height: min(280px, 48vw);
+  top: -5rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.2) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="kinerja"]::after {
+  width: min(300px, 50vw);
+  height: min(300px, 50vw);
+  bottom: -6rem;
+  left: -4rem;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.3) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="kinerja"] .atm-page-blob-a {
+  width: 180px;
+  height: 180px;
+  top: 35%;
+  left: 48%;
+  background: radial-gradient(circle, rgba(255, 224, 138, 0.25) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="kinerja"] .atm-page-blob-b {
+  width: 150px;
+  height: 150px;
+  top: 12%;
+  left: 6%;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.28) 0%, transparent 70%);
+}
+
+/* masukan — lavender → peach → kuning */
+.atm-page-shell[data-theme="masukan"] {
+  background: linear-gradient(
+    135deg,
+    rgba(212, 184, 255, 0.35) 0%,
+    rgba(255, 212, 168, 0.38) 50%,
+    rgba(255, 224, 138, 0.28) 100%
+  );
+  border-color: rgba(124, 58, 237, 0.15);
+  box-shadow:
+    0 16px 48px rgba(124, 58, 237, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="masukan"]::before {
+  width: min(260px, 45vw);
+  height: min(260px, 45vw);
+  top: -4rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.35) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="masukan"]::after {
+  width: min(300px, 50vw);
+  height: min(300px, 50vw);
+  bottom: -5rem;
+  left: -3rem;
+  background: radial-gradient(circle, rgba(255, 138, 101, 0.22) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="masukan"] .atm-page-blob-a {
+  width: 170px;
+  height: 170px;
+  top: 38%;
+  left: 42%;
+  background: radial-gradient(circle, rgba(255, 224, 138, 0.3) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="masukan"] .atm-page-blob-b {
+  width: 140px;
+  height: 140px;
+  top: 10%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.15) 0%, transparent 70%);
+}
+
+/* survey — kuning → mint → biru */
+.atm-page-shell[data-theme="survey"] {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 224, 138, 0.42) 0%,
+    rgba(232, 248, 240, 0.55) 45%,
+    rgba(137, 207, 240, 0.28) 100%
+  );
+  border-color: rgba(245, 158, 11, 0.18);
+  box-shadow:
+    0 16px 48px rgba(46, 155, 106, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="survey"]::before {
+  width: min(260px, 45vw);
+  height: min(260px, 45vw);
+  top: -4rem;
+  right: -3rem;
+  background: radial-gradient(circle, rgba(255, 224, 138, 0.38) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="survey"]::after {
+  width: min(280px, 48vw);
+  height: min(280px, 48vw);
+  bottom: -5rem;
+  left: -3rem;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.28) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="survey"] .atm-page-blob-a {
+  width: 160px;
+  height: 160px;
+  top: 35%;
+  left: 44%;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.14) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="survey"] .atm-page-blob-b {
+  width: 130px;
+  height: 130px;
+  top: 8%;
+  left: 10%;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.3) 0%, transparent 70%);
+}
+
+/* article — putih → biru → mint */
+.atm-page-shell[data-theme="article"] {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(137, 207, 240, 0.22) 55%,
+    rgba(232, 248, 240, 0.42) 100%
+  );
+  border-color: rgba(137, 207, 240, 0.22);
+  box-shadow:
+    0 16px 48px rgba(37, 99, 235, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.atm-page-shell[data-theme="article"]::before {
+  width: min(240px, 42vw);
+  height: min(240px, 42vw);
+  top: -4rem;
+  right: -2rem;
+  background: radial-gradient(circle, rgba(137, 207, 240, 0.28) 0%, transparent 68%);
+}
+
+.atm-page-shell[data-theme="article"]::after {
+  width: min(260px, 45vw);
+  height: min(260px, 45vw);
+  bottom: -5rem;
+  left: -3rem;
+  background: radial-gradient(circle, rgba(46, 155, 106, 0.15) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="article"] .atm-page-blob-a {
+  width: 150px;
+  height: 150px;
+  top: 30%;
+  left: 50%;
+  background: radial-gradient(circle, rgba(212, 184, 255, 0.2) 0%, transparent 70%);
+}
+
+.atm-page-shell[data-theme="article"] .atm-page-blob-b {
+  width: 120px;
+  height: 120px;
+  top: 10%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(255, 212, 168, 0.28) 0%, transparent 70%);
+}
+
+/* Panels */
+.atm-panel-main {
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.82) 0%,
+    rgba(255, 224, 138, 0.18) 100%
+  );
+  border: 1px solid rgba(255, 138, 101, 0.18);
+  box-shadow: 0 8px 24px rgba(255, 138, 101, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.atm-panel-sidebar {
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.88) 0%,
+    rgba(232, 248, 240, 0.72) 100%
+  );
+  border: 1px solid rgba(46, 155, 106, 0.16);
+  box-shadow: 0 8px 24px rgba(46, 155, 106, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.atm-panel-glass {
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.atm-page-shell[data-theme="berita"] .atm-panel-main {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.85) 0%, rgba(137, 207, 240, 0.15) 100%);
+  border-color: rgba(100, 149, 237, 0.15);
+}
+
+.atm-page-shell[data-theme="berita"] .atm-panel-sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(212, 184, 255, 0.2) 100%);
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+.atm-page-shell[data-theme="event"] .atm-panel-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.82) 0%, rgba(255, 224, 138, 0.2) 100%);
+  border-color: rgba(255, 138, 101, 0.15);
+}
+
+.atm-page-shell[data-theme="kinerja"] .atm-panel-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.85) 0%, rgba(232, 248, 240, 0.5) 100%);
+  border-color: rgba(46, 155, 106, 0.15);
+}
+
+.atm-page-shell[data-theme="masukan"] .atm-panel-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.85) 0%, rgba(212, 184, 255, 0.18) 100%);
+  border-color: rgba(124, 58, 237, 0.12);
+}
+
+.atm-page-shell[data-theme="survey"] .atm-panel-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 224, 138, 0.15) 100%);
+  border-color: rgba(245, 158, 11, 0.15);
+}
+
+.atm-page-shell[data-theme="article"] .atm-panel-glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9) 0%, rgba(137, 207, 240, 0.12) 100%);
+  border-color: rgba(137, 207, 240, 0.18);
+}
+
+/* Gradient titles per module */
+.atm-page-title[data-theme="menu"],
+.menu-page-title {
+  background: linear-gradient(135deg, #1b6b47 0%, #2e9b6a 45%, #f58220 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="home"] {
+  background: linear-gradient(135deg, #c41e3a 0%, #2e9b6a 50%, #0891b2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="berita"] {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 55%, #2e9b6a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="event"] {
+  background: linear-gradient(135deg, #ea580c 0%, #f58220 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="kinerja"] {
+  background: linear-gradient(135deg, #0d9488 0%, #0891b2 50%, #2e9b6a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="masukan"] {
+  background: linear-gradient(135deg, #7c3aed 0%, #ea580c 55%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="survey"] {
+  background: linear-gradient(135deg, #2e9b6a 0%, #0891b2 45%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-page-title[data-theme="article"] {
+  background: linear-gradient(135deg, #2563eb 0%, #2e9b6a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.atm-hero-banner,
+.menu-hero-banner {
+  box-shadow:
+    0 12px 32px rgba(46, 155, 106, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.atm-stripe-item:nth-child(4n + 1),
+.menu-week-item:nth-child(4n + 1) {
+  background: linear-gradient(90deg, rgba(232, 248, 240, 0.95), rgba(232, 248, 240, 0.55));
+}
+
+.atm-stripe-item:nth-child(4n + 2),
+.menu-week-item:nth-child(4n + 2) {
+  background: linear-gradient(90deg, rgba(137, 207, 240, 0.28), rgba(137, 207, 240, 0.12));
+}
+
+.atm-stripe-item:nth-child(4n + 3),
+.menu-week-item:nth-child(4n + 3) {
+  background: linear-gradient(90deg, rgba(255, 224, 138, 0.45), rgba(255, 224, 138, 0.2));
+}
+
+.atm-stripe-item:nth-child(4n + 4),
+.menu-week-item:nth-child(4n + 4) {
+  background: linear-gradient(90deg, rgba(212, 184, 255, 0.28), rgba(212, 184, 255, 0.12));
+}
+
+.atm-section-badge {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 224, 138, 0.55) 0%,
+    rgba(46, 155, 106, 0.22) 50%,
+    rgba(137, 207, 240, 0.35) 100%
+  );
+  box-shadow: 0 2px 8px rgba(46, 155, 106, 0.1);
+}
+
+.atm-section-block {
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.04);
+}
+
+.atm-section-block:nth-child(2) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 230, 230, 0.28) 100%);
+  border-color: rgba(196, 30, 58, 0.12);
+}
+
+.atm-section-block:nth-child(3) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(232, 248, 240, 0.4) 100%);
+  border-color: rgba(46, 155, 106, 0.12);
+}
+
+.atm-section-block:nth-child(4) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 224, 138, 0.22) 100%);
+  border-color: rgba(245, 158, 11, 0.12);
+}
+
+.atm-section-block:nth-child(5) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 138, 101, 0.14) 100%);
+  border-color: rgba(255, 138, 101, 0.15);
+}
+
+.atm-section-block:nth-child(6) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(137, 207, 240, 0.2) 100%);
+  border-color: rgba(137, 207, 240, 0.15);
+}
+
+.atm-section-block:nth-child(7) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(212, 184, 255, 0.2) 100%);
+  border-color: rgba(124, 58, 237, 0.1);
+}
+
+.atm-section-block:nth-child(8) {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(232, 248, 240, 0.35) 100%);
+  border-color: rgba(46, 155, 106, 0.12);
 }
