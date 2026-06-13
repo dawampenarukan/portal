@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDatabaseInfo, isLocalDatabaseUrl } from '@/lib/safe-db';
+import { getSchemaStatus } from '@/lib/db-schema-sync';
 import { hasBlobStorage } from '@/lib/upload';
 import { prisma } from '@/lib/prisma';
 
@@ -90,6 +91,8 @@ export async function GET() {
       .then(() => true)
       .catch(() => false);
 
+    const schema = await getSchemaStatus().catch(() => null);
+
     return NextResponse.json({
       ok: true,
       checks,
@@ -97,6 +100,10 @@ export async function GET() {
       databaseHost: dbInfo.host,
       databaseName: dbInfo.database,
       isLocalDatabase: dbInfo.isLocal,
+      schema,
+      schemaHint: schema?.ready
+        ? 'Schema lengkap'
+        : 'Schema belum lengkap — buka /admin/akun → Perbarui Schema Database',
       counts: {
         articles: articleCount,
         surveys: surveyCount,

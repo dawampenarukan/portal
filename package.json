@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:deploy": "prisma db push",
+    "db:sync-production": "tsx scripts/sync-production-schema.ts",
     "db:seed": "prisma db seed",
     "db:ensure-admin": "tsx scripts/ensure-admin.ts",
     "db:setup": "bash scripts/setup-db.sh",

@@ -222,3 +222,10 @@ export interface ManageableUserView {
   role: string;
   createdAt: string;
 }
+
+export interface SchemaStatus {
+  organolepticEntryRole: boolean;
+  organolepticChecklistTable: boolean;
+  createdByIdColumn: boolean;
+  ready: boolean;
+}

@@ -41,6 +41,11 @@ export async function POST(request: Request) {
     return NextResponse.json(user, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Gagal membuat akun";
+    if (message.includes("ORGANOLEPTIC_ENTRY")) {
+      return badRequest(
+        "Role entri belum ada di database. Buka Kelola Akun → klik Perbarui Schema Database, lalu coba lagi."
+      );
+    }
     return badRequest(message);
   }
 }
