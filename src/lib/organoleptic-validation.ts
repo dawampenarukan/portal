@@ -6,6 +6,7 @@ import {
 import {
   isValidScore,
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
+  ORGANOLEPTIC_REQUIRED_ITEMS,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
 import type {
@@ -23,7 +24,10 @@ function parseItem(raw: unknown, index: number): OrganolepticItemInput | string 
   }
   const item = raw as Record<string, unknown>;
   const foodName = typeof item.foodName === "string" ? item.foodName.trim() : "";
-  if (!foodName) return `Baris ${index + 1}: nama makanan wajib diisi`;
+
+  if (!foodName) {
+    return `Baris ${index + 1}: nama makanan wajib diisi`;
+  }
 
   const scores = ["tasteScore", "colorScore", "aromaScore", "textureScore"] as const;
   for (const key of scores) {
@@ -74,9 +78,15 @@ export function parseOrganolepticPayload(
   if (!PLACE_TYPES.has(placeType)) return { error: "Tempat pemeriksaan tidak valid" };
   if (!TIMINGS.has(timing)) return { error: "Waktu uji tidak valid" };
 
-  if (!Array.isArray(raw.items) || raw.items.length !== ORGANOLEPTIC_ITEMS_PER_PACKAGE) {
+  if (!Array.isArray(raw.items) || raw.items.length === 0) {
     return {
-      error: `Wajib mengisi tepat ${ORGANOLEPTIC_ITEMS_PER_PACKAGE} item menu (satu paket MBG)`,
+      error: `Minimal ${ORGANOLEPTIC_REQUIRED_ITEMS} item menu wajib diisi`,
+    };
+  }
+
+  if (raw.items.length > ORGANOLEPTIC_ITEMS_PER_PACKAGE) {
+    return {
+      error: `Maksimal ${ORGANOLEPTIC_ITEMS_PER_PACKAGE} item menu per paket`,
     };
   }
 
@@ -85,6 +95,12 @@ export function parseOrganolepticPayload(
     const parsed = parseItem(raw.items[i], i);
     if (typeof parsed === "string") return { error: parsed };
     items.push(parsed);
+  }
+
+  if (items.length < ORGANOLEPTIC_REQUIRED_ITEMS) {
+    return {
+      error: `Minimal ${ORGANOLEPTIC_REQUIRED_ITEMS} item menu wajib diisi`,
+    };
   }
 
   return {

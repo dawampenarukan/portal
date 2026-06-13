@@ -8,13 +8,17 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
+  ORGANOLEPTIC_OPTIONAL_ITEM_HINT,
   ORGANOLEPTIC_PLACE_LABELS,
+  ORGANOLEPTIC_REQUIRED_ITEMS,
   ORGANOLEPTIC_SAFETY_LABELS,
   ORGANOLEPTIC_SCORE_LABELS,
   ORGANOLEPTIC_SCORE_OPTIONS,
   ORGANOLEPTIC_TIMING_LABELS,
   formatInspectionDateInput,
+  isOptionalOrganolepticRow,
 } from "@/lib/organoleptic-meta";
+import { cn } from "@/lib/utils";
 import type { OrganolepticChecklistView } from "@/lib/types";
 
 interface ItemForm {
@@ -53,6 +57,27 @@ function emptyPackageItems(): ItemForm[] {
   return Array.from({ length: ORGANOLEPTIC_ITEMS_PER_PACKAGE }, () => emptyItem());
 }
 
+function padItemsToPackage(items: ItemForm[]): ItemForm[] {
+  const padded = [...items];
+  while (padded.length < ORGANOLEPTIC_ITEMS_PER_PACKAGE) {
+    padded.push(emptyItem());
+  }
+  return padded.slice(0, ORGANOLEPTIC_ITEMS_PER_PACKAGE);
+}
+
+function isRowInactive(item: ItemForm): boolean {
+  return !item.foodName.trim();
+}
+
+function rowPlaceholder(index: number): string {
+  return isOptionalOrganolepticRow(index)
+    ? ORGANOLEPTIC_OPTIONAL_ITEM_HINT
+    : `Item paket ke-${index + 1}`;
+}
+
+const INACTIVE_FIELD_CLASS =
+  "flex h-11 items-center justify-center rounded-2xl border-2 border-muted bg-muted/50 text-sm text-muted-foreground opacity-70";
+
 function defaultHeader(): HeaderForm {
   const now = new Date();
   return {
@@ -80,15 +105,17 @@ function checklistToForm(checklist: OrganolepticChecklistView): {
       timing: checklist.timing as HeaderForm["timing"],
       criticism: checklist.criticism ?? "",
     },
-    items: checklist.items.map((item) => ({
-      foodName: item.foodName,
-      tasteScore: item.tasteScore,
-      colorScore: item.colorScore,
-      aromaScore: item.aromaScore,
-      textureScore: item.textureScore,
-      safety: item.safety as ItemForm["safety"],
-      notes: item.notes ?? "",
-    })),
+    items: padItemsToPackage(
+      checklist.items.map((item) => ({
+        foodName: item.foodName,
+        tasteScore: item.tasteScore,
+        colorScore: item.colorScore,
+        aromaScore: item.aromaScore,
+        textureScore: item.textureScore,
+        safety: item.safety as ItemForm["safety"],
+        notes: item.notes ?? "",
+      }))
+    ),
   };
 }
 
@@ -102,7 +129,7 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
   const initial = initialData ? checklistToForm(initialData) : null;
   const [header, setHeader] = useState<HeaderForm>(initial?.header ?? defaultHeader());
   const [items, setItems] = useState<ItemForm[]>(
-    initial?.items.length ? initial.items : emptyPackageItems()
+    initial?.items.length ? padItemsToPackage(initial.items) : emptyPackageItems()
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,6 +142,18 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
     e.preventDefault();
     if (readOnly) return;
 
+    const filledItems = items.filter((item) => item.foodName.trim());
+    if (filledItems.length < ORGANOLEPTIC_REQUIRED_ITEMS) {
+      setError(`Minimal ${ORGANOLEPTIC_REQUIRED_ITEMS} item menu wajib diisi`);
+      return;
+    }
+
+    const itemsToSave = filledItems.map((item) => ({
+      ...item,
+      foodName: item.foodName.trim(),
+      notes: item.notes || null,
+    }));
+
     setLoading(true);
     setError(null);
 
@@ -123,10 +162,7 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...header,
-        items: items.map((item) => ({
-          ...item,
-          notes: item.notes || null,
-        })),
+        items: itemsToSave,
       }),
     });
 
@@ -144,12 +180,13 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div className="rounded-2xl border bg-muted/30 p-4 text-center text-sm">
         <p className="font-semibold text-primary">CHECKLIST UJI ORGANOLEPTIK SEKOLAH ATAU POSYANDU</p>
         <p className="mt-1 text-muted-foreground">SPPG Malang Kepanjen Penarukan 2</p>
         <p className="mt-2 text-xs text-muted-foreground">
-          1 lembar = 1 sekolah/posyandu = 1 paket makanan ({ORGANOLEPTIC_ITEMS_PER_PACKAGE} item)
+          1 lembar = 1 sekolah/posyandu = 1 paket makanan (min. {ORGANOLEPTIC_REQUIRED_ITEMS}, maks.{" "}
+          {ORGANOLEPTIC_ITEMS_PER_PACKAGE} item)
         </p>
       </div>
 
@@ -238,7 +275,8 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
         <div>
           <h3 className="font-semibold">Hasil Pemeriksaan (skor 1–5)</h3>
           <p className="text-sm text-muted-foreground">
-            Isi {ORGANOLEPTIC_ITEMS_PER_PACKAGE} item menu dalam satu paket MBG.
+            Isi nama menu terlebih dahulu — skor dan kesimpulan aktif setelah nama diisi. Minimal{" "}
+            {ORGANOLEPTIC_REQUIRED_ITEMS} item, item ke-5 boleh dikosongkan.
           </p>
         </div>
 
@@ -257,68 +295,87 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
               </tr>
             </thead>
             <tbody>
-              {items.map((item, index) => (
-                <tr key={index} className="border-t align-top">
+              {items.map((item, index) => {
+                const rowInactive = isRowInactive(item);
+
+                return (
+                <tr
+                  key={index}
+                  className={cn("border-t align-top", rowInactive && "bg-muted/20")}
+                >
                   <td className="px-3 py-2 font-medium">{index + 1}</td>
                   <td className="px-3 py-2">
                     <Input
                       value={item.foodName}
                       onChange={(e) => updateItem(index, { foodName: e.target.value })}
-                      required
                       disabled={readOnly}
-                      placeholder={`Item paket ke-${index + 1}`}
+                      placeholder={rowPlaceholder(index)}
+                      title={isOptionalOrganolepticRow(index) ? ORGANOLEPTIC_OPTIONAL_ITEM_HINT : undefined}
                       className="min-w-[140px]"
                     />
                   </td>
                   {(["tasteScore", "colorScore", "aromaScore", "textureScore"] as const).map(
                     (key) => (
                       <td key={key} className="px-3 py-2">
-                        <Select
-                          value={String(item[key])}
-                          onChange={(e) =>
-                            updateItem(index, { [key]: Number(e.target.value) } as Partial<ItemForm>)
-                          }
-                          disabled={readOnly}
-                          className="min-w-[88px]"
-                        >
-                          {ORGANOLEPTIC_SCORE_OPTIONS.map((score) => (
-                            <option key={score} value={score}>
-                              {score}
-                            </option>
-                          ))}
-                        </Select>
+                        {rowInactive ? (
+                          <div className={cn(INACTIVE_FIELD_CLASS, "min-w-[88px]")}>—</div>
+                        ) : (
+                          <Select
+                            value={String(item[key])}
+                            onChange={(e) =>
+                              updateItem(index, { [key]: Number(e.target.value) } as Partial<ItemForm>)
+                            }
+                            disabled={readOnly}
+                            className="min-w-[88px]"
+                          >
+                            {ORGANOLEPTIC_SCORE_OPTIONS.map((score) => (
+                              <option key={score} value={score}>
+                                {score}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
                       </td>
                     )
                   )}
                   <td className="px-3 py-2">
-                    <Select
-                      value={item.safety}
-                      onChange={(e) =>
-                        updateItem(index, {
-                          safety: e.target.value as ItemForm["safety"],
-                        })
-                      }
-                      disabled={readOnly}
-                      className="min-w-[130px]"
-                    >
-                      {Object.entries(ORGANOLEPTIC_SAFETY_LABELS).map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </Select>
+                    {rowInactive ? (
+                      <div className={cn(INACTIVE_FIELD_CLASS, "min-w-[130px]")}>—</div>
+                    ) : (
+                      <Select
+                        value={item.safety}
+                        onChange={(e) =>
+                          updateItem(index, {
+                            safety: e.target.value as ItemForm["safety"],
+                          })
+                        }
+                        disabled={readOnly}
+                        className="min-w-[130px]"
+                      >
+                        {Object.entries(ORGANOLEPTIC_SAFETY_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      value={item.notes}
-                      onChange={(e) => updateItem(index, { notes: e.target.value })}
-                      disabled={readOnly}
-                      placeholder="Keterangan"
-                      className="min-w-[100px]"
-                    />
+                    {rowInactive ? (
+                      <div className={cn(INACTIVE_FIELD_CLASS, "min-w-[100px]")}>—</div>
+                    ) : (
+                      <Input
+                        value={item.notes}
+                        onChange={(e) => updateItem(index, { notes: e.target.value })}
+                        disabled={readOnly}
+                        placeholder="Keterangan"
+                        className="min-w-[100px]"
+                      />
+                    )}
                   </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
