@@ -1,10 +1,5 @@
 import "@/lib/auth-url";
 import type { NextAuthConfig } from "next-auth";
-import {
-  canAccessAdminPanel,
-  getDefaultAdminPath,
-  isPathAllowedForRole,
-} from "@/lib/roles";
 
 export const authConfig = {
   trustHost: true,
@@ -26,26 +21,6 @@ export const authConfig = {
         session.user.role = token.role as string;
       }
       return session;
-    },
-    authorized({ auth, request }) {
-      const { pathname } = request.nextUrl;
-      const isLoggedIn = !!auth?.user;
-      const isLoginPage = pathname === "/admin/login";
-      const isAdminPanel = pathname.startsWith("/admin") && !isLoginPage;
-
-      if (isAdminPanel && !isLoggedIn) return false;
-
-      if (isLoginPage && isLoggedIn) return true;
-
-      if (isAdminPanel && isLoggedIn) {
-        const role = auth.user?.role;
-        if (!canAccessAdminPanel(role)) return false;
-        if (!isPathAllowedForRole(pathname, role)) {
-          return Response.redirect(new URL(getDefaultAdminPath(role), request.nextUrl));
-        }
-      }
-
-      return true;
     },
   },
 } satisfies NextAuthConfig;
