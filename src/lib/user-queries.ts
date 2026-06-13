@@ -1,19 +1,20 @@
 import { UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import {
+  MANAGEABLE_USER_ROLES,
+  USER_ROLE_SUPER_ADMIN,
+  isManageableUserRole,
+  type ManageableUserRole,
+} from "@/lib/user-constants";
 import type { ManageableUserView } from "@/lib/types";
 
-export const MANAGEABLE_USER_ROLES = [
-  UserRole.SUPER_ADMIN,
-  UserRole.ORGANOLEPTIC_ENTRY,
-] as const;
-
-export type ManageableUserRole = (typeof MANAGEABLE_USER_ROLES)[number];
-
-export const MANAGEABLE_USER_ROLE_LABELS: Record<ManageableUserRole, string> = {
-  [UserRole.SUPER_ADMIN]: "Admin",
-  [UserRole.ORGANOLEPTIC_ENTRY]: "Entri Organoleptik",
-};
+export {
+  MANAGEABLE_USER_ROLES,
+  MANAGEABLE_USER_ROLE_LABELS,
+  isManageableUserRole,
+  type ManageableUserRole,
+} from "@/lib/user-constants";
 
 function mapUser(row: {
   id: string;
@@ -31,17 +32,31 @@ function mapUser(row: {
   };
 }
 
-export async function getManageableUsers(): Promise<ManageableUserView[]> {
-  const rows = await prisma.user.findMany({
-    where: { role: { in: [...MANAGEABLE_USER_ROLES] } },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
-    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
-  });
-  return rows.map(mapUser);
-}
+const userSelect = {
+  id: true,
+  email: true,
+  name: true,
+  role: true,
+  createdAt: true,
+} as const;
 
-export function isManageableUserRole(role: string): role is ManageableUserRole {
-  return MANAGEABLE_USER_ROLES.includes(role as ManageableUserRole);
+export async function getManageableUsers(): Promise<ManageableUserView[]> {
+  try {
+    const rows = await prisma.user.findMany({
+      where: { role: { in: [...MANAGEABLE_USER_ROLES] } },
+      select: userSelect,
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    });
+    return rows.map(mapUser);
+  } catch (err) {
+    console.error("[users] getManageableUsers:", err);
+    const rows = await prisma.user.findMany({
+      where: { role: UserRole.SUPER_ADMIN },
+      select: userSelect,
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map(mapUser);
+  }
 }
 
 export async function createManageableUser(input: {
@@ -70,7 +85,7 @@ export async function createManageableUser(input: {
   const passwordHash = await bcrypt.hash(password, 10);
   const row = await prisma.user.create({
     data: { email, name, passwordHash, role: input.role },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
+    select: userSelect,
   });
 
   return mapUser(row);
@@ -90,7 +105,7 @@ export async function deleteManageableUser(id: string, currentUserId: string) {
     throw new Error("Akun ini tidak bisa dikelola dari panel ini");
   }
 
-  if (user.role === UserRole.SUPER_ADMIN) {
+  if (user.role === USER_ROLE_SUPER_ADMIN) {
     const adminCount = await prisma.user.count({
       where: { role: UserRole.SUPER_ADMIN },
     });

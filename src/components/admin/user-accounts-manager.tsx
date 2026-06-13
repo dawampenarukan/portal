@@ -3,15 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Trash2 } from "lucide-react";
-import { UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   MANAGEABLE_USER_ROLE_LABELS,
+  USER_ROLE_ORGANOLEPTIC_ENTRY,
+  USER_ROLE_SUPER_ADMIN,
   type ManageableUserRole,
-} from "@/lib/user-queries";
+} from "@/lib/user-constants";
 import { formatDate } from "@/lib/utils";
 import type { ManageableUserView } from "@/lib/types";
 
@@ -26,7 +27,7 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<ManageableUserRole>(UserRole.ORGANOLEPTIC_ENTRY);
+  const [role, setRole] = useState<ManageableUserRole>(USER_ROLE_ORGANOLEPTIC_ENTRY);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [passwordEditId, setPasswordEditId] = useState<string | null>(null);
@@ -59,7 +60,7 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
     setName("");
     setEmail("");
     setPassword("");
-    setRole(UserRole.ORGANOLEPTIC_ENTRY);
+    setRole(USER_ROLE_ORGANOLEPTIC_ENTRY);
     setSuccess("Akun berhasil ditambahkan");
     router.refresh();
   }
@@ -160,11 +161,11 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
           <div>
             <label className="mb-1 block text-sm font-medium">Role</label>
             <Select value={role} onChange={(e) => setRole(e.target.value as ManageableUserRole)}>
-              <option value={UserRole.SUPER_ADMIN}>
-                {MANAGEABLE_USER_ROLE_LABELS[UserRole.SUPER_ADMIN]}
+              <option value={USER_ROLE_SUPER_ADMIN}>
+                {MANAGEABLE_USER_ROLE_LABELS[USER_ROLE_SUPER_ADMIN]}
               </option>
-              <option value={UserRole.ORGANOLEPTIC_ENTRY}>
-                {MANAGEABLE_USER_ROLE_LABELS[UserRole.ORGANOLEPTIC_ENTRY]}
+              <option value={USER_ROLE_ORGANOLEPTIC_ENTRY}>
+                {MANAGEABLE_USER_ROLE_LABELS[USER_ROLE_ORGANOLEPTIC_ENTRY]}
               </option>
             </Select>
           </div>
@@ -203,7 +204,7 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={user.role === UserRole.SUPER_ADMIN ? "default" : "secondary"}>
+                    <Badge variant={user.role === USER_ROLE_SUPER_ADMIN ? "default" : "secondary"}>
                       {roleLabel}
                     </Badge>
                     {isSelf && <Badge variant="outline">Akun Anda</Badge>}
