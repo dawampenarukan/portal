@@ -185,6 +185,22 @@ enum MenuCategoryType {
   BALITA
 }
 
+enum OrganolepticPlaceType {
+  SEKOLAH
+  POSYANDU
+  LAINNYA
+}
+
+enum OrganolepticTiming {
+  SAAT_TIBA
+  SEBELUM_DIKONSUMSI
+}
+
+enum OrganolepticSafety {
+  AMAN
+  TIDAK_AMAN
+}
+
 model MenuItem {
   id          String           @id @default(cuid())
   name        String
@@ -237,4 +253,37 @@ model WeeklyMenuEntry {
   updatedAt DateTime         @updatedAt
 
   @@index([category, sortOrder])
+}
+
+model OrganolepticChecklist {
+  id             String                @id @default(cuid())
+  inspectorName  String
+  placeType      OrganolepticPlaceType
+  placeName      String
+  inspectionDate DateTime              @db.Date
+  inspectionTime String
+  timing         OrganolepticTiming
+  criticism      String?               @db.Text
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  items          OrganolepticItem[]
+
+  @@index([inspectionDate])
+  @@index([placeName, inspectionDate])
+}
+
+model OrganolepticItem {
+  id           String               @id @default(cuid())
+  checklistId  String
+  checklist    OrganolepticChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  sortOrder    Int                  @default(0)
+  foodName     String
+  tasteScore   Int
+  colorScore   Int
+  aromaScore   Int
+  textureScore Int
+  safety       OrganolepticSafety
+  notes        String?
+
+  @@index([checklistId, sortOrder])
 }

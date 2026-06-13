@@ -161,3 +161,54 @@ export interface AdminMenuOverviewCard {
   weeklyCount: number;
   newRequests: number;
 }
+
+export interface OrganolepticItemView {
+  id: string;
+  sortOrder: number;
+  foodName: string;
+  tasteScore: number;
+  colorScore: number;
+  aromaScore: number;
+  textureScore: number;
+  safety: string;
+  notes: string | null;
+}
+
+export interface OrganolepticChecklistView {
+  id: string;
+  inspectorName: string;
+  placeType: string;
+  placeName: string;
+  inspectionDate: string;
+  inspectionTime: string;
+  timing: string;
+  criticism: string | null;
+  createdAt: string;
+  items: OrganolepticItemView[];
+}
+
+export interface OrganolepticDailySummary {
+  date: string;
+  checklistCount: number;
+  itemCount: number;
+  safeCount: number;
+  unsafeCount: number;
+  avgTaste: number;
+  avgColor: number;
+  avgAroma: number;
+  avgTexture: number;
+  avgOverall: number;
+}
+
+export interface OrganolepticPlaceSummary {
+  placeName: string;
+  placeType: string;
+  safeCount: number;
+  unsafeCount: number;
+  avgOverall: number;
+}
+
+export interface OrganolepticPublicView {
+  summary: OrganolepticDailySummary;
+  recentPlaces: OrganolepticPlaceSummary[];
+}

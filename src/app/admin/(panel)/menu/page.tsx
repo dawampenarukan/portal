@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminMenuOverview } from "@/components/admin/admin-menu-overview-section";
+import { AdminOrganolepticSummary } from "@/components/admin/admin-organoleptic-summary";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
 
 export const metadata = { title: "Kelola Menu" };
@@ -10,10 +11,14 @@ export default function AdminMenuPage() {
       <div>
         <h2 className="text-2xl font-bold">Kelola Menu</h2>
         <p className="text-muted-foreground">
-          Atur jadwal mingguan, lihat akumulasi menu favorit, dan tinjau request menu dari
+          Atur jadwal mingguan, checklist uji organoleptik, menu favorit, dan request menu dari
           pengunjung.
         </p>
       </div>
+
+      <Suspense fallback={<AdminCardSkeleton rows={4} />}>
+        <AdminOrganolepticSummary />
+      </Suspense>
 
       <Suspense
         fallback={

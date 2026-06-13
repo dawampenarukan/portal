@@ -4,11 +4,13 @@ import { NewsCard } from "@/components/news/news-card";
 import { NewsListItem } from "@/components/news/news-list-item";
 import { EventCarousel } from "@/components/event/event-carousel";
 import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
+import { OrganolepticWidgetLoader } from "@/components/dashboard/organoleptic-widget-loader";
 import { MenuPreview } from "@/components/menu/menu-preview";
 import { Card, CardContent } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import {
   getActiveSurveySummariesCached,
+  getOrganolepticPublicDisplayCached,
   getPublishedArticlesForListCached,
   getPublishedEventsCached,
   getPublishedPublicationsCached,
@@ -24,6 +26,22 @@ const emptySurvey = {
   target: 0,
   aspects: [],
   trend: [],
+};
+
+const emptyOrganoleptic = {
+  summary: {
+    date: new Date().toISOString().slice(0, 10),
+    checklistCount: 0,
+    itemCount: 0,
+    safeCount: 0,
+    unsafeCount: 0,
+    avgTaste: 0,
+    avgColor: 0,
+    avgAroma: 0,
+    avgTexture: 0,
+    avgOverall: 0,
+  },
+  recentPlaces: [],
 };
 
 export async function HomeHeroSection() {
@@ -189,6 +207,27 @@ export async function HomeMenuSection() {
         linkLabel="Lihat semua menu"
       />
       <MenuPreview />
+    </section>
+  );
+}
+
+export async function HomeOrganolepticSection() {
+  const organolepticData = await safeQuery(
+    () => getOrganolepticPublicDisplayCached(),
+    emptyOrganoleptic,
+    "getOrganolepticPublicDisplay"
+  );
+
+  return (
+    <section>
+      <SectionTitle
+        emoji="📋"
+        title="Uji Organoleptik Hari Ini"
+        subtitle="Kualitas rasa, aroma, dan keamanan menu MBG di sekolah & posyandu"
+        href="/menu"
+        linkLabel="Info menu"
+      />
+      <OrganolepticWidgetLoader data={organolepticData} />
     </section>
   );
 }

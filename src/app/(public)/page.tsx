@@ -6,6 +6,7 @@ import {
   HomeHighlightsSection,
   HomeLatestNewsSection,
   HomeMenuSection,
+  HomeOrganolepticSection,
   HomePublicationsSection,
   HomeSurveySection,
 } from '@/components/home/home-sections';
@@ -34,6 +35,12 @@ export default function HomePage() {
         <div className='atm-section-block'>
           <Suspense fallback={<CardGridSkeleton count={4} />}>
             <HomeMenuSection />
+          </Suspense>
+        </div>
+
+        <div className='atm-section-block'>
+          <Suspense fallback={<ChartSkeleton />}>
+            <HomeOrganolepticSection />
           </Suspense>
         </div>
 

@@ -3,6 +3,7 @@ import {
   ARTICLES_TAG,
   EVENTS_TAG,
   MENU_DATA_TAG,
+  ORGANOLEPTIC_TAG,
   PUBLIC_DATA_TAG,
   PUBLICATIONS_TAG,
   SURVEY_TAG,
@@ -18,6 +19,7 @@ export function revalidatePublicContent(scope?: {
   publications?: boolean;
   survey?: boolean;
   menu?: boolean;
+  organoleptic?: boolean;
 }) {
   invalidateCacheTag(PUBLIC_DATA_TAG);
 
@@ -35,4 +37,5 @@ export function revalidatePublicContent(scope?: {
   if (scope.publications) invalidateCacheTag(PUBLICATIONS_TAG);
   if (scope.survey) invalidateCacheTag(SURVEY_TAG);
   if (scope.menu) invalidateCacheTag(MENU_DATA_TAG);
+  if (scope.organoleptic) invalidateCacheTag(ORGANOLEPTIC_TAG);
 }

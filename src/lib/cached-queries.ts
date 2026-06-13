@@ -14,6 +14,7 @@ import {
   getActiveSurveySummaries,
 } from "@/lib/queries";
 import type { MenuCategoryId } from "@/lib/menu-meta";
+import { getOrganolepticPublicDisplay } from "@/lib/organoleptic-queries";
 
 export const REVALIDATE_PUBLIC = 60;
 export const REVALIDATE_MENU = 30;
@@ -24,6 +25,7 @@ export const ARTICLES_TAG = "articles";
 export const EVENTS_TAG = "events";
 export const PUBLICATIONS_TAG = "publications";
 export const SURVEY_TAG = "survey";
+export const ORGANOLEPTIC_TAG = "organoleptic";
 
 export const getArticleBySlugCached = cache(getArticleBySlug);
 
@@ -88,3 +90,9 @@ export async function getMenuDataByCategoryCached(categoryId: MenuCategoryId) {
     { revalidate: REVALIDATE_MENU, tags: [MENU_DATA_TAG, `${MENU_DATA_TAG}-${categoryId}`] }
   )();
 }
+
+export const getOrganolepticPublicDisplayCached = unstable_cache(
+  () => getOrganolepticPublicDisplay(),
+  ["organoleptic-public-v1"],
+  { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, ORGANOLEPTIC_TAG, MENU_DATA_TAG] }
+);
