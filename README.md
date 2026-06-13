@@ -86,10 +86,30 @@ Buka [http://localhost:3000](http://localhost:3000)
 
 ```bash
 npm run dev          # Development server
-npm run build        # Production build
+npm run build        # Production build (tanpa koneksi DB)
+npm run db:deploy    # Push schema ke DB production (jalankan manual setelah ubah schema)
 npm run db:setup     # Setup database + seed
 npm run db:studio    # Prisma Studio
 ```
+
+## Deploy ke Vercel
+
+Build Vercel **tidak** menjalankan `prisma db push` (tidak butuh koneksi DB saat compile).
+
+Setelah mengubah `prisma/schema.prisma`, jalankan schema ke Neon **dari mesin lokal**:
+
+```bash
+npm run env:pull          # tarik DATABASE_URL production dari Vercel
+npm run db:deploy         # push schema ke Neon
+npm run db:ensure-admin   # pastikan akun admin & entri ada
+```
+
+Jika `db:deploy` gagal dengan pooler URL, di Neon dashboard gunakan connection string **Direct** (bukan pooler) sebagai `DATABASE_URL` sementara, lalu jalankan lagi.
+
+Pastikan di Vercel → Settings → Environment Variables sudah ada:
+- `DATABASE_URL`
+- `NEXTAUTH_SECRET` atau `AUTH_SECRET`
+- `NEXTAUTH_URL` = URL production (mis. `https://portalpenarukan2.vercel.app`)
 
 ## Status Development
 
