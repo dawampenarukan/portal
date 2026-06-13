@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
+import { requireOrganolepticAccess, badRequest, forbidden, serverError } from "@/lib/api-auth";
 import {
   createOrganolepticChecklist,
   getOrganolepticChecklists,
   getOrganolepticDailySummary,
 } from "@/lib/organoleptic-queries";
+import { getOrganolepticOwnerFilter } from "@/lib/organoleptic-scope";
 import { parseOrganolepticPayload } from "@/lib/organoleptic-validation";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET(request: Request) {
-  const { error } = await requireAdmin();
+  const { session, error } = await requireOrganolepticAccess();
   if (error) return error;
 
   const { searchParams } = new URL(request.url);
@@ -17,16 +18,18 @@ export async function GET(request: Request) {
   const summary = searchParams.get("summary") === "1";
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? Number(limitParam) : undefined;
+  const createdById = getOrganolepticOwnerFilter(session!.user.role, session!.user.id);
 
   try {
     if (summary) {
-      const data = await getOrganolepticDailySummary(date ?? undefined);
+      const data = await getOrganolepticDailySummary(date ?? undefined, createdById);
       return NextResponse.json(data);
     }
 
     const checklists = await getOrganolepticChecklists({
       date: date ?? undefined,
       limit: limit && limit > 0 ? limit : undefined,
+      createdById,
     });
     return NextResponse.json(checklists);
   } catch {
@@ -35,7 +38,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { error } = await requireAdmin();
+  const { session, error } = await requireOrganolepticAccess();
   if (error) return error;
 
   try {
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
     const parsed = parseOrganolepticPayload(body);
     if ("error" in parsed) return badRequest(parsed.error);
 
-    const checklist = await createOrganolepticChecklist(parsed.data);
+    const checklist = await createOrganolepticChecklist(parsed.data, session!.user.id);
     revalidatePublicContent({ organoleptic: true, menu: true });
     return NextResponse.json(checklist, { status: 201 });
   } catch {

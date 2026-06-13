@@ -14,16 +14,23 @@ import {
   formatInspectionDateInput,
 } from "@/lib/organoleptic-meta";
 import { formatDate } from "@/lib/utils";
+import { canModifyOrganolepticChecklist } from "@/lib/roles";
 import type { OrganolepticChecklistView } from "@/lib/types";
 
 interface OrganolepticChecklistListProps {
   initialChecklists: OrganolepticChecklistView[];
   initialDate: string;
+  currentUserId?: string;
+  userRole?: string | null;
+  showAllEntries?: boolean;
 }
 
 export function OrganolepticChecklistList({
   initialChecklists,
   initialDate,
+  currentUserId,
+  userRole,
+  showAllEntries = false,
 }: OrganolepticChecklistListProps) {
   const router = useRouter();
   const [date, setDate] = useState(initialDate);
@@ -47,7 +54,11 @@ export function OrganolepticChecklistList({
     setDeletingId(id);
     const res = await fetch(`/api/organoleptic/${id}`, { method: "DELETE" });
     setDeletingId(null);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error ?? "Gagal menghapus checklist");
+      return;
+    }
     setChecklists((prev) => prev.filter((c) => c.id !== id));
     router.refresh();
   }
@@ -88,6 +99,9 @@ export function OrganolepticChecklistList({
           {checklists.map((checklist) => {
             const avgs = averageScores(checklist.items);
             const unsafe = checklist.items.filter((i) => i.safety === "TIDAK_AMAN").length;
+            const canDelete =
+              !!currentUserId &&
+              canModifyOrganolepticChecklist(userRole, checklist, currentUserId);
 
             return (
               <div
@@ -104,6 +118,12 @@ export function OrganolepticChecklistList({
                     <p className="mt-1 text-sm">
                       Pemeriksa: <span className="font-medium">{checklist.inspectorName}</span> ·{" "}
                       {checklist.inspectionTime}
+                      {showAllEntries && checklist.createdByName && (
+                        <>
+                          {" "}
+                          · Entri: <span className="font-medium">{checklist.createdByName}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -124,15 +144,17 @@ export function OrganolepticChecklistList({
                       Detail
                     </Button>
                   </Link>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(checklist.id)}
-                    disabled={deletingId === checklist.id}
-                  >
-                    <Trash2 className="mr-1 h-4 w-4 text-destructive" />
-                    Hapus
-                  </Button>
+                  {canDelete && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(checklist.id)}
+                      disabled={deletingId === checklist.id}
+                    >
+                      <Trash2 className="mr-1 h-4 w-4 text-destructive" />
+                      Hapus
+                    </Button>
+                  )}
                 </div>
               </div>
             );

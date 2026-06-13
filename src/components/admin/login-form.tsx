@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+import { getDefaultAdminPath } from "@/lib/roles";
 
 type HealthStatus = {
   ok: boolean;
@@ -64,7 +66,8 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/admin");
+    const session = await getSession();
+    router.push(getDefaultAdminPath(session?.user?.role));
     router.refresh();
   }
 

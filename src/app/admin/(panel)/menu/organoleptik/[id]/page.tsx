@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Plus } from "lucide-react";
+import { auth } from "@/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { OrganolepticForm } from "@/components/admin/organoleptic-form";
 import { OrganolepticDetailMeta } from "@/components/admin/admin-organoleptic-summary";
 import { getOrganolepticChecklistById } from "@/lib/organoleptic-queries";
 import { averageScores } from "@/lib/organoleptic-meta";
+import { canModifyOrganolepticChecklist } from "@/lib/roles";
 import { formatDate } from "@/lib/utils";
 
 type Props = { params: Promise<{ id: string }> };
@@ -21,9 +23,17 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export default async function AdminOrganoleptikDetailPage({ params }: Props) {
+  const session = await auth();
   const { id } = await params;
   const checklist = await getOrganolepticChecklistById(id);
   if (!checklist) notFound();
+
+  if (
+    session?.user?.id &&
+    !canModifyOrganolepticChecklist(session.user.role, checklist, session.user.id)
+  ) {
+    notFound();
+  }
 
   const avgs = averageScores(checklist.items);
   const unsafe = checklist.items.filter((i) => i.safety === "TIDAK_AMAN").length;

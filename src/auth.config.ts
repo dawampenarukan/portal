@@ -1,5 +1,10 @@
 import "@/lib/auth-url";
 import type { NextAuthConfig } from "next-auth";
+import {
+  canAccessAdminPanel,
+  getDefaultAdminPath,
+  isPathAllowedForRole,
+} from "@/lib/roles";
 
 export const authConfig = {
   trustHost: true,
@@ -30,8 +35,15 @@ export const authConfig = {
 
       if (isAdminPanel && !isLoggedIn) return false;
 
-      // Biarkan halaman login di-render; redirect ke /admin dilakukan di page (hindari gagal RSC fetch)
       if (isLoginPage && isLoggedIn) return true;
+
+      if (isAdminPanel && isLoggedIn) {
+        const role = auth.user?.role;
+        if (!canAccessAdminPanel(role)) return false;
+        if (!isPathAllowedForRole(pathname, role)) {
+          return Response.redirect(new URL(getDefaultAdminPath(role), request.nextUrl));
+        }
+      }
 
       return true;
     },

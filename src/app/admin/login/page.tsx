@@ -5,6 +5,7 @@ import { LoginForm } from "@/components/admin/login-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { SITE_NAME } from "@/lib/constants";
 import { auth } from "@/auth";
+import { getDefaultAdminPath } from "@/lib/roles";
 
 export const metadata = {
   title: "Login Admin",
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLoginPage() {
   const session = await auth();
-  if (session?.user) redirect("/admin");
+  if (session?.user) redirect(getDefaultAdminPath(session.user.role));
   return (
     <div className="flex min-h-screen">
       <div className="relative hidden w-1/2 bg-gradient-to-br from-primary via-[#3cb88a] to-sky lg:flex lg:flex-col lg:justify-between lg:p-12">
@@ -44,7 +45,7 @@ export default async function AdminLoginPage() {
             </div>
             <CardTitle className="text-2xl">Masuk ke Admin</CardTitle>
             <CardDescription>
-              Gunakan akun admin untuk mengakses panel pengelolaan portal.
+              Admin penuh atau akun entri organoleptik — gunakan email & password yang sesuai.
             </CardDescription>
           </CardHeader>
           <CardContent>

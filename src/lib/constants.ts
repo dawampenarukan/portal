@@ -21,4 +21,5 @@ export const ADMIN_NAV_ITEMS = [
   { href: "/admin/komentar", label: "Moderasi Komentar", icon: "MessageSquare" },
   { href: "/admin/masukan", label: "Inbox Masukan", icon: "Inbox" },
   { href: "/admin/survey", label: "Kelola Survey", icon: "ClipboardList" },
+  { href: "/admin/akun", label: "Kelola Akun", icon: "Users" },
 ] as const;

@@ -25,7 +25,9 @@ function mapChecklist(
     inspectionTime: string;
     timing: OrganolepticTiming;
     criticism: string | null;
+    createdById: string | null;
     createdAt: Date;
+    createdBy?: { name: string } | null;
     items: {
       id: string;
       sortOrder: number;
@@ -48,6 +50,8 @@ function mapChecklist(
     inspectionTime: row.inspectionTime,
     timing: row.timing,
     criticism: row.criticism,
+    createdById: row.createdById,
+    createdByName: row.createdBy?.name ?? null,
     createdAt: row.createdAt.toISOString(),
     items: row.items
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -68,11 +72,15 @@ function mapChecklist(
 export async function getOrganolepticChecklists(options?: {
   date?: string;
   limit?: number;
+  createdById?: string;
 }): Promise<OrganolepticChecklistView[]> {
   const parsedDate = options?.date ? parseInspectionDate(options.date) : null;
   const rows = await prisma.organolepticChecklist.findMany({
-    where: parsedDate ? { inspectionDate: parsedDate } : undefined,
-    include: { items: true },
+    where: {
+      ...(parsedDate ? { inspectionDate: parsedDate } : {}),
+      ...(options?.createdById ? { createdById: options.createdById } : {}),
+    },
+    include: { items: true, createdBy: { select: { name: true } } },
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
     take: options?.limit,
   });
@@ -84,13 +92,21 @@ export async function getOrganolepticChecklistById(
 ): Promise<OrganolepticChecklistView | null> {
   const row = await prisma.organolepticChecklist.findUnique({
     where: { id },
-    include: { items: true },
+    include: { items: true, createdBy: { select: { name: true } } },
   });
   return row ? mapChecklist(row) : null;
 }
 
+export async function getOrganolepticChecklistOwnership(id: string) {
+  return prisma.organolepticChecklist.findUnique({
+    where: { id },
+    select: { id: true, createdById: true },
+  });
+}
+
 export async function getOrganolepticDailySummary(
-  dateInput?: string
+  dateInput?: string,
+  createdById?: string
 ): Promise<OrganolepticDailySummary> {
   const date = dateInput
     ? parseInspectionDate(dateInput)
@@ -112,7 +128,10 @@ export async function getOrganolepticDailySummary(
   }
 
   const checklists = await prisma.organolepticChecklist.findMany({
-    where: { inspectionDate: date },
+    where: {
+      inspectionDate: date,
+      ...(createdById ? { createdById } : {}),
+    },
     include: { items: true },
   });
 
@@ -156,7 +175,10 @@ export interface OrganolepticChecklistInput {
   items: OrganolepticItemInput[];
 }
 
-export async function createOrganolepticChecklist(data: OrganolepticChecklistInput) {
+export async function createOrganolepticChecklist(
+  data: OrganolepticChecklistInput,
+  createdById: string
+) {
   const inspectionDate = parseInspectionDate(data.inspectionDate);
   if (!inspectionDate) throw new Error("Tanggal tidak valid");
 
@@ -169,6 +191,7 @@ export async function createOrganolepticChecklist(data: OrganolepticChecklistInp
       inspectionTime: data.inspectionTime.trim(),
       timing: data.timing,
       criticism: data.criticism?.trim() || null,
+      createdById,
       items: {
         create: data.items.map((item, index) => ({
           sortOrder: index,
@@ -182,7 +205,7 @@ export async function createOrganolepticChecklist(data: OrganolepticChecklistInp
         })),
       },
     },
-    include: { items: true },
+    include: { items: true, createdBy: { select: { name: true } } },
   });
 
   return mapChecklist(row);

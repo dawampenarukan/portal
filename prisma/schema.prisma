@@ -11,6 +11,7 @@ enum UserRole {
   SUPER_ADMIN
   EDITOR
   AUTHOR
+  ORGANOLEPTIC_ENTRY
 }
 
 enum ArticleStatus {
@@ -42,6 +43,7 @@ model User {
   updatedAt    DateTime  @updatedAt
   articles     Article[]
   comments     Comment[]
+  organolepticChecklists OrganolepticChecklist[]
 }
 
 model Category {
@@ -264,12 +266,15 @@ model OrganolepticChecklist {
   inspectionTime String
   timing         OrganolepticTiming
   criticism      String?               @db.Text
+  createdById    String?
+  createdBy      User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   items          OrganolepticItem[]
 
   @@index([inspectionDate])
   @@index([placeName, inspectionDate])
+  @@index([createdById])
 }
 
 model OrganolepticItem {

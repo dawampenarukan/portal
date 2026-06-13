@@ -184,6 +184,8 @@ export interface OrganolepticChecklistView {
   timing: string;
   criticism: string | null;
   createdAt: string;
+  createdById: string | null;
+  createdByName: string | null;
   items: OrganolepticItemView[];
 }
 
@@ -211,4 +213,12 @@ export interface OrganolepticPlaceSummary {
 export interface OrganolepticPublicView {
   summary: OrganolepticDailySummary;
   recentPlaces: OrganolepticPlaceSummary[];
+}
+
+export interface ManageableUserView {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: string;
 }

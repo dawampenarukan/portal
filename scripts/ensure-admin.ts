@@ -3,24 +3,36 @@ import { PrismaClient, UserRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-const ADMIN_EMAIL = "admin@sppgpenarukan2.id";
-const ADMIN_PASSWORD = "admin123";
+const USERS = [
+  {
+    email: "admin@sppgpenarukan2.id",
+    password: "admin123",
+    name: "Admin SPPG",
+    role: UserRole.SUPER_ADMIN,
+  },
+  {
+    email: "entri@sppgpenarukan2.id",
+    password: "entri123",
+    name: "Entri Organoleptik",
+    role: UserRole.ORGANOLEPTIC_ENTRY,
+  },
+] as const;
 
 async function main() {
-  const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
-
-  const admin = await prisma.user.upsert({
-    where: { email: ADMIN_EMAIL },
-    update: { passwordHash, name: "Admin SPPG", role: UserRole.SUPER_ADMIN },
-    create: {
-      email: ADMIN_EMAIL,
-      name: "Admin SPPG",
-      passwordHash,
-      role: UserRole.SUPER_ADMIN,
-    },
-  });
-
-  console.log(`Admin siap: ${admin.email} / ${ADMIN_PASSWORD}`);
+  for (const user of USERS) {
+    const passwordHash = await bcrypt.hash(user.password, 10);
+    const saved = await prisma.user.upsert({
+      where: { email: user.email },
+      update: { passwordHash, name: user.name, role: user.role },
+      create: {
+        email: user.email,
+        name: user.name,
+        passwordHash,
+        role: user.role,
+      },
+    });
+    console.log(`Akun siap: ${saved.email} / ${user.password} (${user.role})`);
+  }
 }
 
 main()

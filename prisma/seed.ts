@@ -105,6 +105,16 @@ async function main() {
     },
   });
 
+  const entryPasswordHash = await bcrypt.hash("entri123", 10);
+  await prisma.user.create({
+    data: {
+      email: "entri@sppgpenarukan2.id",
+      name: "Entri Organoleptik",
+      passwordHash: entryPasswordHash,
+      role: UserRole.ORGANOLEPTIC_ENTRY,
+    },
+  });
+
   const categories = await Promise.all(
     ["Berita", "Kegiatan", "Pengumuman", "Event"].map((name) =>
       prisma.category.create({
