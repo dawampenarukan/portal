@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -513,13 +514,11 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
           <Button type="submit" disabled={loading || uploadingImages}>
             {loading ? "Menyimpan..." : "Simpan Checklist"}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/admin/menu/organoleptik")}
-          >
-            Batal
-          </Button>
+          <Link href="/admin/menu/organoleptik" prefetch={false}>
+            <Button type="button" variant="outline">
+              Batal
+            </Button>
+          </Link>
         </div>
       )}
     </form>

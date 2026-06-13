@@ -45,13 +45,14 @@ export function SchemaSyncBanner({ initialStatus }: SchemaSyncBannerProps) {
         <div className="space-y-2">
           <p className="font-semibold text-amber-900">Database production perlu diperbarui</p>
           <p className="text-sm text-amber-800">
-            Role <code className="rounded bg-amber-100 px-1">ORGANOLEPTIC_ENTRY</code> belum ada di
-            database. Klik tombol di bawah untuk memperbarui schema secara otomatis.
+            Beberapa kolom database belum lengkap (role entri, kolom gambar, dll.). Klik tombol di
+            bawah untuk memperbarui schema secara otomatis.
           </p>
           <ul className="text-xs text-amber-800/90 space-y-1">
             <li>Role entri: {status.organolepticEntryRole ? "✓" : "✗ belum ada"}</li>
             <li>Tabel organoleptik: {status.organolepticChecklistTable ? "✓" : "✗ belum ada"}</li>
             <li>Kolom pemilik entri: {status.createdByIdColumn ? "✓" : "✗ belum ada"}</li>
+            <li>Kolom gambar kritik: {status.criticismImagesColumn ? "✓" : "✗ belum ada"}</li>
           </ul>
         </div>
       </div>

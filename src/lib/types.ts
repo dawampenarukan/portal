@@ -228,5 +228,6 @@ export interface SchemaStatus {
   organolepticEntryRole: boolean;
   organolepticChecklistTable: boolean;
   createdByIdColumn: boolean;
+  criticismImagesColumn: boolean;
   ready: boolean;
 }

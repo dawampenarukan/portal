@@ -4,6 +4,7 @@ import {
   OrganolepticTiming,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { ensureOrganolepticSchemaOnce } from "@/lib/db-schema-sync";
 import {
   averageScores,
   formatInspectionDateInput,
@@ -76,6 +77,7 @@ export async function getOrganolepticChecklists(options?: {
   limit?: number;
   createdById?: string;
 }): Promise<OrganolepticChecklistView[]> {
+  await ensureOrganolepticSchemaOnce();
   const parsedDate = options?.date ? parseInspectionDate(options.date) : null;
   const rows = await prisma.organolepticChecklist.findMany({
     where: {
@@ -92,6 +94,7 @@ export async function getOrganolepticChecklists(options?: {
 export async function getOrganolepticChecklistById(
   id: string
 ): Promise<OrganolepticChecklistView | null> {
+  await ensureOrganolepticSchemaOnce();
   const row = await prisma.organolepticChecklist.findUnique({
     where: { id },
     include: { items: true, createdBy: { select: { name: true } } },
@@ -110,6 +113,7 @@ export async function getOrganolepticDailySummary(
   dateInput?: string,
   createdById?: string
 ): Promise<OrganolepticDailySummary> {
+  await ensureOrganolepticSchemaOnce();
   const date = dateInput
     ? parseInspectionDate(dateInput)
     : new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
@@ -182,6 +186,7 @@ export async function createOrganolepticChecklist(
   data: OrganolepticChecklistInput,
   createdById: string
 ) {
+  await ensureOrganolepticSchemaOnce();
   const inspectionDate = parseInspectionDate(data.inspectionDate);
   if (!inspectionDate) throw new Error("Tanggal tidak valid");
 
@@ -236,6 +241,7 @@ const emptyPublicView = (): OrganolepticPublicView => ({
 });
 
 export async function getOrganolepticPublicDisplay(): Promise<OrganolepticPublicView> {
+  await ensureOrganolepticSchemaOnce();
   let dateStr = formatInspectionDateInput(new Date());
   let summary = await getOrganolepticDailySummary(dateStr);
 
