@@ -25,6 +25,7 @@ function mapChecklist(
     inspectionTime: string;
     timing: OrganolepticTiming;
     criticism: string | null;
+    criticismImages: string[];
     createdById: string | null;
     createdAt: Date;
     createdBy?: { name: string } | null;
@@ -50,6 +51,7 @@ function mapChecklist(
     inspectionTime: row.inspectionTime,
     timing: row.timing,
     criticism: row.criticism,
+    criticismImages: row.criticismImages ?? [],
     createdById: row.createdById,
     createdByName: row.createdBy?.name ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -172,6 +174,7 @@ export interface OrganolepticChecklistInput {
   inspectionTime: string;
   timing: OrganolepticTiming;
   criticism?: string | null;
+  criticismImages?: string[];
   items: OrganolepticItemInput[];
 }
 
@@ -191,6 +194,7 @@ export async function createOrganolepticChecklist(
       inspectionTime: data.inspectionTime.trim(),
       timing: data.timing,
       criticism: data.criticism?.trim() || null,
+      criticismImages: data.criticismImages ?? [],
       createdById,
       items: {
         create: data.items.map((item, index) => ({
@@ -245,7 +249,7 @@ export async function getOrganolepticPublicDisplay(): Promise<OrganolepticPublic
     summary = await getOrganolepticDailySummary(dateStr);
   }
 
-  const checklists = await getOrganolepticChecklists({ date: dateStr, limit: 8 });
+  const checklists = await getOrganolepticChecklists({ date: dateStr });
   const recentPlaces = checklists.map((c) => ({
     placeName: c.placeName,
     placeType: c.placeType,

@@ -9,6 +9,8 @@ export const ORGANOLEPTIC_ITEMS_PER_PACKAGE = 5;
 /** Item 1–4 wajib; item ke-5 opsional (boleh dikosongkan). */
 export const ORGANOLEPTIC_REQUIRED_ITEMS = 4;
 export const ORGANOLEPTIC_OPTIONAL_ITEM_HINT = 'Silahkan diisi atau kosongkan';
+/** Maksimal gambar lampiran di area kritik dan saran. */
+export const ORGANOLEPTIC_MAX_CRITICISM_IMAGES = 3;
 
 export function isOptionalOrganolepticRow(index: number): boolean {
   return index === ORGANOLEPTIC_ITEMS_PER_PACKAGE - 1;

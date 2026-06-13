@@ -49,7 +49,14 @@ export async function POST(request: Request) {
     const checklist = await createOrganolepticChecklist(parsed.data, session!.user.id);
     revalidatePublicContent({ organoleptic: true, menu: true });
     return NextResponse.json(checklist, { status: 201 });
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("criticismImages")) {
+      return serverError(
+        "Kolom gambar belum ada di database. Jalankan: npx prisma generate && npx prisma db push"
+      );
+    }
+    console.error("[organoleptic] POST error:", err);
     return serverError("Gagal menyimpan checklist organoleptik");
   }
 }

@@ -6,6 +6,7 @@ import {
 import {
   isValidScore,
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
+  ORGANOLEPTIC_MAX_CRITICISM_IMAGES,
   ORGANOLEPTIC_REQUIRED_ITEMS,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
@@ -103,6 +104,21 @@ export function parseOrganolepticPayload(
     };
   }
 
+  let criticismImages: string[] = [];
+  if (raw.criticismImages !== undefined) {
+    if (!Array.isArray(raw.criticismImages)) {
+      return { error: "Format gambar tidak valid" };
+    }
+    criticismImages = raw.criticismImages
+      .filter((url): url is string => typeof url === "string" && url.trim().length > 0)
+      .map((url) => url.trim());
+    if (criticismImages.length > ORGANOLEPTIC_MAX_CRITICISM_IMAGES) {
+      return {
+        error: `Maksimal ${ORGANOLEPTIC_MAX_CRITICISM_IMAGES} gambar di kritik dan saran`,
+      };
+    }
+  }
+
   return {
     data: {
       inspectorName,
@@ -112,6 +128,7 @@ export function parseOrganolepticPayload(
       inspectionTime,
       timing: timing as OrganolepticTiming,
       criticism: typeof raw.criticism === "string" ? raw.criticism : null,
+      criticismImages,
       items,
     },
   };

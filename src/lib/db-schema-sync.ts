@@ -94,6 +94,12 @@ export async function syncProductionSchema(): Promise<string[]> {
     applied.push("OrganolepticChecklist.createdById");
   }
 
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "criticismImages" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+  `);
+  applied.push("OrganolepticChecklist.criticismImages");
+
   if (!status.organolepticChecklistTable) {
     throw new Error(
       "Tabel organoleptik belum ada. Jalankan dari lokal: npm run env:pull && npm run db:deploy"

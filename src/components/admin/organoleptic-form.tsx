@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
+  ORGANOLEPTIC_MAX_CRITICISM_IMAGES,
   ORGANOLEPTIC_OPTIONAL_ITEM_HINT,
   ORGANOLEPTIC_PLACE_LABELS,
   ORGANOLEPTIC_REQUIRED_ITEMS,
@@ -93,6 +95,7 @@ function defaultHeader(): HeaderForm {
 
 function checklistToForm(checklist: OrganolepticChecklistView): {
   header: HeaderForm;
+  criticismImages: string[];
   items: ItemForm[];
 } {
   return {
@@ -105,6 +108,7 @@ function checklistToForm(checklist: OrganolepticChecklistView): {
       timing: checklist.timing as HeaderForm["timing"],
       criticism: checklist.criticism ?? "",
     },
+    criticismImages: checklist.criticismImages ?? [],
     items: padItemsToPackage(
       checklist.items.map((item) => ({
         foodName: item.foodName,
@@ -126,16 +130,54 @@ interface OrganolepticFormProps {
 
 export function OrganolepticForm({ initialData, readOnly = false }: OrganolepticFormProps) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const initial = initialData ? checklistToForm(initialData) : null;
   const [header, setHeader] = useState<HeaderForm>(initial?.header ?? defaultHeader());
+  const [criticismImages, setCriticismImages] = useState<string[]>(
+    initial?.criticismImages ?? []
+  );
   const [items, setItems] = useState<ItemForm[]>(
     initial?.items.length ? padItemsToPackage(initial.items) : emptyPackageItems()
   );
   const [loading, setLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function updateItem(index: number, patch: Partial<ItemForm>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeCriticismImage(index: number) {
+    setCriticismImages((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (files.length === 0) return;
+
+    const remaining = ORGANOLEPTIC_MAX_CRITICISM_IMAGES - criticismImages.length;
+    if (remaining <= 0) {
+      setError(`Maksimal ${ORGANOLEPTIC_MAX_CRITICISM_IMAGES} gambar`);
+      return;
+    }
+
+    const toUpload = files.slice(0, remaining);
+    setUploadingImages(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      toUpload.forEach((file) => formData.append("files", file));
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = (await res.json().catch(() => ({}))) as { urls?: string[]; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Gagal upload gambar");
+      setCriticismImages((prev) => [...prev, ...(data.urls ?? [])]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal upload gambar");
+    } finally {
+      setUploadingImages(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -162,6 +204,7 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...header,
+        criticismImages,
         items: itemsToSave,
       }),
     });
@@ -392,8 +435,8 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
         </div>
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Kritik dan Saran</label>
+      <div className="space-y-3">
+        <label className="block text-sm font-medium">Kritik dan Saran</label>
         <Textarea
           value={header.criticism}
           onChange={(e) => setHeader((h) => ({ ...h, criticism: e.target.value }))}
@@ -401,13 +444,73 @@ export function OrganolepticForm({ initialData, readOnly = false }: Organoleptic
           rows={3}
           placeholder="Kritik dan saran dari pemeriksa"
         />
+
+        <div className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Lampiran gambar (opsional, maks. {ORGANOLEPTIC_MAX_CRITICISM_IMAGES})
+          </p>
+
+          {criticismImages.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {criticismImages.map((url, index) => (
+                <div
+                  key={`${url}-${index}`}
+                  className="relative h-24 w-24 overflow-hidden rounded-xl border bg-muted/30"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`Lampiran ${index + 1}`} className="h-full w-full object-cover" />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeCriticismImage(index)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                      aria-label={`Hapus gambar ${index + 1}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!readOnly && criticismImages.length < ORGANOLEPTIC_MAX_CRITICISM_IMAGES && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={uploadingImages || loading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploadingImages ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="mr-1 h-4 w-4" />
+                )}
+                {uploadingImages ? "Mengupload..." : "Upload Gambar"}
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                JPEG, PNG, WebP, atau GIF. Maks. 5MB per gambar.
+              </p>
+            </>
+          )}
+        </div>
       </div>
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       {!readOnly && (
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading}>
+          <Button type="submit" disabled={loading || uploadingImages}>
             {loading ? "Menyimpan..." : "Simpan Checklist"}
           </Button>
           <Button

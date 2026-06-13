@@ -183,6 +183,7 @@ export interface OrganolepticChecklistView {
   inspectionTime: string;
   timing: string;
   criticism: string | null;
+  criticismImages: string[];
   createdAt: string;
   createdById: string | null;
   createdByName: string | null;
