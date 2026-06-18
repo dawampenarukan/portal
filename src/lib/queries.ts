@@ -18,10 +18,9 @@ import {
 } from "@/lib/menu-meta";
 import { FALLBACK_TRENDING_TOPICS } from "@/lib/trending-topics";
 import {
-  aggregateSurveyResults,
   buildSurveySummary,
   getLiveSurveyData,
-  getLiveSurveyDataForPublication,
+  parseStoredChartData,
   resolveSurveyIdFromPublicationSlug,
 } from "@/lib/survey-aggregation";
 import type {
@@ -384,23 +383,19 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
     prisma.survey.findMany({ select: { id: true, title: true } }),
   ]);
 
-  return Promise.all(
-    pubs.map(async (pub) => {
-      const mapped = mapPublicationAdmin(pub);
-      const surveyId = pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null;
-      const liveChartData = surveyId
-        ? await aggregateSurveyResults(surveyId)
-        : await getLiveSurveyDataForPublication(pub.slug, surveys);
+  return pubs.map((pub) => {
+    const mapped = mapPublicationAdmin(pub);
+    const surveyId = pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null;
+    const chartData = parseStoredChartData(pub.chartData);
 
-      return {
-        ...mapped,
-        summary: liveChartData ? buildSurveySummary(liveChartData) : mapped.summary,
-        chartData: liveChartData ?? null,
-        isPublished: mapped.isPublished ?? false,
-        surveyId,
-      };
-    })
-  );
+    return {
+      ...mapped,
+      summary: chartData ? buildSurveySummary(chartData) : mapped.summary,
+      chartData,
+      isPublished: mapped.isPublished ?? false,
+      surveyId,
+    };
+  });
 }
 
 export async function getPerformancePublications(): Promise<PublicationView[]> {
@@ -753,19 +748,27 @@ export async function getAllMenuData(): Promise<
 export async function getMenuPreviewTopItems(): Promise<
   Record<MenuCategoryId, { emoji: string; name: string } | null>
 > {
-  const result = {} as Record<MenuCategoryId, { emoji: string; name: string } | null>;
+  const items = await prisma.menuItem.findMany({
+    where: { category: { in: Object.values(MenuCategoryType) } },
+    orderBy: { votes: "desc" },
+    select: { category: true, emoji: true, name: true },
+  });
 
-  await Promise.all(
-    Object.values(MenuCategoryType).map(async (type) => {
-      const top = await prisma.menuItem.findFirst({
-        where: { category: type },
-        orderBy: { votes: "desc" },
-        select: { emoji: true, name: true },
+  const topByType = new Map<MenuCategoryType, { emoji: string; name: string }>();
+  for (const item of items) {
+    if (!topByType.has(item.category)) {
+      topByType.set(item.category, {
+        emoji: item.emoji ?? "🍽️",
+        name: item.name,
       });
-      const id = MENU_CATEGORY_TYPE_TO_ID[type];
-      result[id] = top ? { emoji: top.emoji ?? "🍽️", name: top.name } : null;
-    })
-  );
+    }
+  }
+
+  const result = {} as Record<MenuCategoryId, { emoji: string; name: string } | null>;
+  for (const type of Object.values(MenuCategoryType)) {
+    const id = MENU_CATEGORY_TYPE_TO_ID[type];
+    result[id] = topByType.get(type) ?? null;
+  }
 
   return result;
 }

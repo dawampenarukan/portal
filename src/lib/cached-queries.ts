@@ -2,8 +2,10 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import {
   getArticleBySlug,
+  getDashboardStats,
   getMenuDataByCategory,
   getMenuPreviewTopItems,
+  getNewFeedbackCount,
   getPerformancePublications,
   getPublishedArticlesForList,
   getPublishedEvents,
@@ -27,8 +29,29 @@ export const EVENTS_TAG = "events";
 export const PUBLICATIONS_TAG = "publications";
 export const SURVEY_TAG = "survey";
 export const ORGANOLEPTIC_TAG = "organoleptic";
+export const ADMIN_FEEDBACK_TAG = "admin-feedback";
 
-export const getArticleBySlugCached = cache(getArticleBySlug);
+export function getArticleBySlugCached(slug: string) {
+  return unstable_cache(
+    () => getArticleBySlug(slug),
+    ["article-slug", slug],
+    { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, ARTICLES_TAG, `article-${slug}`] }
+  )();
+}
+
+const getDashboardStatsUnstable = unstable_cache(
+  () => getDashboardStats(),
+  ["dashboard-stats"],
+  { revalidate: 30, tags: [ADMIN_FEEDBACK_TAG] }
+);
+
+export const getDashboardStatsCached = cache(() => getDashboardStatsUnstable());
+
+export const getNewFeedbackCountCached = unstable_cache(
+  () => getNewFeedbackCount(),
+  ["new-feedback-count"],
+  { revalidate: 30, tags: [ADMIN_FEEDBACK_TAG] }
+);
 
 export const getTrendingTopicsCached = unstable_cache(
   () => getTrendingTopics(),

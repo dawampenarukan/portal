@@ -266,22 +266,14 @@ function resolveTrendWindow(dateStr: string, dateEnd?: string | null) {
   };
 }
 
-async function buildUnsafeTrend(
+function buildUnsafeTrendFromChecklists(
+  checklists: {
+    inspectionDate: Date;
+    items: { safety: OrganolepticSafety }[];
+  }[],
   fromStr: string,
   toStr: string
-): Promise<OrganolepticUnsafeTrendPoint[]> {
-  const from = parseInspectionDate(fromStr);
-  const to = parseInspectionDate(toStr);
-  if (!from || !to) return [];
-
-  const gte = from <= to ? from : to;
-  const lte = from <= to ? to : from;
-
-  const checklists = await prisma.organolepticChecklist.findMany({
-    where: { inspectionDate: { gte, lte } },
-    include: { items: true },
-  });
-
+): OrganolepticUnsafeTrendPoint[] {
   const countByDate = new Map<string, number>();
   for (const checklist of checklists) {
     const key = formatInspectionDateInput(checklist.inspectionDate);
@@ -365,19 +357,30 @@ function buildSummaryFromChecklists(
 }
 
 async function buildPublicViewForDay(dateStr: string): Promise<OrganolepticPublicView> {
-  const summary = await getOrganolepticDailySummary(dateStr);
-  const checklists = await prisma.organolepticChecklist.findMany({
-    where: { inspectionDate: parseInspectionDate(dateStr)! },
-    include: { items: true },
-    orderBy: [{ createdAt: "desc" }],
-  });
   const trendWindow = resolveTrendWindow(dateStr);
-  const unsafeTrend = await buildUnsafeTrend(trendWindow.from, trendWindow.to);
+  const trendFrom = parseInspectionDate(trendWindow.from)!;
+  const trendTo = parseInspectionDate(trendWindow.to)!;
+  const gte = trendFrom <= trendTo ? trendFrom : trendTo;
+  const lte = trendFrom <= trendTo ? trendTo : trendFrom;
+
+  const checklists = await prisma.organolepticChecklist.findMany({
+    where: { inspectionDate: { gte, lte } },
+    include: { items: true },
+    orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
+  });
+
+  const dayChecklists = checklists.filter(
+    (c) => formatInspectionDateInput(c.inspectionDate) === dateStr
+  );
 
   return {
-    summary,
-    recentPlaces: buildPlaceSummaries(checklists),
-    unsafeTrend,
+    summary: buildSummaryFromChecklists(dateStr, dayChecklists),
+    recentPlaces: buildPlaceSummaries(dayChecklists),
+    unsafeTrend: buildUnsafeTrendFromChecklists(
+      checklists,
+      trendWindow.from,
+      trendWindow.to
+    ),
   };
 }
 
@@ -405,7 +408,11 @@ async function buildPublicViewForRange(
   return {
     summary: buildSummaryFromChecklists(fromStr, checklists, toStr),
     recentPlaces: buildPlaceSummaries(checklists),
-    unsafeTrend: await buildUnsafeTrend(trendWindow.from, trendWindow.to),
+    unsafeTrend: buildUnsafeTrendFromChecklists(
+      checklists,
+      trendWindow.from,
+      trendWindow.to
+    ),
   };
 }
 

@@ -1,5 +1,6 @@
 import { revalidateTag } from "next/cache";
 import {
+  ADMIN_FEEDBACK_TAG,
   ARTICLES_TAG,
   EVENTS_TAG,
   MENU_DATA_TAG,
@@ -38,4 +39,8 @@ export function revalidatePublicContent(scope?: {
   if (scope.survey) invalidateCacheTag(SURVEY_TAG);
   if (scope.menu) invalidateCacheTag(MENU_DATA_TAG);
   if (scope.organoleptic) invalidateCacheTag(ORGANOLEPTIC_TAG);
+}
+
+export function revalidateAdminFeedback() {
+  invalidateCacheTag(ADMIN_FEEDBACK_TAG);
 }

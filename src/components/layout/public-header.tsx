@@ -6,39 +6,16 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { NAV_ITEMS, SITE_TAGLINE } from '@/lib/constants';
-import { normalizeTrendingTopics } from '@/lib/trending-topics';
-import type { TrendingTopicView } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-interface PublicHeaderProps {
-  trendingTopics: TrendingTopicView[];
-}
+const HEAVY_PREFETCH_ROUTES = new Set(['/kinerja', '/menu']);
 
-export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
+export function PublicHeader() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const topics = normalizeTrendingTopics(trendingTopics);
 
   return (
-    <header className='sticky top-0 z-50 border-b border-border/60 bg-white/90 backdrop-blur-md'>
-      <div className='bg-gradient-to-r from-primary via-[#3cb88a] to-sky'>
-        <div className='mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-2.5 text-xs md:text-sm'>
-          <span className='shrink-0 rounded-full bg-white/25 px-2.5 py-0.5 font-bold text-white'>
-            ✨ Lagi ramai
-          </span>
-          {topics.map((topic) => (
-            <Link
-              key={topic.id}
-              href={topic.href}
-              prefetch={true}
-              className='shrink-0 rounded-full bg-white/20 px-3 py-1 font-medium text-white transition hover:bg-white/35'
-            >
-              {topic.title}
-            </Link>
-          ))}
-        </div>
-      </div>
-
+    <>
       <div className='mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3'>
         <Link href='/' className='flex items-center gap-3'>
           <BrandLogo size='md' priority />
@@ -52,6 +29,7 @@ export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={!HEAVY_PREFETCH_ROUTES.has(item.href)}
               className={cn(
                 'flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold transition-all',
                 pathname === item.href
@@ -97,6 +75,7 @@ export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={!HEAVY_PREFETCH_ROUTES.has(item.href)}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   'flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold',
@@ -121,6 +100,6 @@ export function PublicHeader({ trendingTopics }: PublicHeaderProps) {
           </div>
         </nav>
       )}
-    </header>
+    </>
   );
 }

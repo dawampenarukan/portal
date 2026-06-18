@@ -7,7 +7,7 @@ import type { OrganolepticPublicView } from "@/lib/types";
 const OrganolepticWidget = dynamic(
   () =>
     import("@/components/dashboard/organoleptic-widget").then((m) => m.OrganolepticWidget),
-  { loading: () => <ChartSkeleton /> }
+  { ssr: false, loading: () => <ChartSkeleton /> }
 );
 
 export function OrganolepticWidgetLoader({ data }: { data: OrganolepticPublicView }) {

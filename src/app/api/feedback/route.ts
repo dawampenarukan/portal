@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { validateFeedbackForm } from "@/lib/feedback-form";
+import { revalidateAdminFeedback } from "@/lib/revalidate-public";
 
 function validationError(errors: Record<string, string>) {
   const first = Object.values(errors)[0];
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
         },
       });
 
+      revalidateAdminFeedback();
       return NextResponse.json({ id: feedback.id }, { status: 201 });
     }
 
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
       },
     });
 
+    revalidateAdminFeedback();
     return NextResponse.json({ id: feedback.id }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Gagal menyimpan masukan" }, { status: 500 });

@@ -7,12 +7,12 @@ import {
   Users,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getDashboardStats } from "@/lib/queries";
+import { getDashboardStatsCached } from "@/lib/cached-queries";
 import { EMPTY_DASHBOARD_STATS, safeQuery } from "@/lib/safe-db";
 
 export async function AdminDashboardStats() {
   const stats = await safeQuery(
-    () => getDashboardStats(),
+    () => getDashboardStatsCached(),
     EMPTY_DASHBOARD_STATS,
     "getDashboardStats"
   );

@@ -23,6 +23,26 @@ export function resolveSurveyIdFromPublicationSlug(
   return null;
 }
 
+export function parseStoredChartData(data: unknown): SurveyDataView | null {
+  if (!data || typeof data !== "object") return null;
+  const chart = data as Partial<SurveyDataView>;
+  if (
+    typeof chart.satisfactionScore !== "number" ||
+    typeof chart.npsScore !== "number" ||
+    typeof chart.respondents !== "number"
+  ) {
+    return null;
+  }
+  return {
+    satisfactionScore: chart.satisfactionScore,
+    npsScore: chart.npsScore,
+    respondents: chart.respondents,
+    target: typeof chart.target === "number" ? chart.target : 0,
+    aspects: Array.isArray(chart.aspects) ? chart.aspects : [],
+    trend: Array.isArray(chart.trend) ? chart.trend : [],
+  };
+}
+
 export function buildSurveySummary(chartData: SurveyDataView): string {
   if (chartData.respondents === 0) {
     return "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.";
@@ -207,24 +227,23 @@ export async function syncSurveyPublication(
 }
 
 export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
-  const surveys = await prisma.survey.findMany({
-    select: { id: true, title: true },
-    orderBy: { updatedAt: "desc" },
-  });
-
   const publishedPub = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },
-    select: { slug: true },
+    select: { chartData: true },
   });
 
-  if (publishedPub?.slug) {
-    const surveyId = resolveSurveyIdFromPublicationSlug(publishedPub.slug, surveys);
-    if (surveyId) {
-      const data = await aggregateSurveyResults(surveyId);
-      if (data.respondents > 0) return data;
-    }
-  }
+  const fromPublished = parseStoredChartData(publishedPub?.chartData);
+  if (fromPublished && fromPublished.respondents > 0) return fromPublished;
+
+  const latestPub = await prisma.publication.findFirst({
+    where: { type: PublicationType.SURVEY_RESULT },
+    orderBy: { updatedAt: "desc" },
+    select: { chartData: true },
+  });
+
+  const fromLatest = parseStoredChartData(latestPub?.chartData);
+  if (fromLatest && fromLatest.respondents > 0) return fromLatest;
 
   const activeSurvey = await prisma.survey.findFirst({
     where: { isActive: true, responses: { some: {} } },

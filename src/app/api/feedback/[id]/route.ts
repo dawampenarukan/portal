@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateAdminFeedback } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -39,6 +40,7 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     });
 
+    revalidateAdminFeedback();
     return NextResponse.json(feedback);
   } catch {
     return serverError("Gagal memperbarui masukan");

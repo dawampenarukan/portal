@@ -2,15 +2,14 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
-import { getActiveSurveySummariesCached, getSurveyDataCached } from "@/lib/cached-queries";
-import { getDashboardStats } from "@/lib/queries";
+import { getActiveSurveySummariesCached, getDashboardStatsCached, getSurveyDataCached } from "@/lib/cached-queries";
 import { EMPTY_DASHBOARD_STATS, EMPTY_SURVEY_DATA, safeQuery } from "@/lib/safe-db";
 
 export async function AdminDashboardSurveySection() {
   const [surveyData, activeSurveys, stats] = await Promise.all([
     safeQuery(() => getSurveyDataCached(), EMPTY_SURVEY_DATA, "getSurveyData"),
     safeQuery(() => getActiveSurveySummariesCached(), [], "getActiveSurveySummaries"),
-    safeQuery(() => getDashboardStats(), EMPTY_DASHBOARD_STATS, "getDashboardStats"),
+    safeQuery(() => getDashboardStatsCached(), EMPTY_DASHBOARD_STATS, "getDashboardStats"),
   ]);
 
   return (
