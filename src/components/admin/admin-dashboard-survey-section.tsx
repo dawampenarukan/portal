@@ -4,22 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SurveyWidgetLoader } from "@/components/dashboard/survey-widget-loader";
 import { getActiveSurveySummariesCached, getSurveyDataCached } from "@/lib/cached-queries";
 import { getDashboardStats } from "@/lib/queries";
-import { safeQuery } from "@/lib/safe-db";
+import { EMPTY_DASHBOARD_STATS, EMPTY_SURVEY_DATA, safeQuery } from "@/lib/safe-db";
 
 export async function AdminDashboardSurveySection() {
-  const emptySurvey = {
-    satisfactionScore: 0,
-    npsScore: 0,
-    respondents: 0,
-    target: 0,
-    aspects: [],
-    trend: [],
-  };
-
   const [surveyData, activeSurveys, stats] = await Promise.all([
-    safeQuery(() => getSurveyDataCached(), emptySurvey, "getSurveyData"),
+    safeQuery(() => getSurveyDataCached(), EMPTY_SURVEY_DATA, "getSurveyData"),
     safeQuery(() => getActiveSurveySummariesCached(), [], "getActiveSurveySummaries"),
-    getDashboardStats(),
+    safeQuery(() => getDashboardStats(), EMPTY_DASHBOARD_STATS, "getDashboardStats"),
   ]);
 
   return (

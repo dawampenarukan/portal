@@ -10,10 +10,13 @@ import {
   formatInspectionDateInput,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
-import type {
+import { eachDayOfInterval, format, subDays } from "date-fns";
+import { id as localeId } from "date-fns/locale";
+import {
   OrganolepticChecklistView,
   OrganolepticDailySummary,
   OrganolepticPublicView,
+  OrganolepticUnsafeTrendPoint,
 } from "@/lib/types";
 
 function mapChecklist(
@@ -238,31 +241,207 @@ const emptyPublicView = (): OrganolepticPublicView => ({
     avgOverall: 0,
   },
   recentPlaces: [],
+  unsafeTrend: [],
 });
 
-export async function getOrganolepticPublicDisplay(): Promise<OrganolepticPublicView> {
-  await ensureOrganolepticSchemaOnce();
-  let dateStr = formatInspectionDateInput(new Date());
-  let summary = await getOrganolepticDailySummary(dateStr);
+const TREND_DEFAULT_DAYS = 7;
 
-  if (summary.checklistCount === 0) {
+function resolveTrendWindow(dateStr: string, dateEnd?: string | null) {
+  if (dateEnd && dateEnd !== dateStr) {
+    const from = parseInspectionDate(dateStr)!;
+    const to = parseInspectionDate(dateEnd)!;
+    const gte = from <= to ? from : to;
+    const lte = from <= to ? to : from;
+    return {
+      from: formatInspectionDateInput(gte),
+      to: formatInspectionDateInput(lte),
+    };
+  }
+
+  const end = parseInspectionDate(dateStr)!;
+  return {
+    from: formatInspectionDateInput(subDays(end, TREND_DEFAULT_DAYS - 1)),
+    to: dateStr,
+  };
+}
+
+async function buildUnsafeTrend(
+  fromStr: string,
+  toStr: string
+): Promise<OrganolepticUnsafeTrendPoint[]> {
+  const from = parseInspectionDate(fromStr);
+  const to = parseInspectionDate(toStr);
+  if (!from || !to) return [];
+
+  const gte = from <= to ? from : to;
+  const lte = from <= to ? to : from;
+
+  const checklists = await prisma.organolepticChecklist.findMany({
+    where: { inspectionDate: { gte, lte } },
+    include: { items: true },
+  });
+
+  const countByDate = new Map<string, number>();
+  for (const checklist of checklists) {
+    const key = formatInspectionDateInput(checklist.inspectionDate);
+    const unsafe = checklist.items.filter(
+      (item) => item.safety === OrganolepticSafety.TIDAK_AMAN
+    ).length;
+    countByDate.set(key, (countByDate.get(key) ?? 0) + unsafe);
+  }
+
+  return eachDayOfInterval({ start: gte, end: lte }).map((day) => {
+    const key = formatInspectionDateInput(day);
+    return {
+      date: key,
+      label: format(day, "d/M", { locale: localeId }),
+      count: countByDate.get(key) ?? 0,
+    };
+  });
+}
+
+type OrganolepticChecklistWithItems = {
+  placeName: string;
+  placeType: OrganolepticPlaceType;
+  items: {
+    tasteScore: number;
+    colorScore: number;
+    aromaScore: number;
+    textureScore: number;
+    safety: OrganolepticSafety;
+  }[];
+};
+
+function buildPlaceSummaries(checklists: OrganolepticChecklistWithItems[]) {
+  const groups = new Map<
+    string,
+    { placeName: string; placeType: OrganolepticPlaceType; items: OrganolepticChecklistWithItems["items"] }
+  >();
+
+  for (const checklist of checklists) {
+    const key = `${checklist.placeType}:${checklist.placeName}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.items.push(...checklist.items);
+    } else {
+      groups.set(key, {
+        placeName: checklist.placeName,
+        placeType: checklist.placeType,
+        items: [...checklist.items],
+      });
+    }
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    placeName: group.placeName,
+    placeType: group.placeType,
+    safeCount: group.items.filter((i) => i.safety === OrganolepticSafety.AMAN).length,
+    unsafeCount: group.items.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length,
+    avgOverall: averageScores(group.items).overall,
+  }));
+}
+
+function buildSummaryFromChecklists(
+  dateStr: string,
+  checklists: OrganolepticChecklistWithItems[],
+  dateEnd?: string
+): OrganolepticDailySummary {
+  const allItems = checklists.flatMap((c) => c.items);
+  const safeCount = allItems.filter((i) => i.safety === OrganolepticSafety.AMAN).length;
+  const unsafeCount = allItems.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length;
+  const avgs = averageScores(allItems);
+
+  return {
+    date: dateStr,
+    ...(dateEnd ? { dateEnd } : {}),
+    checklistCount: checklists.length,
+    itemCount: allItems.length,
+    safeCount,
+    unsafeCount,
+    avgTaste: avgs.taste,
+    avgColor: avgs.color,
+    avgAroma: avgs.aroma,
+    avgTexture: avgs.texture,
+    avgOverall: avgs.overall,
+  };
+}
+
+async function buildPublicViewForDay(dateStr: string): Promise<OrganolepticPublicView> {
+  const summary = await getOrganolepticDailySummary(dateStr);
+  const checklists = await prisma.organolepticChecklist.findMany({
+    where: { inspectionDate: parseInspectionDate(dateStr)! },
+    include: { items: true },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  const trendWindow = resolveTrendWindow(dateStr);
+  const unsafeTrend = await buildUnsafeTrend(trendWindow.from, trendWindow.to);
+
+  return {
+    summary,
+    recentPlaces: buildPlaceSummaries(checklists),
+    unsafeTrend,
+  };
+}
+
+async function buildPublicViewForRange(
+  dateFromInput: string,
+  dateToInput: string
+): Promise<OrganolepticPublicView> {
+  const parsedFrom = parseInspectionDate(dateFromInput);
+  const parsedTo = parseInspectionDate(dateToInput);
+  if (!parsedFrom || !parsedTo) return emptyPublicView();
+
+  const gte = parsedFrom <= parsedTo ? parsedFrom : parsedTo;
+  const lte = parsedFrom <= parsedTo ? parsedTo : parsedFrom;
+  const fromStr = formatInspectionDateInput(gte);
+  const toStr = formatInspectionDateInput(lte);
+
+  const checklists = await prisma.organolepticChecklist.findMany({
+    where: { inspectionDate: { gte, lte } },
+    include: { items: true },
+    orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
+  });
+
+  const trendWindow = resolveTrendWindow(fromStr, toStr);
+
+  return {
+    summary: buildSummaryFromChecklists(fromStr, checklists, toStr),
+    recentPlaces: buildPlaceSummaries(checklists),
+    unsafeTrend: await buildUnsafeTrend(trendWindow.from, trendWindow.to),
+  };
+}
+
+export type OrganolepticPublicFilter = {
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export async function getOrganolepticPublicDisplay(
+  filter?: OrganolepticPublicFilter
+): Promise<OrganolepticPublicView> {
+  await ensureOrganolepticSchemaOnce();
+
+  if (filter?.dateFrom && filter?.dateTo) {
+    return buildPublicViewForRange(filter.dateFrom, filter.dateTo);
+  }
+
+  if (filter?.date) {
+    return buildPublicViewForDay(filter.date);
+  }
+
+  let dateStr = formatInspectionDateInput(new Date());
+  let view = await buildPublicViewForDay(dateStr);
+
+  if (view.summary.checklistCount === 0) {
     const latest = await prisma.organolepticChecklist.findFirst({
       orderBy: { inspectionDate: "desc" },
       select: { inspectionDate: true },
     });
     if (!latest) return emptyPublicView();
     dateStr = formatInspectionDateInput(latest.inspectionDate);
-    summary = await getOrganolepticDailySummary(dateStr);
+    view = await buildPublicViewForDay(dateStr);
   }
 
-  const checklists = await getOrganolepticChecklists({ date: dateStr });
-  const recentPlaces = checklists.map((c) => ({
-    placeName: c.placeName,
-    placeType: c.placeType,
-    safeCount: c.items.filter((i) => i.safety === OrganolepticSafety.AMAN).length,
-    unsafeCount: c.items.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length,
-    avgOverall: averageScores(c.items).overall,
-  }));
-
-  return { summary, recentPlaces };
+  return view;
 }

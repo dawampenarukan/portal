@@ -8,9 +8,14 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDashboardStats } from "@/lib/queries";
+import { EMPTY_DASHBOARD_STATS, safeQuery } from "@/lib/safe-db";
 
 export async function AdminDashboardStats() {
-  const stats = await getDashboardStats();
+  const stats = await safeQuery(
+    () => getDashboardStats(),
+    EMPTY_DASHBOARD_STATS,
+    "getDashboardStats"
+  );
 
   const statCards = [
     { label: "Total Berita", value: String(stats.articleCount), icon: Newspaper, color: "text-sky-600 bg-sky-100" },

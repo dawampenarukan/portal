@@ -92,3 +92,17 @@ export function averageScores(
     overall: (taste + color + aroma + texture) / 4,
   };
 }
+
+export function formatOrganolepticPeriodLabel(date: string, dateEnd?: string): string {
+  const fmt = (value: string) =>
+    new Intl.DateTimeFormat("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(`${value}T00:00:00.000Z`));
+
+  if (dateEnd && dateEnd !== date) {
+    return `${fmt(date)} – ${fmt(dateEnd)}`;
+  }
+  return fmt(date);
+}

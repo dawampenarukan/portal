@@ -192,6 +192,8 @@ export interface OrganolepticChecklistView {
 
 export interface OrganolepticDailySummary {
   date: string;
+  /** Akhir rentang (inklusif); hanya diisi saat filter rentang waktu. */
+  dateEnd?: string;
   checklistCount: number;
   itemCount: number;
   safeCount: number;
@@ -211,9 +213,16 @@ export interface OrganolepticPlaceSummary {
   avgOverall: number;
 }
 
+export interface OrganolepticUnsafeTrendPoint {
+  date: string;
+  label: string;
+  count: number;
+}
+
 export interface OrganolepticPublicView {
   summary: OrganolepticDailySummary;
   recentPlaces: OrganolepticPlaceSummary[];
+  unsafeTrend: OrganolepticUnsafeTrendPoint[];
 }
 
 export interface ManageableUserView {

@@ -3,6 +3,7 @@ import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { OrganolepticEntrySidebar } from "@/components/layout/organoleptic-entry-sidebar";
 import { auth } from "@/auth";
 import { getNewFeedbackCount } from "@/lib/queries";
+import { safeQuery } from "@/lib/safe-db";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
 import { redirect } from "next/navigation";
 
@@ -25,7 +26,9 @@ export default async function AdminPanelLayout({
     redirect("/admin/login");
   }
 
-  const newFeedbackCount = isFullAdmin ? await getNewFeedbackCount() : 0;
+  const newFeedbackCount = isFullAdmin
+    ? await safeQuery(() => getNewFeedbackCount(), 0, "getNewFeedbackCount")
+    : 0;
 
   return (
     <AuthSessionProvider>

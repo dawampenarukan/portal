@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries";
 import type { MenuCategoryId } from "@/lib/menu-meta";
 import { getOrganolepticPublicDisplay } from "@/lib/organoleptic-queries";
+import { EMPTY_SURVEY_DATA, safeQuery } from "@/lib/safe-db";
 
 export const REVALIDATE_PUBLIC = 60;
 export const REVALIDATE_MENU = 30;
@@ -54,13 +55,13 @@ export const getPublishedPublicationsCached = unstable_cache(
 );
 
 export const getSurveyDataCached = unstable_cache(
-  () => getSurveyData(),
+  () => safeQuery(() => getSurveyData(), EMPTY_SURVEY_DATA, "getSurveyData"),
   ["survey-data-v2"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG, PUBLICATIONS_TAG] }
 );
 
 export const getActiveSurveySummariesCached = unstable_cache(
-  () => getActiveSurveySummaries(),
+  () => safeQuery(() => getActiveSurveySummaries(), [], "getActiveSurveySummaries"),
   ["active-survey-summaries"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG] }
 );

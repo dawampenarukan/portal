@@ -1,3 +1,21 @@
+import type { DashboardStats, SurveyDataView } from "@/lib/types";
+
+export const EMPTY_DASHBOARD_STATS: DashboardStats = {
+  articleCount: 0,
+  pendingComments: 0,
+  newFeedbacks: 0,
+  surveyRespondents: 0,
+};
+
+export const EMPTY_SURVEY_DATA: SurveyDataView = {
+  satisfactionScore: 0,
+  npsScore: 0,
+  respondents: 0,
+  target: 0,
+  aspects: [],
+  trend: [],
+};
+
 export async function safeQuery<T>(
   fn: () => Promise<T>,
   fallback: T,

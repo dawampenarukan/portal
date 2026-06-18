@@ -42,6 +42,7 @@ const emptyOrganoleptic = {
     avgOverall: 0,
   },
   recentPlaces: [],
+  unsafeTrend: [],
 };
 
 export async function HomeHeroSection() {

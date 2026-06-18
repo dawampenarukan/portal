@@ -17,8 +17,12 @@ import { ChevronRight, ClipboardCheck, Package, ShieldAlert, ShieldCheck } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ORGANOLEPTIC_PLACE_LABELS } from "@/lib/organoleptic-meta";
-import { formatDate } from "@/lib/utils";
+import { OrganolepticPeriodPicker } from "@/components/dashboard/organoleptic-period-picker";
+import {
+  ORGANOLEPTIC_PLACE_LABELS,
+  formatInspectionDateInput,
+  formatOrganolepticPeriodLabel,
+} from "@/lib/organoleptic-meta";
 import type { OrganolepticPlaceSummary, OrganolepticPublicView } from "@/lib/types";
 
 const CHART_GREEN = "#2e9b6a";
@@ -27,24 +31,71 @@ const CHART_SKY = "#89cff0";
 const CHART_SUNNY = "#ffe08a";
 const LOCATION_PREVIEW_COUNT = 3;
 
+type FilterMode = "day" | "range";
+
 interface OrganolepticWidgetProps {
   data: OrganolepticPublicView;
 }
 
-export function OrganolepticWidget({ data }: OrganolepticWidgetProps) {
-  const { summary, recentPlaces } = data;
+export function OrganolepticWidget({ data: initialData }: OrganolepticWidgetProps) {
+  const [data, setData] = useState({
+    ...initialData,
+    unsafeTrend: initialData.unsafeTrend ?? [],
+  });
+  const [mode, setMode] = useState<FilterMode>(initialData.summary.dateEnd ? "range" : "day");
+  const [dayDate, setDayDate] = useState(initialData.summary.date);
+  const [rangeFrom, setRangeFrom] = useState<string | null>(initialData.summary.date);
+  const [rangeTo, setRangeTo] = useState<string | null>(initialData.summary.dateEnd ?? null);
+  const [rangeAnchor, setRangeAnchor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showAllLocations, setShowAllLocations] = useState(false);
+
+  const { summary, recentPlaces, unsafeTrend } = data;
   const hasData = summary.checklistCount > 0;
 
-  if (!hasData) {
-    return (
-      <Card className="charming-card border-0">
-        <CardContent className="p-8 text-center text-muted-foreground">
-          <p>Hasil uji organoleptik belum tersedia.</p>
-          <p className="mt-1 text-sm">Data akan tampil setelah checklist harian diinput.</p>
-        </CardContent>
-      </Card>
-    );
+  async function fetchData(params: string) {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/organoleptic/public?${params}`);
+      if (!res.ok) return;
+      const next = (await res.json()) as OrganolepticPublicView;
+      setData({
+        ...next,
+        unsafeTrend: next.unsafeTrend ?? [],
+      });
+      setShowAllLocations(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDayPick(dateKey: string) {
+    setDayDate(dateKey);
+    await fetchData(`date=${dateKey}`);
+  }
+
+  async function handleRangePick(from: string, to: string) {
+    setRangeFrom(from);
+    setRangeTo(to);
+    await fetchData(`from=${from}&to=${to}`);
+  }
+
+  function handleModeChange(nextMode: FilterMode) {
+    setMode(nextMode);
+    setRangeAnchor(null);
+    if (nextMode === "range" && rangeFrom && !rangeTo) {
+      setRangeTo(rangeFrom);
+    }
+  }
+
+  async function loadToday() {
+    const today = formatInspectionDateInput(new Date());
+    setMode("day");
+    setRangeAnchor(null);
+    setDayDate(today);
+    setRangeFrom(today);
+    setRangeTo(null);
+    await fetchData(`date=${today}`);
   }
 
   const aspectData = [
@@ -65,148 +116,183 @@ export function OrganolepticWidget({ data }: OrganolepticWidgetProps) {
     ? recentPlaces
     : recentPlaces.slice(0, LOCATION_PREVIEW_COUNT);
   const hasMoreLocations = recentPlaces.length > LOCATION_PREVIEW_COUNT;
+  const periodLabel = formatOrganolepticPeriodLabel(summary.date, summary.dateEnd);
+
+  const statItems = [
+    {
+      icon: <ClipboardCheck className="h-4 w-4" />,
+      label: "Sekolah / Posyandu",
+      value: String(summary.checklistCount),
+      tone: "sky" as const,
+    },
+    {
+      icon: <Package className="h-4 w-4" />,
+      label: "Paket Diuji",
+      value: String(summary.checklistCount),
+      sub: `${summary.itemCount} item menu`,
+      tone: "sunny" as const,
+    },
+    {
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: "Menu Aman",
+      value: String(summary.safeCount),
+      sub: hasData ? `${safePercent}%` : undefined,
+      tone: "green" as const,
+    },
+    {
+      icon: <ShieldAlert className="h-4 w-4" />,
+      label: "Perlu Perhatian",
+      value: String(summary.unsafeCount),
+      tone: "coral" as const,
+    },
+  ];
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Data uji terbaru — {formatDate(summary.date)}
-      </p>
+      <OrganolepticPeriodPicker
+        mode={mode}
+        onModeChange={handleModeChange}
+        selectedDay={dayDate}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+        rangeAnchor={rangeAnchor}
+        onDayPick={handleDayPick}
+        onRangePick={handleRangePick}
+        onRangeAnchor={(key) => {
+          setRangeAnchor(key);
+          if (key) {
+            setRangeFrom(key);
+            setRangeTo(null);
+          }
+        }}
+        onToday={loadToday}
+        loading={loading}
+        periodLabel={periodLabel}
+        stats={statItems}
+        unsafeTrend={unsafeTrend ?? []}
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <ScoreCard
-          icon={<ClipboardCheck className="h-5 w-5" />}
-          label="Sekolah / Posyandu"
-          value={String(summary.checklistCount)}
-          tone="sky"
-        />
-        <ScoreCard
-          icon={<Package className="h-5 w-5" />}
-          label="Paket Diuji"
-          value={String(summary.checklistCount)}
-          sub={`${summary.itemCount} item menu`}
-          tone="sunny"
-        />
-        <ScoreCard
-          icon={<ShieldCheck className="h-5 w-5" />}
-          label="Menu Aman"
-          value={String(summary.safeCount)}
-          sub={`${safePercent}%`}
-          tone="green"
-        />
-        <ScoreCard
-          icon={<ShieldAlert className="h-5 w-5" />}
-          label="Perlu Perhatian"
-          value={String(summary.unsafeCount)}
-          tone="coral"
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-5">
-        <Card className="charming-card border-0 lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-base">📊 Skor Organoleptik Rata-rata</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={240}>
-              <BarChart data={aspectData} barCategoryGap="20%">
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0e4d8" />
-                <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 600 }} />
-                <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(value: number) => [`${value} / 5`, "Skor"]}
-                  contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 4px 20px rgba(0,0,0,0.08)" }}
-                />
-                <Bar dataKey="score" radius={[10, 10, 0, 0]}>
-                  {aspectData.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={[CHART_GREEN, CHART_SKY, CHART_SUNNY, CHART_CORAL][i % 4]}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
-              <Badge variant="outline" className="border-primary/30 bg-primary/5">
-                Keseluruhan {summary.avgOverall.toFixed(1)} / 5
-              </Badge>
-            </div>
+      {!hasData ? (
+        <Card className="charming-card border-0">
+          <CardContent className="p-8 text-center text-muted-foreground">
+            <p>Belum ada data uji organoleptik untuk periode ini.</p>
+            <p className="mt-1 text-sm">Coba pilih tanggal atau rentang waktu lain.</p>
           </CardContent>
         </Card>
-
-        <Card className="charming-card border-0 lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base">✅ Status Keamanan Menu</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            {safetyData.length > 0 ? (
-              <>
-                <ResponsiveContainer width="100%" height={180}>
-                  <PieChart>
-                    <Pie
-                      data={safetyData}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={48}
-                      outerRadius={72}
-                      paddingAngle={3}
-                    >
-                      {safetyData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
+      ) : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-5">
+            <Card className="charming-card border-0 lg:col-span-3">
+              <CardHeader>
+                <CardTitle className="text-base">📊 Skor Organoleptik Rata-rata</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={aspectData} barCategoryGap="20%">
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0e4d8" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 600 }} />
+                    <YAxis domain={[0, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      formatter={(value: number) => [`${value} / 5`, "Skor"]}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "none",
+                        boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                      }}
+                    />
+                    <Bar dataKey="score" radius={[10, 10, 0, 0]}>
+                      {aspectData.map((_, i) => (
+                        <Cell
+                          key={i}
+                          fill={[CHART_GREEN, CHART_SKY, CHART_SUNNY, CHART_CORAL][i % 4]}
+                        />
                       ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
-                <div className="mt-2 flex flex-wrap justify-center gap-3 text-sm">
-                  {safetyData.map((d) => (
-                    <span key={d.name} className="flex items-center gap-1.5 font-semibold">
-                      <span
-                        className="inline-block h-3 w-3 rounded-full"
-                        style={{ backgroundColor: d.color }}
-                      />
-                      {d.name}: {d.value}
-                    </span>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  <Badge variant="outline" className="border-primary/30 bg-primary/5">
+                    Keseluruhan {summary.avgOverall.toFixed(1)} / 5
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="charming-card border-0 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-base">✅ Status Keamanan Menu</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-center">
+                {safetyData.length > 0 ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie
+                          data={safetyData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={48}
+                          outerRadius={72}
+                          paddingAngle={3}
+                        >
+                          {safetyData.map((entry) => (
+                            <Cell key={entry.name} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-2 flex flex-wrap justify-center gap-3 text-sm">
+                      {safetyData.map((d) => (
+                        <span key={d.name} className="flex items-center gap-1.5 font-semibold">
+                          <span
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: d.color }}
+                          />
+                          {d.name}: {d.value}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="py-12 text-sm text-muted-foreground">Belum ada data keamanan.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {recentPlaces.length > 0 && (
+            <Card className="charming-card border-0">
+              <CardHeader>
+                <CardTitle className="text-base">🏫 Lokasi yang Sudah Diuji</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {visiblePlaces.map((place, index) => (
+                    <PlaceCard key={`${place.placeName}-${index}`} place={place} />
                   ))}
                 </div>
-              </>
-            ) : (
-              <p className="py-12 text-sm text-muted-foreground">Belum ada data keamanan.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {recentPlaces.length > 0 && (
-        <Card className="charming-card border-0">
-          <CardHeader>
-            <CardTitle className="text-base">🏫 Lokasi yang Sudah Diuji</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {visiblePlaces.map((place, index) => (
-                <PlaceCard key={`${place.placeName}-${index}`} place={place} />
-              ))}
-            </div>
-            {hasMoreLocations && (
-              <div className="flex justify-center">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowAllLocations((v) => !v)}
-                >
-                  {showAllLocations ? "Tampilkan lebih sedikit" : "Lihat semuanya"}
-                  <ChevronRight
-                    className={`h-4 w-4 transition-transform ${showAllLocations ? "rotate-90" : ""}`}
-                  />
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                {hasMoreLocations && (
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAllLocations((v) => !v)}
+                    >
+                      {showAllLocations ? "Tampilkan lebih sedikit" : "Lihat semuanya"}
+                      <ChevronRight
+                        className={`h-4 w-4 transition-transform ${showAllLocations ? "rotate-90" : ""}`}
+                      />
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );
@@ -236,39 +322,5 @@ function PlaceCard({ place }: { place: OrganolepticPlaceSummary }) {
         <p className="mt-1 text-xs font-bold text-primary">{place.avgOverall.toFixed(1)}/5</p>
       </div>
     </div>
-  );
-}
-
-function ScoreCard({
-  icon,
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  tone: "green" | "coral" | "sky" | "sunny";
-}) {
-  const tones = {
-    green: "bg-primary/10 text-primary",
-    coral: "bg-coral/15 text-coral",
-    sky: "bg-sky/25 text-sky-800",
-    sunny: "bg-sunny/35 text-amber-800",
-  };
-
-  return (
-    <Card className="charming-card border-0">
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`rounded-2xl p-3 ${tones[tone]}`}>{icon}</div>
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-          <p className="text-2xl font-extrabold text-primary">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
   );
 }
