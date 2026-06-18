@@ -12,7 +12,13 @@ import {
   formatInspectionTrendLabel,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
-import { subDays } from "date-fns";
+
+function shiftInspectionDateKey(dateStr: string, deltaDays: number): string {
+  const d = parseInspectionDate(dateStr)!;
+  const shifted = new Date(d.getTime());
+  shifted.setUTCDate(shifted.getUTCDate() + deltaDays);
+  return formatInspectionDateInput(shifted);
+}
 import {
   OrganolepticChecklistView,
   OrganolepticDailySummary,
@@ -259,10 +265,11 @@ function resolveTrendWindow(dateStr: string, dateEnd?: string | null) {
     };
   }
 
-  const end = parseInspectionDate(dateStr)!;
+  const daysBefore = Math.floor((TREND_DEFAULT_DAYS - 1) / 2);
+  const daysAfter = TREND_DEFAULT_DAYS - 1 - daysBefore;
   return {
-    from: formatInspectionDateInput(subDays(end, TREND_DEFAULT_DAYS - 1)),
-    to: dateStr,
+    from: shiftInspectionDateKey(dateStr, -daysBefore),
+    to: shiftInspectionDateKey(dateStr, daysAfter),
   };
 }
 
