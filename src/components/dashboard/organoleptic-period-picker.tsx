@@ -77,25 +77,27 @@ export interface OrganolepticPeriodPickerProps {
 
 function UnsafeTrendChart({ data }: { data?: OrganolepticUnsafeTrendPoint[] }) {
   const points = data ?? [];
+  const xInterval = points.length <= 10 ? 0 : Math.max(1, Math.ceil(points.length / 8) - 1);
 
   return (
-    <div className="flex h-full min-h-0 flex-col rounded-xl border border-coral/20 bg-gradient-to-b from-coral/[0.07] to-white px-2 py-1.5">
-      <p className="text-[10px] font-bold text-coral">Trend Perlu Perhatian</p>
+    <div className="flex h-full w-full min-h-[7.5rem] flex-col rounded-xl border border-coral/20 bg-gradient-to-b from-coral/[0.07] to-white px-2 py-1.5">
+      <p className="shrink-0 text-[10px] font-bold text-coral">Trend Perlu Perhatian</p>
       {points.length === 0 ? (
-        <p className="flex h-20 flex-1 items-center justify-center text-[10px] text-muted-foreground">
+        <p className="flex flex-1 items-center justify-center text-[10px] text-muted-foreground">
           Belum ada data
         </p>
       ) : (
-        <div className="mt-1 min-h-0 flex-1">
+        <div className="mt-1 h-[6.5rem] w-full min-w-0 flex-1">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={points} margin={{ top: 4, right: 6, left: -22, bottom: 0 }}>
+            <LineChart data={points} margin={{ top: 4, right: 12, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0e4d8" />
               <XAxis
                 dataKey="label"
                 tick={{ fontSize: 9, fontWeight: 600 }}
                 tickLine={false}
                 axisLine={false}
-                interval="preserveStartEnd"
+                interval={xInterval}
+                minTickGap={4}
               />
               <YAxis
                 allowDecimals={false}
@@ -349,14 +351,14 @@ export function OrganolepticPeriodPicker({
 
       {statusHint && <p className="mt-1 text-[10px] text-muted-foreground">{statusHint}</p>}
 
-      <div className="mt-2 grid min-h-[11.5rem] grid-cols-1 items-stretch gap-4 md:grid-cols-3 md:gap-5">
-        <div className="flex justify-center md:block">{calendar}</div>
-        <div className="grid grid-cols-2 grid-rows-2 gap-2.5">
+      <div className="mt-2 grid min-h-[11.5rem] grid-cols-1 items-stretch gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:gap-5">
+        <div className="min-w-0">{calendar}</div>
+        <div className="grid min-w-0 grid-cols-2 grid-rows-2 gap-2.5">
           {stats.map((stat, i) => (
             <MiniStat key={i} {...stat} />
           ))}
         </div>
-        <div className="flex min-h-[11.5rem] min-w-0">
+        <div className="flex min-h-[11.5rem] w-full min-w-0">
           <UnsafeTrendChart data={unsafeTrend} />
         </div>
       </div>

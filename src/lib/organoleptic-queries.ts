@@ -7,11 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { ensureOrganolepticSchemaOnce } from "@/lib/db-schema-sync";
 import {
   averageScores,
+  eachInspectionDateKeys,
   formatInspectionDateInput,
+  formatInspectionTrendLabel,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
-import { eachDayOfInterval, format, subDays } from "date-fns";
-import { id as localeId } from "date-fns/locale";
+import { subDays } from "date-fns";
 import {
   OrganolepticChecklistView,
   OrganolepticDailySummary,
@@ -290,14 +291,11 @@ async function buildUnsafeTrend(
     countByDate.set(key, (countByDate.get(key) ?? 0) + unsafe);
   }
 
-  return eachDayOfInterval({ start: gte, end: lte }).map((day) => {
-    const key = formatInspectionDateInput(day);
-    return {
-      date: key,
-      label: format(day, "d/M", { locale: localeId }),
-      count: countByDate.get(key) ?? 0,
-    };
-  });
+  return eachInspectionDateKeys(fromStr, toStr).map((key) => ({
+    date: key,
+    label: formatInspectionTrendLabel(key),
+    count: countByDate.get(key) ?? 0,
+  }));
 }
 
 type OrganolepticChecklistWithItems = {

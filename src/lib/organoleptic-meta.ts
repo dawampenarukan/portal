@@ -50,9 +50,42 @@ export function parseInspectionDate(value: string): Date | null {
   return date;
 }
 
+/** Format tanggal inspeksi konsisten UTC (cocok dengan @db.Date & parseInspectionDate). */
 export function formatInspectionDateInput(date: Date | string): string {
-  const d = new Date(date);
-  return d.toISOString().slice(0, 10);
+  const d =
+    typeof date === "string"
+      ? (parseInspectionDate(date) ?? new Date(date))
+      : date;
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Label ringkas untuk chart trend, mis. "13/6". */
+export function formatInspectionTrendLabel(dateKey: string): string {
+  const d = parseInspectionDate(dateKey);
+  if (!d) return dateKey;
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+/** Daftar kunci YYYY-MM-DD inklusif tanpa geser timezone lokal. */
+export function eachInspectionDateKeys(fromStr: string, toStr: string): string[] {
+  const from = parseInspectionDate(fromStr);
+  const to = parseInspectionDate(toStr);
+  if (!from || !to) return [];
+
+  const start = from <= to ? from : to;
+  const end = from <= to ? to : from;
+  const keys: string[] = [];
+  let cur = start;
+
+  while (cur.getTime() <= end.getTime()) {
+    keys.push(formatInspectionDateInput(cur));
+    cur = new Date(cur.getTime() + 86_400_000);
+  }
+
+  return keys;
 }
 
 export function isValidScore(score: number): boolean {
