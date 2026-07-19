@@ -74,6 +74,28 @@ async function addOrganolepticColumns(): Promise<void> {
   `);
 
   await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "packagesReceived" INTEGER;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "packagesConsumed" INTEGER;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "packagesReturned" INTEGER;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "returnReason" TEXT;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticChecklist"
+    ADD COLUMN IF NOT EXISTS "evaluatedAt" TIMESTAMP(3);
+  `);
+
+  await prisma.$executeRawUnsafe(`
     DO $$ BEGIN
       IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'OrganolepticChecklist_createdById_fkey'
@@ -90,6 +112,11 @@ async function addOrganolepticColumns(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "OrganolepticChecklist_createdById_idx"
     ON "OrganolepticChecklist"("createdById");
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "OrganolepticChecklist_evaluatedAt_idx"
+    ON "OrganolepticChecklist"("evaluatedAt");
+  `);
 }
 
 /** Tambah kolom organoleptik yang belum ada — aman dijalankan berulang. */
@@ -97,9 +124,8 @@ export async function ensureOrganolepticSchema(): Promise<void> {
   const status = await getSchemaStatus();
   if (!status.organolepticChecklistTable) return;
 
-  if (!status.createdByIdColumn || !status.criticismImagesColumn) {
-    await addOrganolepticColumns();
-  }
+  // Selalu coba tambah kolom opsional (IF NOT EXISTS) agar field paket ikut ter-sync.
+  await addOrganolepticColumns();
 }
 
 export async function ensureOrganolepticSchemaOnce(): Promise<void> {
@@ -136,6 +162,9 @@ export async function syncProductionSchema(): Promise<string[]> {
     await addOrganolepticColumns();
     if (!status.createdByIdColumn) applied.push("OrganolepticChecklist.createdById");
     if (!status.criticismImagesColumn) applied.push("OrganolepticChecklist.criticismImages");
+  } else {
+    await addOrganolepticColumns();
+    applied.push("OrganolepticChecklist.packageColumns");
   }
 
   return applied;

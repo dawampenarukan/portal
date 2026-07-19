@@ -109,7 +109,7 @@ Jika `db:deploy` gagal dengan pooler URL, di Neon dashboard gunakan connection s
 Pastikan di Vercel → Settings → Environment Variables sudah ada:
 - `DATABASE_URL`
 - `NEXTAUTH_SECRET` atau `AUTH_SECRET`
-- `NEXTAUTH_URL` = URL production (mis. `https://portalpenarukan2.vercel.app`)
+- `NEXTAUTH_URL` = URL production (mis. `https://sppgpenarukan2.vercel.app`)
 
 ## Status Development
 

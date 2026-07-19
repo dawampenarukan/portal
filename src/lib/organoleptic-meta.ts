@@ -92,6 +92,24 @@ export function isValidScore(score: number): boolean {
   return Number.isInteger(score) && score >= 1 && score <= 5;
 }
 
+/** Skor 1–2 pada rasa/warna/aroma/tekstur → tidak aman; selain itu aman. */
+export function deriveOrganolepticSafety(scores: {
+  tasteScore: number;
+  colorScore: number;
+  aromaScore: number;
+  textureScore: number;
+}): OrganolepticSafety {
+  const values = [
+    scores.tasteScore,
+    scores.colorScore,
+    scores.aromaScore,
+    scores.textureScore,
+  ];
+  return values.some((score) => score <= 2)
+    ? "TIDAK_AMAN"
+    : "AMAN";
+}
+
 export function averageScores(
   items: {
     tasteScore: number;
@@ -138,4 +156,54 @@ export function formatOrganolepticPeriodLabel(date: string, dateEnd?: string): s
     return `${fmt(date)} – ${fmt(dateEnd)}`;
   }
   return fmt(date);
+}
+
+/** Normalisasi rentang tanggal inspeksi (inklusif, urutan naik). */
+export function normalizeInspectionDateRange(
+  date?: string | null,
+  dateEnd?: string | null
+): { from: string; to: string } | null {
+  if (!date) return null;
+  const fromParsed = parseInspectionDate(date);
+  if (!fromParsed) return null;
+
+  const toParsed = dateEnd ? parseInspectionDate(dateEnd) : fromParsed;
+  if (!toParsed) return null;
+
+  const from =
+    fromParsed <= toParsed
+      ? formatInspectionDateInput(fromParsed)
+      : formatInspectionDateInput(toParsed);
+  const to =
+    fromParsed <= toParsed
+      ? formatInspectionDateInput(toParsed)
+      : formatInspectionDateInput(fromParsed);
+
+  return { from, to };
+}
+
+/** Checklist masih punya temuan yang perlu notice (belum dievaluasi). */
+export function checklistHasOpenFindings(checklist: {
+  evaluatedAt?: string | null;
+  packagesReturned?: number | null;
+  items: { safety: string }[];
+}): boolean {
+  if (checklist.evaluatedAt) return false;
+  const unsafe = checklist.items.some((i) => i.safety === "TIDAK_AMAN");
+  const returned = (checklist.packagesReturned ?? 0) > 0;
+  return unsafe || returned;
+}
+
+/** Link notice badge → halaman checklist (1 tahun terakhir + filter fokus). */
+export function organolepticNoticeHref(focus: "unsafe" | "returned"): string {
+  const to = formatInspectionDateInput(new Date());
+  const fromDate = new Date(`${to}T00:00:00.000Z`);
+  fromDate.setUTCFullYear(fromDate.getUTCFullYear() - 1);
+  const from = formatInspectionDateInput(fromDate);
+  const params = new URLSearchParams({
+    date: from,
+    dateEnd: to,
+    focus,
+  });
+  return `/admin/menu/organoleptik?${params.toString()}`;
 }

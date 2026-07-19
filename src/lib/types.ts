@@ -182,8 +182,14 @@ export interface OrganolepticChecklistView {
   inspectionDate: string;
   inspectionTime: string;
   timing: string;
+  packagesReceived: number | null;
+  packagesConsumed: number | null;
+  packagesReturned: number | null;
+  returnReason: string | null;
   criticism: string | null;
   criticismImages: string[];
+  /** ISO timestamp jika temuan sudah di-acknowledge admin. */
+  evaluatedAt: string | null;
   createdAt: string;
   createdById: string | null;
   createdByName: string | null;

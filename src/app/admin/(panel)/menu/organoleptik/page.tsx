@@ -10,28 +10,58 @@ import {
   getOrganolepticDailySummary,
 } from "@/lib/organoleptic-queries";
 import { getOrganolepticOwnerFilter } from "@/lib/organoleptic-scope";
-import { formatInspectionDateInput } from "@/lib/organoleptic-meta";
+import {
+  formatInspectionDateInput,
+  formatOrganolepticPeriodLabel,
+  normalizeInspectionDateRange,
+} from "@/lib/organoleptic-meta";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
-import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Uji Organoleptik" };
 
 interface PageProps {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; dateEnd?: string; focus?: string }>;
+}
+
+function parseFocus(value?: string): "unsafe" | "returned" | null {
+  if (value === "unsafe" || value === "returned") return value;
+  return null;
 }
 
 export default async function AdminOrganoleptikPage({ searchParams }: PageProps) {
   const session = await auth();
-  const { date: dateParam } = await searchParams;
-  const date = dateParam ?? formatInspectionDateInput(new Date());
+  const params = await searchParams;
+  const today = formatInspectionDateInput(new Date());
+  const focus = parseFocus(params.focus);
+
+  let range = normalizeInspectionDateRange(
+    params.date ?? today,
+    params.dateEnd ?? params.date ?? today
+  ) ?? { from: today, to: today };
+
+  // Dari badge notice: buka rentang 1 tahun agar temuan historis ikut terlihat
+  if (focus && !params.date && !params.dateEnd) {
+    const fromDate = new Date(`${today}T00:00:00.000Z`);
+    fromDate.setUTCFullYear(fromDate.getUTCFullYear() - 1);
+    range = {
+      from: formatInspectionDateInput(fromDate),
+      to: today,
+    };
+  }
   const createdById = getOrganolepticOwnerFilter(session?.user?.role, session?.user?.id);
   const showAllEntries = isFullAdminRole(session?.user?.role);
   const isEntryOnly = isOrganolepticEntryRole(session?.user?.role);
 
   const [summary, checklists] = await Promise.all([
-    getOrganolepticDailySummary(date, createdById),
-    getOrganolepticChecklists({ date, createdById }),
+    getOrganolepticDailySummary(range.from, createdById, range.to),
+    getOrganolepticChecklists({
+      date: range.from,
+      dateEnd: range.to,
+      createdById,
+    }),
   ]);
+
+  const periodLabel = formatOrganolepticPeriodLabel(summary.date, summary.dateEnd);
 
   return (
     <div className="space-y-6">
@@ -58,7 +88,7 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard label="Tanggal" value={formatDate(date)} />
+        <SummaryCard label="Periode" value={periodLabel} />
         <SummaryCard label="Lembar" value={String(summary.checklistCount)} />
         <SummaryCard label="Total item menu" value={String(summary.itemCount)} />
         <SummaryCard label="Aman" value={String(summary.safeCount)} />
@@ -68,7 +98,9 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
       <Suspense fallback={<AdminCardSkeleton rows={5} />}>
         <OrganolepticChecklistList
           initialChecklists={checklists}
-          initialDate={date}
+          initialDate={range.from}
+          initialDateEnd={range.to}
+          initialFocus={focus}
           currentUserId={session?.user?.id}
           userRole={session?.user?.role}
           showAllEntries={showAllEntries}
@@ -82,7 +114,7 @@ function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xl font-bold leading-snug">{value}</p>
     </div>
   );
 }

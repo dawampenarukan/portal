@@ -11,7 +11,7 @@ function checkAuthUrl(): string | undefined {
     process.env.VERCEL &&
     (url.includes('localhost') || url.includes('127.0.0.1'))
   ) {
-    return 'NEXTAUTH_URL masih localhost — ganti ke https://portalpenarukan2.vercel.app';
+    return 'NEXTAUTH_URL masih localhost — ganti ke https://sppgpenarukan2.vercel.app';
   }
   return undefined;
 }
@@ -63,7 +63,7 @@ export async function GET() {
         ok: false,
         checks,
         error: authUrlIssue,
-        hint: 'Vercel → Settings → Environment Variables → NEXTAUTH_URL = https://portalpenarukan2.vercel.app',
+        hint: 'Vercel → Settings → Environment Variables → NEXTAUTH_URL = https://sppgpenarukan2.vercel.app',
       },
       { status: 503 }
     );

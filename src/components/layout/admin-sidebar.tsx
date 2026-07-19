@@ -17,6 +17,10 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 import { LogoutButton } from "@/components/admin/logout-button";
+import {
+  MenuOrganolepticNotices,
+  type MenuOrganolepticNoticesData,
+} from "@/components/layout/menu-organoleptic-notices";
 import { ADMIN_NAV_ITEMS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -34,9 +38,13 @@ const iconMap = {
 
 interface AdminSidebarProps {
   newFeedbackCount?: number;
+  organolepticNotices?: MenuOrganolepticNoticesData;
 }
 
-export function AdminSidebar({ newFeedbackCount = 0 }: AdminSidebarProps) {
+export function AdminSidebar({
+  newFeedbackCount = 0,
+  organolepticNotices = { unsafeCount: 0, returnedPackagesCount: 0 },
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isSuperAdmin = session?.user?.role === UserRole.SUPER_ADMIN;
@@ -57,18 +65,35 @@ export function AdminSidebar({ newFeedbackCount = 0 }: AdminSidebarProps) {
           const isActive =
             pathname === item.href ||
             (item.href !== "/admin" && pathname.startsWith(item.href));
+          const rowClass = cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+            isActive
+              ? "bg-white/15 text-white"
+              : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
+          );
+
+          if (item.href === "/admin/menu") {
+            return (
+              <div key={item.href} className={rowClass}>
+                <Link
+                  href={item.href}
+                  prefetch={false}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+                <MenuOrganolepticNotices notices={organolepticNotices} tone="admin" />
+              </div>
+            );
+          }
 
           return (
             <Link
               key={item.href}
               href={item.href}
               prefetch={false}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                isActive
-                  ? "bg-white/15 text-white"
-                  : "text-primary-foreground/80 hover:bg-white/10 hover:text-white"
-              )}
+              className={rowClass}
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="flex-1">{item.label}</span>

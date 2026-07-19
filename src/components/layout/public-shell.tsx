@@ -1,12 +1,17 @@
 import { Suspense } from "react";
 import { PublicFooter } from "@/components/layout/public-footer";
 import { PublicHeader } from "@/components/layout/public-header";
+import { PublicHeaderServer } from "@/components/layout/public-header-server";
 import {
   TrendingTopicsBar,
   TrendingTopicsBarSkeleton,
 } from "@/components/layout/trending-topics-bar";
 
 export const revalidate = 60;
+
+function PublicHeaderFallback() {
+  return <PublicHeader organolepticNotices={null} />;
+}
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
   return (
@@ -15,7 +20,9 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
         <Suspense fallback={<TrendingTopicsBarSkeleton />}>
           <TrendingTopicsBar />
         </Suspense>
-        <PublicHeader />
+        <Suspense fallback={<PublicHeaderFallback />}>
+          <PublicHeaderServer />
+        </Suspense>
       </header>
       <main className="flex-1">{children}</main>
       <PublicFooter />

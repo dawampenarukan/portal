@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireOrganolepticAccess, badRequest, forbidden, serverError } from "@/lib/api-auth";
+import {
+  requireOrganolepticAccess,
+  requireExistingUser,
+  badRequest,
+  forbidden,
+  serverError,
+} from "@/lib/api-auth";
+import { canAccessOrganoleptic } from "@/lib/roles";
 import {
   createOrganolepticChecklist,
   getOrganolepticChecklists,
@@ -15,6 +22,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
+  const dateEnd = searchParams.get("dateEnd");
   const summary = searchParams.get("summary") === "1";
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? Number(limitParam) : undefined;
@@ -22,12 +30,17 @@ export async function GET(request: Request) {
 
   try {
     if (summary) {
-      const data = await getOrganolepticDailySummary(date ?? undefined, createdById);
+      const data = await getOrganolepticDailySummary(
+        date ?? undefined,
+        createdById,
+        dateEnd ?? undefined
+      );
       return NextResponse.json(data);
     }
 
     const checklists = await getOrganolepticChecklists({
       date: date ?? undefined,
+      dateEnd: dateEnd ?? undefined,
       limit: limit && limit > 0 ? limit : undefined,
       createdById,
     });
@@ -38,8 +51,12 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const { session, error } = await requireOrganolepticAccess();
+  const { session, error } = await requireExistingUser();
   if (error) return error;
+
+  if (!canAccessOrganoleptic(session!.user.role)) {
+    return forbidden();
+  }
 
   try {
     const body = await request.json();

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { UserRole } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import {
   canAccessOrganoleptic,
   isFullAdminRole,
@@ -14,6 +15,29 @@ export async function requireAuth() {
       error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     };
   }
+  return { session, error: null };
+}
+
+/** JWT bisa stale setelah DB di-reset/seed ulang — cek user masih ada. */
+export async function requireExistingUser() {
+  const { session, error } = await requireAuth();
+  if (error) return { session: null, error };
+
+  const user = await prisma.user.findUnique({
+    where: { id: session!.user.id },
+    select: { id: true },
+  });
+
+  if (!user) {
+    return {
+      session: null,
+      error: NextResponse.json(
+        { error: "Sesi tidak valid. Silakan logout lalu login ulang." },
+        { status: 401 }
+      ),
+    };
+  }
+
   return { session, error: null };
 }
 

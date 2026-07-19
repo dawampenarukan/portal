@@ -3,6 +3,7 @@ import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { OrganolepticEntrySidebar } from "@/components/layout/organoleptic-entry-sidebar";
 import { auth } from "@/auth";
 import { getNewFeedbackCountCached } from "@/lib/cached-queries";
+import { getOrganolepticAdminNotices } from "@/lib/organoleptic-queries";
 import { safeQuery } from "@/lib/safe-db";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
 import { redirect } from "next/navigation";
@@ -30,13 +31,25 @@ export default async function AdminPanelLayout({
     ? await safeQuery(() => getNewFeedbackCountCached(), 0, "getNewFeedbackCount")
     : 0;
 
+  // Live query (tanpa cache) agar badge langsung hilang setelah "Telah di Evaluasi"
+  const organolepticNotices = isFullAdmin
+    ? await safeQuery(
+        () => getOrganolepticAdminNotices(),
+        { unsafeCount: 0, returnedPackagesCount: 0 },
+        "getOrganolepticAdminNotices"
+      )
+    : { unsafeCount: 0, returnedPackagesCount: 0 };
+
   return (
     <AuthSessionProvider>
       <div className="flex min-h-screen bg-muted/30">
         {isEntryOnly ? (
           <OrganolepticEntrySidebar />
         ) : (
-          <AdminSidebar newFeedbackCount={newFeedbackCount} />
+          <AdminSidebar
+            newFeedbackCount={newFeedbackCount}
+            organolepticNotices={organolepticNotices}
+          />
         )}
         <div className="flex flex-1 flex-col">
           <header className="border-b bg-white px-6 py-4">

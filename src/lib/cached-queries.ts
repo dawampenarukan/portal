@@ -16,7 +16,10 @@ import {
   getActiveSurveySummaries,
 } from "@/lib/queries";
 import type { MenuCategoryId } from "@/lib/menu-meta";
-import { getOrganolepticPublicDisplay } from "@/lib/organoleptic-queries";
+import {
+  getOrganolepticAdminNotices,
+  getOrganolepticPublicDisplay,
+} from "@/lib/organoleptic-queries";
 import { EMPTY_SURVEY_DATA, safeQuery } from "@/lib/safe-db";
 
 export const REVALIDATE_PUBLIC = 60;
@@ -119,4 +122,10 @@ export const getOrganolepticPublicDisplayCached = unstable_cache(
   () => getOrganolepticPublicDisplay(),
   ["organoleptic-public-v1"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, ORGANOLEPTIC_TAG, MENU_DATA_TAG] }
+);
+
+export const getOrganolepticAdminNoticesCached = unstable_cache(
+  () => getOrganolepticAdminNotices(),
+  ["organoleptic-admin-notices"],
+  { revalidate: 30, tags: [ORGANOLEPTIC_TAG] }
 );

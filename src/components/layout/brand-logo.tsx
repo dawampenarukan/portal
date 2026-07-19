@@ -36,6 +36,7 @@ export function BrandLogo({
       width={width}
       height={height}
       unoptimized
+      style={{ width: "auto" }}
       className={cn(
         "shrink-0 object-contain",
         sizeClass,

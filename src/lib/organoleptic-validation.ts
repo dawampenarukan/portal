@@ -1,9 +1,9 @@
 import {
   OrganolepticPlaceType,
-  OrganolepticSafety,
   OrganolepticTiming,
 } from "@prisma/client";
 import {
+  deriveOrganolepticSafety,
   isValidScore,
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
   ORGANOLEPTIC_MAX_CRITICISM_IMAGES,
@@ -17,7 +17,6 @@ import type {
 
 const PLACE_TYPES = new Set<string>(Object.values(OrganolepticPlaceType));
 const TIMINGS = new Set<string>(Object.values(OrganolepticTiming));
-const SAFETIES = new Set<string>(Object.values(OrganolepticSafety));
 
 function parseItem(raw: unknown, index: number): OrganolepticItemInput | string {
   if (!raw || typeof raw !== "object") {
@@ -38,18 +37,23 @@ function parseItem(raw: unknown, index: number): OrganolepticItemInput | string 
     }
   }
 
-  const safety = String(item.safety ?? "");
-  if (!SAFETIES.has(safety)) {
-    return `Baris ${index + 1}: kesimpulan aman/tidak aman wajib dipilih`;
-  }
+  const tasteScore = Number(item.tasteScore);
+  const colorScore = Number(item.colorScore);
+  const aromaScore = Number(item.aromaScore);
+  const textureScore = Number(item.textureScore);
 
   return {
     foodName,
-    tasteScore: Number(item.tasteScore),
-    colorScore: Number(item.colorScore),
-    aromaScore: Number(item.aromaScore),
-    textureScore: Number(item.textureScore),
-    safety: safety as OrganolepticSafety,
+    tasteScore,
+    colorScore,
+    aromaScore,
+    textureScore,
+    safety: deriveOrganolepticSafety({
+      tasteScore,
+      colorScore,
+      aromaScore,
+      textureScore,
+    }),
     notes: typeof item.notes === "string" ? item.notes : null,
   };
 }
@@ -119,6 +123,67 @@ export function parseOrganolepticPayload(
     }
   }
 
+  function parsePackageCount(value: unknown, label: string): number | null | string {
+    if (value === undefined || value === null || value === "") return null;
+    const n = typeof value === "number" ? value : Number(String(value).trim());
+    if (!Number.isInteger(n) || n < 0) {
+      return `${label} harus bilangan bulat ≥ 0`;
+    }
+    return n;
+  }
+
+  const packagesConsumed = parsePackageCount(raw.packagesConsumed, "Paket yang dikonsumsi");
+  if (typeof packagesConsumed === "string") return { error: packagesConsumed };
+  const packagesReturned = parsePackageCount(raw.packagesReturned, "Paket yang dikembalikan");
+  if (typeof packagesReturned === "string") return { error: packagesReturned };
+  const packagesReceivedRaw = parsePackageCount(raw.packagesReceived, "Paket diterima");
+  if (typeof packagesReceivedRaw === "string") return { error: packagesReceivedRaw };
+
+  let packagesReceived: number | null = null;
+  let packagesConsumedOut: number | null = packagesConsumed;
+  let packagesReturnedOut: number | null = packagesReturned;
+
+  if (
+    packagesReceivedRaw !== null ||
+    packagesConsumed !== null ||
+    packagesReturned !== null
+  ) {
+    let received = packagesReceivedRaw ?? 0;
+    let consumed = packagesConsumed ?? 0;
+    let returned = packagesReturned ?? 0;
+
+    if (packagesReceivedRaw === null) {
+      // Diisi dari bagian dulu
+      received = consumed + returned;
+    } else if (consumed > 0 || returned > 0) {
+      // Mode diterima + sudah ada alokasi → jaga persamaan
+      consumed = Math.min(consumed, received);
+      returned = Math.max(0, received - consumed);
+    } else {
+      consumed = 0;
+      returned = 0;
+    }
+
+    packagesReceived = received;
+    packagesConsumedOut = consumed;
+    packagesReturnedOut = returned;
+  }
+
+  if (
+    packagesReceived !== null &&
+    (packagesConsumedOut ?? 0) + (packagesReturnedOut ?? 0) > packagesReceived
+  ) {
+    return {
+      error: "Jumlah dikonsumsi + dikembalikan tidak boleh melebihi paket diterima",
+    };
+  }
+
+  const returnReason =
+    typeof raw.returnReason === "string" ? raw.returnReason.trim() : "";
+  if ((packagesReturnedOut ?? 0) > 0 && !returnReason) {
+    return { error: "Alasan pengembalian paket wajib diisi" };
+  }
+
   return {
     data: {
       inspectorName,
@@ -127,6 +192,10 @@ export function parseOrganolepticPayload(
       inspectionDate,
       inspectionTime,
       timing: timing as OrganolepticTiming,
+      packagesReceived,
+      packagesConsumed: packagesConsumedOut,
+      packagesReturned: packagesReturnedOut,
+      returnReason: (packagesReturnedOut ?? 0) > 0 ? returnReason : null,
       criticism: typeof raw.criticism === "string" ? raw.criticism : null,
       criticismImages,
       items,

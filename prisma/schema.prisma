@@ -258,24 +258,31 @@ model WeeklyMenuEntry {
 }
 
 model OrganolepticChecklist {
-  id             String                @id @default(cuid())
-  inspectorName  String
-  placeType      OrganolepticPlaceType
-  placeName      String
-  inspectionDate DateTime              @db.Date
-  inspectionTime String
-  timing         OrganolepticTiming
-  criticism      String?               @db.Text
-  criticismImages String[]             @default([])
-  createdById    String?
-  createdBy      User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-  items          OrganolepticItem[]
+  id                String                @id @default(cuid())
+  inspectorName     String
+  placeType         OrganolepticPlaceType
+  placeName         String
+  inspectionDate    DateTime              @db.Date
+  inspectionTime    String
+  timing            OrganolepticTiming
+  packagesReceived  Int?
+  packagesConsumed  Int?
+  packagesReturned  Int?
+  returnReason      String?               @db.Text
+  criticism         String?               @db.Text
+  criticismImages   String[]              @default([])
+  /** Diisi saat admin acknowledge temuan (notice nav hilang). */
+  evaluatedAt       DateTime?
+  createdById       String?
+  createdBy         User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  items             OrganolepticItem[]
 
   @@index([inspectionDate])
   @@index([placeName, inspectionDate])
   @@index([createdById])
+  @@index([evaluatedAt])
 }
 
 model OrganolepticItem {

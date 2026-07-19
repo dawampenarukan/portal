@@ -2,6 +2,7 @@ import {
   OrganolepticPlaceType,
   OrganolepticSafety,
   OrganolepticTiming,
+  Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { ensureOrganolepticSchemaOnce } from "@/lib/db-schema-sync";
@@ -10,6 +11,7 @@ import {
   eachInspectionDateKeys,
   formatInspectionDateInput,
   formatInspectionTrendLabel,
+  normalizeInspectionDateRange,
   parseInspectionDate,
 } from "@/lib/organoleptic-meta";
 
@@ -35,8 +37,13 @@ function mapChecklist(
     inspectionDate: Date;
     inspectionTime: string;
     timing: OrganolepticTiming;
+    packagesReceived?: number | null;
+    packagesConsumed?: number | null;
+    packagesReturned?: number | null;
+    returnReason?: string | null;
     criticism: string | null;
     criticismImages: string[];
+    evaluatedAt?: Date | null;
     createdById: string | null;
     createdAt: Date;
     createdBy?: { name: string } | null;
@@ -61,8 +68,13 @@ function mapChecklist(
     inspectionDate: formatInspectionDateInput(row.inspectionDate),
     inspectionTime: row.inspectionTime,
     timing: row.timing,
+    packagesReceived: row.packagesReceived ?? null,
+    packagesConsumed: row.packagesConsumed ?? null,
+    packagesReturned: row.packagesReturned ?? null,
+    returnReason: row.returnReason ?? null,
     criticism: row.criticism,
     criticismImages: row.criticismImages ?? [],
+    evaluatedAt: row.evaluatedAt ? row.evaluatedAt.toISOString() : null,
     createdById: row.createdById,
     createdByName: row.createdBy?.name ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -82,23 +94,55 @@ function mapChecklist(
   };
 }
 
+function inspectionDateFilter(date?: string, dateEnd?: string) {
+  const range = normalizeInspectionDateRange(date, dateEnd);
+  if (!range) return {};
+  const gte = parseInspectionDate(range.from)!;
+  const lte = parseInspectionDate(range.to)!;
+  if (range.from === range.to) {
+    return { inspectionDate: gte };
+  }
+  return { inspectionDate: { gte, lte } };
+}
+
+async function loadEvaluatedAtMap(ids: string[]): Promise<Map<string, Date | null>> {
+  const map = new Map<string, Date | null>();
+  if (ids.length === 0) return map;
+
+  const rows = await prisma.$queryRaw<{ id: string; evaluatedAt: Date | null }[]>`
+    SELECT "id", "evaluatedAt"
+    FROM "OrganolepticChecklist"
+    WHERE "id" IN (${Prisma.join(ids)})
+  `;
+  for (const row of rows) {
+    map.set(row.id, row.evaluatedAt);
+  }
+  return map;
+}
+
 export async function getOrganolepticChecklists(options?: {
   date?: string;
+  dateEnd?: string;
   limit?: number;
   createdById?: string;
 }): Promise<OrganolepticChecklistView[]> {
   await ensureOrganolepticSchemaOnce();
-  const parsedDate = options?.date ? parseInspectionDate(options.date) : null;
   const rows = await prisma.organolepticChecklist.findMany({
     where: {
-      ...(parsedDate ? { inspectionDate: parsedDate } : {}),
+      ...inspectionDateFilter(options?.date, options?.dateEnd),
       ...(options?.createdById ? { createdById: options.createdById } : {}),
     },
     include: { items: true, createdBy: { select: { name: true } } },
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
     take: options?.limit,
   });
-  return rows.map(mapChecklist);
+  const evaluatedMap = await loadEvaluatedAtMap(rows.map((r) => r.id));
+  return rows.map((row) =>
+    mapChecklist({
+      ...row,
+      evaluatedAt: evaluatedMap.get(row.id) ?? null,
+    })
+  );
 }
 
 export async function getOrganolepticChecklistById(
@@ -109,7 +153,12 @@ export async function getOrganolepticChecklistById(
     where: { id },
     include: { items: true, createdBy: { select: { name: true } } },
   });
-  return row ? mapChecklist(row) : null;
+  if (!row) return null;
+  const evaluatedMap = await loadEvaluatedAtMap([id]);
+  return mapChecklist({
+    ...row,
+    evaluatedAt: evaluatedMap.get(id) ?? null,
+  });
 }
 
 export async function getOrganolepticChecklistOwnership(id: string) {
@@ -121,16 +170,19 @@ export async function getOrganolepticChecklistOwnership(id: string) {
 
 export async function getOrganolepticDailySummary(
   dateInput?: string,
-  createdById?: string
+  createdById?: string,
+  dateEndInput?: string
 ): Promise<OrganolepticDailySummary> {
   await ensureOrganolepticSchemaOnce();
-  const date = dateInput
-    ? parseInspectionDate(dateInput)
-    : new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
+  const fallback = formatInspectionDateInput(new Date());
+  const range = normalizeInspectionDateRange(
+    dateInput ?? fallback,
+    dateEndInput ?? dateInput ?? fallback
+  );
 
-  if (!date) {
+  if (!range) {
     return {
-      date: dateInput ?? formatInspectionDateInput(new Date()),
+      date: dateInput ?? fallback,
       checklistCount: 0,
       itemCount: 0,
       safeCount: 0,
@@ -145,7 +197,7 @@ export async function getOrganolepticDailySummary(
 
   const checklists = await prisma.organolepticChecklist.findMany({
     where: {
-      inspectionDate: date,
+      ...inspectionDateFilter(range.from, range.to),
       ...(createdById ? { createdById } : {}),
     },
     include: { items: true },
@@ -157,7 +209,8 @@ export async function getOrganolepticDailySummary(
   const avgs = averageScores(allItems);
 
   return {
-    date: formatInspectionDateInput(date),
+    date: range.from,
+    dateEnd: range.to !== range.from ? range.to : undefined,
     checklistCount: checklists.length,
     itemCount: allItems.length,
     safeCount,
@@ -187,6 +240,10 @@ export interface OrganolepticChecklistInput {
   inspectionDate: string;
   inspectionTime: string;
   timing: OrganolepticTiming;
+  packagesReceived?: number | null;
+  packagesConsumed?: number | null;
+  packagesReturned?: number | null;
+  returnReason?: string | null;
   criticism?: string | null;
   criticismImages?: string[];
   items: OrganolepticItemInput[];
@@ -208,6 +265,10 @@ export async function createOrganolepticChecklist(
       inspectionDate,
       inspectionTime: data.inspectionTime.trim(),
       timing: data.timing,
+      packagesReceived: data.packagesReceived ?? null,
+      packagesConsumed: data.packagesConsumed ?? null,
+      packagesReturned: data.packagesReturned ?? null,
+      returnReason: data.returnReason?.trim() || null,
       criticism: data.criticism?.trim() || null,
       criticismImages: data.criticismImages ?? [],
       createdById,
@@ -232,6 +293,107 @@ export async function createOrganolepticChecklist(
 
 export async function deleteOrganolepticChecklist(id: string) {
   return prisma.organolepticChecklist.delete({ where: { id } });
+}
+
+export async function evaluateOrganolepticChecklist(id: string) {
+  await ensureOrganolepticSchemaOnce();
+
+  // Raw SQL: aman meski Prisma Client di proses Next belum reload field baru.
+  const updated = await prisma.$executeRaw`
+    UPDATE "OrganolepticChecklist"
+    SET "evaluatedAt" = CURRENT_TIMESTAMP, "updatedAt" = CURRENT_TIMESTAMP
+    WHERE "id" = ${id}
+  `;
+  if (Number(updated) === 0) {
+    throw new Error("Checklist tidak ditemukan");
+  }
+
+  const [row] = await prisma.$queryRaw<
+    {
+      id: string;
+      inspectorName: string;
+      placeType: OrganolepticPlaceType;
+      placeName: string;
+      inspectionDate: Date;
+      inspectionTime: string;
+      timing: OrganolepticTiming;
+      packagesReceived: number | null;
+      packagesConsumed: number | null;
+      packagesReturned: number | null;
+      returnReason: string | null;
+      criticism: string | null;
+      criticismImages: string[];
+      evaluatedAt: Date | null;
+      createdById: string | null;
+      createdAt: Date;
+      createdByName: string | null;
+    }[]
+  >`
+    SELECT
+      c."id",
+      c."inspectorName",
+      c."placeType",
+      c."placeName",
+      c."inspectionDate",
+      c."inspectionTime",
+      c."timing",
+      c."packagesReceived",
+      c."packagesConsumed",
+      c."packagesReturned",
+      c."returnReason",
+      c."criticism",
+      c."criticismImages",
+      c."evaluatedAt",
+      c."createdById",
+      c."createdAt",
+      u."name" AS "createdByName"
+    FROM "OrganolepticChecklist" c
+    LEFT JOIN "User" u ON u."id" = c."createdById"
+    WHERE c."id" = ${id}
+  `;
+
+  if (!row) throw new Error("Checklist tidak ditemukan");
+
+  const items = await prisma.organolepticItem.findMany({
+    where: { checklistId: id },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return mapChecklist({
+    ...row,
+    createdBy: row.createdByName ? { name: row.createdByName } : null,
+    items,
+  });
+}
+
+export interface OrganolepticAdminNotices {
+  unsafeCount: number;
+  returnedPackagesCount: number;
+}
+
+/** Agregat notice untuk badge navigasi admin — hanya temuan belum dievaluasi. */
+export async function getOrganolepticAdminNotices(): Promise<OrganolepticAdminNotices> {
+  await ensureOrganolepticSchemaOnce();
+
+  const [unsafeRow] = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint AS count
+    FROM "OrganolepticItem" i
+    INNER JOIN "OrganolepticChecklist" c ON c."id" = i."checklistId"
+    WHERE i."safety" = 'TIDAK_AMAN'::"OrganolepticSafety"
+      AND c."evaluatedAt" IS NULL
+  `;
+
+  const [returnedRow] = await prisma.$queryRaw<{ sum: number }[]>`
+    SELECT COALESCE(SUM(c."packagesReturned"), 0)::int AS sum
+    FROM "OrganolepticChecklist" c
+    WHERE c."packagesReturned" > 0
+      AND c."evaluatedAt" IS NULL
+  `;
+
+  return {
+    unsafeCount: Number(unsafeRow?.count ?? 0),
+    returnedPackagesCount: Number(returnedRow?.sum ?? 0),
+  };
 }
 
 const emptyPublicView = (): OrganolepticPublicView => ({
