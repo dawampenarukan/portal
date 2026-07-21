@@ -5,7 +5,7 @@ import { auth } from "@/auth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { OrganolepticForm } from "@/components/admin/organoleptic-form";
+import { OrganolepticFormLoader } from "@/components/admin/organoleptic-form-loader";
 import { OrganolepticDetailMeta } from "@/components/admin/admin-organoleptic-summary";
 import { getOrganolepticChecklistById } from "@/lib/organoleptic-queries";
 import { averageScores } from "@/lib/organoleptic-meta";
@@ -74,7 +74,7 @@ export default async function AdminOrganoleptikDetailPage({ params }: Props) {
 
       <Card>
         <CardContent className="p-6">
-          <OrganolepticForm initialData={checklist} readOnly />
+          <OrganolepticFormLoader initialData={checklist} readOnly />
         </CardContent>
       </Card>
     </div>

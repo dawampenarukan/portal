@@ -3,7 +3,7 @@ import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
-import { revalidatePublicContent } from "@/lib/revalidate-public";
+import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -58,6 +58,7 @@ export async function PATCH(request: Request, { params }: Params) {
     });
 
     revalidatePublicContent({ articles: true });
+    revalidateAdminStats();
 
     return NextResponse.json(article);
   } catch {
@@ -73,6 +74,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   try {
     await prisma.article.delete({ where: { id } });
     revalidatePublicContent({ articles: true });
+    revalidateAdminStats();
     return NextResponse.json({ ok: true });
   } catch {
     return notFound("Artikel tidak ditemukan");

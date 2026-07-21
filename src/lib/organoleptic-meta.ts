@@ -1,8 +1,16 @@
-import type {
-  OrganolepticPlaceType,
-  OrganolepticSafety,
-  OrganolepticTiming,
-} from '@prisma/client';
+/**
+ * Metadata organoleptik — aman untuk client bundle (tanpa @prisma/client).
+ * String di bawah selaras dengan enum Prisma Organoleptic*.
+ */
+
+export type OrganolepticPlaceTypeId = "SEKOLAH" | "POSYANDU" | "LAINNYA";
+export type OrganolepticTimingId = "SAAT_TIBA" | "SEBELUM_DIKONSUMSI";
+export type OrganolepticSafetyId = "AMAN" | "TIDAK_AMAN";
+
+/** Batas keras list checklist per request (rentang lebar / 1 tahun). */
+export const ORGANOLEPTIC_LIST_HARD_CAP = 200;
+/** Default page size untuk list admin (lebih ringan dari hard cap). */
+export const ORGANOLEPTIC_LIST_DEFAULT_LIMIT = 50;
 
 /** Satu lembar checklist = satu sekolah/posyandu = satu paket MBG (maks. 5 item menu). */
 export const ORGANOLEPTIC_ITEMS_PER_PACKAGE = 5;
@@ -26,22 +34,40 @@ export const ORGANOLEPTIC_SCORE_LABELS: Record<number, string> = {
 
 export const ORGANOLEPTIC_SCORE_OPTIONS = [5, 4, 3, 2, 1] as const;
 
-export const ORGANOLEPTIC_PLACE_LABELS: Record<OrganolepticPlaceType, string> =
+export const ORGANOLEPTIC_PLACE_LABELS: Record<OrganolepticPlaceTypeId, string> =
   {
     SEKOLAH: 'Satuan Pendidikan',
     POSYANDU: 'Posyandu',
     LAINNYA: 'Lainnya',
   };
 
-export const ORGANOLEPTIC_TIMING_LABELS: Record<OrganolepticTiming, string> = {
+export const ORGANOLEPTIC_TIMING_LABELS: Record<OrganolepticTimingId, string> = {
   SAAT_TIBA: 'Saat Tiba di Lokasi',
   SEBELUM_DIKONSUMSI: 'Sebelum dikonsumsi',
 };
 
-export const ORGANOLEPTIC_SAFETY_LABELS: Record<OrganolepticSafety, string> = {
+export const ORGANOLEPTIC_SAFETY_LABELS: Record<OrganolepticSafetyId, string> = {
   AMAN: 'Aman dikonsumsi',
   TIDAK_AMAN: 'Tidak aman dikonsumsi',
 };
+
+export function isOrganolepticPlaceTypeId(
+  value: string
+): value is OrganolepticPlaceTypeId {
+  return value in ORGANOLEPTIC_PLACE_LABELS;
+}
+
+export function isOrganolepticTimingId(
+  value: string
+): value is OrganolepticTimingId {
+  return value in ORGANOLEPTIC_TIMING_LABELS;
+}
+
+export function isOrganolepticSafetyId(
+  value: string
+): value is OrganolepticSafetyId {
+  return value in ORGANOLEPTIC_SAFETY_LABELS;
+}
 
 export function parseInspectionDate(value: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -98,7 +124,7 @@ export function deriveOrganolepticSafety(scores: {
   colorScore: number;
   aromaScore: number;
   textureScore: number;
-}): OrganolepticSafety {
+}): OrganolepticSafetyId {
   const values = [
     scores.tasteScore,
     scores.colorScore,

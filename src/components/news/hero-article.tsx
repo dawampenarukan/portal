@@ -53,9 +53,12 @@ export function HeroArticle({
             src={coverImage}
             alt={title}
             fill
+            priority
             fallbackEmoji="🍽️"
             className="rounded-2xl"
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
+
         </div>
       </div>
     </section>

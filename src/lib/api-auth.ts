@@ -1,11 +1,13 @@
+import "server-only";
+
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   canAccessOrganoleptic,
   isFullAdminRole,
 } from "@/lib/roles";
+import { USER_ROLE_SUPER_ADMIN } from "@/lib/user-constants";
 
 export async function requireAuth() {
   const session = await auth();
@@ -73,7 +75,7 @@ export async function requireSuperAdmin() {
   const { session, error } = await requireAuth();
   if (error) return { session: null, error };
 
-  if (session!.user.role !== UserRole.SUPER_ADMIN) {
+  if (session!.user.role !== USER_ROLE_SUPER_ADMIN) {
     return {
       session: null,
       error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

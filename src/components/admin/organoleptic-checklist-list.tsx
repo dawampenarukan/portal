@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
+  ORGANOLEPTIC_LIST_HARD_CAP,
   ORGANOLEPTIC_PLACE_LABELS,
   ORGANOLEPTIC_TIMING_LABELS,
   averageScores,
@@ -19,6 +21,12 @@ import {
 import { canModifyOrganolepticChecklist, isFullAdminRole } from "@/lib/roles";
 import type { OrganolepticChecklistView } from "@/lib/types";
 
+type OrganolepticChecklistListResult = {
+  checklists: OrganolepticChecklistView[];
+  truncated: boolean;
+  limit: number;
+};
+
 type FocusFilter = "unsafe" | "returned" | null;
 
 interface OrganolepticChecklistListProps {
@@ -26,6 +34,8 @@ interface OrganolepticChecklistListProps {
   initialDate: string;
   initialDateEnd?: string;
   initialFocus?: FocusFilter;
+  initialTruncated?: boolean;
+  listLimit?: number;
   currentUserId?: string;
   userRole?: string | null;
   showAllEntries?: boolean;
@@ -51,6 +61,8 @@ export function OrganolepticChecklistList({
   initialDate,
   initialDateEnd,
   initialFocus = null,
+  initialTruncated = false,
+  listLimit = ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
   currentUserId,
   userRole,
   showAllEntries = false,
@@ -67,6 +79,8 @@ export function OrganolepticChecklistList({
   const [checklists, setChecklists] = useState(() =>
     applyFocusFilter(initialChecklists, initialFocus)
   );
+  const [truncated, setTruncated] = useState(initialTruncated);
+  const [activeLimit, setActiveLimit] = useState(listLimit);
   const [loading, setLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
@@ -79,12 +93,28 @@ export function OrganolepticChecklistList({
     setLoading(true);
     const params = new URLSearchParams({ date: range.from });
     if (range.to !== range.from) params.set("dateEnd", range.to);
+    if (nextFocus) params.set("focus", nextFocus);
+    params.set("limit", String(ORGANOLEPTIC_LIST_DEFAULT_LIMIT));
     const res = await fetch(`/api/organoleptic?${params.toString()}`);
     setLoading(false);
     if (!res.ok) return;
 
-    const data = (await res.json()) as OrganolepticChecklistView[];
-    setChecklists(applyFocusFilter(data, nextFocus));
+    const data = (await res.json()) as
+      | OrganolepticChecklistListResult
+      | OrganolepticChecklistView[];
+
+    const result: OrganolepticChecklistListResult = Array.isArray(data)
+      ? {
+          checklists: data,
+          truncated: data.length >= ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
+          limit: ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
+        }
+      : data;
+
+    // Server sudah filter focus; apply lokal tetap untuk konsistensi setelah evaluate
+    setChecklists(applyFocusFilter(result.checklists, nextFocus));
+    setTruncated(result.truncated);
+    setActiveLimit(result.limit);
     setDateFrom(range.from);
     setDateTo(range.to);
     setFocus(nextFocus);
@@ -192,6 +222,14 @@ export function OrganolepticChecklistList({
             {focus === "unsafe" ? "temuan tidak aman" : "paket dikembalikan"}
           </span>{" "}
           pada rentang tanggal di atas.
+        </p>
+      )}
+
+      {truncated && (
+        <p className="rounded-xl border border-sky/40 bg-sky/10 px-3 py-2 text-sm text-foreground">
+          Menampilkan {activeLimit} lembar terbaru per halaman (maks. {ORGANOLEPTIC_LIST_HARD_CAP}).
+          Persempit rentang tanggal untuk melihat data lainnya. Ringkasan di atas
+          tetap menghitung seluruh periode.
         </p>
       )}
 

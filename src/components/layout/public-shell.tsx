@@ -7,8 +7,6 @@ import {
   TrendingTopicsBarSkeleton,
 } from "@/components/layout/trending-topics-bar";
 
-export const revalidate = 60;
-
 function PublicHeaderFallback() {
   return <PublicHeader organolepticNotices={null} />;
 }

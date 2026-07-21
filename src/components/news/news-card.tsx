@@ -41,7 +41,9 @@ export function NewsCard({
           src={coverImage}
           alt={title}
           fallbackEmoji={categoryEmoji[category] ?? "📄"}
+          sizes="(max-width: 768px) 100vw, 33vw"
         />
+
       </div>
       <CardContent className="p-5">
         <div className="mb-2 flex flex-wrap gap-2">

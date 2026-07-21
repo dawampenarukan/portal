@@ -1,6 +1,16 @@
-import { MenuCategoryType } from "@prisma/client";
+/**
+ * Metadata kategori menu — aman untuk client bundle (tanpa @prisma/client).
+ * Nilai string di bawah selaras dengan enum Prisma MenuCategoryType.
+ */
 
 export type MenuCategoryId = "porsi-kecil" | "porsi-besar" | "ibu-hamil" | "balita";
+
+/** Mirror string enum Prisma MenuCategoryType — jangan import Prisma di sini. */
+export type MenuCategoryTypeId =
+  | "PORSI_KECIL"
+  | "PORSI_BESAR"
+  | "IBU_HAMIL"
+  | "BALITA";
 
 export interface MenuCategory {
   id: MenuCategoryId;
@@ -54,18 +64,18 @@ export const MENU_CATEGORIES: MenuCategory[] = [
   },
 ];
 
-export const MENU_CATEGORY_ID_TO_TYPE: Record<MenuCategoryId, MenuCategoryType> = {
-  "porsi-kecil": MenuCategoryType.PORSI_KECIL,
-  "porsi-besar": MenuCategoryType.PORSI_BESAR,
-  "ibu-hamil": MenuCategoryType.IBU_HAMIL,
-  balita: MenuCategoryType.BALITA,
+export const MENU_CATEGORY_ID_TO_TYPE: Record<MenuCategoryId, MenuCategoryTypeId> = {
+  "porsi-kecil": "PORSI_KECIL",
+  "porsi-besar": "PORSI_BESAR",
+  "ibu-hamil": "IBU_HAMIL",
+  balita: "BALITA",
 };
 
-export const MENU_CATEGORY_TYPE_TO_ID: Record<MenuCategoryType, MenuCategoryId> = {
-  [MenuCategoryType.PORSI_KECIL]: "porsi-kecil",
-  [MenuCategoryType.PORSI_BESAR]: "porsi-besar",
-  [MenuCategoryType.IBU_HAMIL]: "ibu-hamil",
-  [MenuCategoryType.BALITA]: "balita",
+export const MENU_CATEGORY_TYPE_TO_ID: Record<MenuCategoryTypeId, MenuCategoryId> = {
+  PORSI_KECIL: "porsi-kecil",
+  PORSI_BESAR: "porsi-besar",
+  IBU_HAMIL: "ibu-hamil",
+  BALITA: "balita",
 };
 
 export function getMenuCategory(id: string): MenuCategoryId {
@@ -75,6 +85,10 @@ export function getMenuCategory(id: string): MenuCategoryId {
 
 export function isMenuCategoryId(value: string): value is MenuCategoryId {
   return value in MENU_CATEGORY_ID_TO_TYPE;
+}
+
+export function isMenuCategoryTypeId(value: string): value is MenuCategoryTypeId {
+  return value in MENU_CATEGORY_TYPE_TO_ID;
 }
 
 export function getMenuCategoryMeta(id: MenuCategoryId): MenuCategory {

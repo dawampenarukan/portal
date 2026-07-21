@@ -1,7 +1,8 @@
 import dynamic from "next/dynamic";
 import { Card, CardContent } from "@/components/ui/card";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
-import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
+import type { MenuCategoryId } from "@/lib/menu-meta";
+import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { getMenuRequests } from "@/lib/queries";
 import type { MenuRequestView } from "@/lib/types";
 
@@ -16,8 +17,7 @@ export async function AdminMenuRequestsSection({
 }: {
   categoryId: MenuCategoryId;
 }) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
-  const rows = await getMenuRequests(categoryType, 30);
+  const rows = await getMenuRequests(toMenuCategoryType(categoryId), 30);
   const requests: MenuRequestView[] = rows.map((r) => ({
     id: r.id,
     requesterName: r.requesterName,

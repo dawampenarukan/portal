@@ -1,3 +1,5 @@
+import "server-only";
+
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import {
@@ -12,10 +14,11 @@ import { slugify } from "@/lib/slug";
 import { getDaySortOrder } from "@/lib/week-days";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
 import {
-  MENU_CATEGORY_ID_TO_TYPE,
   MENU_CATEGORY_TYPE_TO_ID,
-  MenuCategoryId,
+  type MenuCategoryId,
+  type MenuCategoryTypeId,
 } from "@/lib/menu-meta";
+import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { FALLBACK_TRENDING_TOPICS } from "@/lib/trending-topics";
 import {
   buildSurveySummary,
@@ -82,7 +85,7 @@ function mapEventAdmin(event: {
   id: string;
   slug: string;
   title: string;
-  description: string | null;
+  description?: string | null;
   location: string;
   startAt: Date;
   endAt: Date | null;
@@ -92,7 +95,7 @@ function mapEventAdmin(event: {
   return {
     ...mapEvent(event),
     slug: event.slug,
-    description: event.description,
+    description: event.description ?? null,
     startAt: event.startAt.toISOString(),
     endAt: event.endAt?.toISOString() ?? null,
     coverImage: event.coverImage,
@@ -155,29 +158,39 @@ const defaultSurveyData: SurveyDataView = {
   trend: [],
 };
 
+/** Default take untuk list publik — cukup untuk home + berita tanpa tarik seluruh tabel. */
+export const PUBLISHED_ARTICLES_LIST_TAKE = 60;
+
 export async function getPublishedArticles(): Promise<ArticleView[]> {
   return getPublishedArticlesForList();
 }
 
-export async function getPublishedArticlesForList(): Promise<ArticleView[]> {
-  const articles = await prisma.article.findMany({
-    where: { status: ArticleStatus.PUBLISHED },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      coverImage: true,
-      isPopular: true,
-      isHighlight: true,
-      publishedAt: true,
-      author: { select: { name: true } },
-      category: { select: { name: true } },
-    },
-    orderBy: { publishedAt: "desc" },
-  });
+const publishedArticleListSelect = {
+  id: true,
+  slug: true,
+  title: true,
+  excerpt: true,
+  coverImage: true,
+  isPopular: true,
+  isHighlight: true,
+  publishedAt: true,
+  author: { select: { name: true } },
+  category: { select: { name: true } },
+} as const;
 
-  return articles.map((article) => ({
+function mapPublishedArticleListItem(article: {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  coverImage: string | null;
+  isPopular: boolean;
+  isHighlight: boolean;
+  publishedAt: Date | null;
+  author: { name: string };
+  category: { name: string };
+}): ArticleView {
+  return {
     id: article.id,
     slug: article.slug,
     title: article.title,
@@ -189,15 +202,89 @@ export async function getPublishedArticlesForList(): Promise<ArticleView[]> {
     coverImage: article.coverImage,
     isPopular: article.isPopular,
     isHighlight: article.isHighlight,
-  }));
+  };
+}
+
+export async function getPublishedArticlesForList(
+  take: number = PUBLISHED_ARTICLES_LIST_TAKE
+): Promise<ArticleView[]> {
+  const articles = await prisma.article.findMany({
+    where: { status: ArticleStatus.PUBLISHED },
+    select: publishedArticleListSelect,
+    orderBy: { publishedAt: "desc" },
+    take: Math.max(1, take),
+  });
+
+  return articles.map(mapPublishedArticleListItem);
+}
+
+/** Satu payload untuk hero + highlights + popular + latest di homepage (1–2 query). */
+export async function getHomeArticlesPayload(take = PUBLISHED_ARTICLES_LIST_TAKE): Promise<{
+  hero: ArticleView | null;
+  highlights: ArticleView[];
+  popular: ArticleView[];
+  latest: ArticleView[];
+}> {
+  const [articles, popular] = await Promise.all([
+    getPublishedArticlesForList(take),
+    getPopularPublishedArticlesForList(8),
+  ]);
+
+  return {
+    hero: articles[0] ?? null,
+    highlights: articles.filter((a) => a.isHighlight).slice(0, 6),
+    popular,
+    latest: articles,
+  };
+}
+
+/** Sidebar “Terpopuler” — tidak bergantung pada take list utama. */
+export async function getPopularPublishedArticlesForList(
+  take = 8
+): Promise<ArticleView[]> {
+  const articles = await prisma.article.findMany({
+    where: { status: ArticleStatus.PUBLISHED, isPopular: true },
+    select: publishedArticleListSelect,
+    orderBy: { publishedAt: "desc" },
+    take: Math.max(1, take),
+  });
+
+  return articles.map(mapPublishedArticleListItem);
 }
 
 export async function getAllArticles(): Promise<ArticleView[]> {
   const articles = await prisma.article.findMany({
-    include: { author: true, category: true },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      excerpt: true,
+      coverImage: true,
+      isPopular: true,
+      isHighlight: true,
+      status: true,
+      publishedAt: true,
+      updatedAt: true,
+      author: { select: { name: true } },
+      category: { select: { id: true, name: true } },
+    },
     orderBy: { updatedAt: "desc" },
   });
-  return articles.map(mapArticleAdmin);
+  return articles.map((article) => ({
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    excerpt: article.excerpt ?? "",
+    content: "",
+    category: article.category.name,
+    categoryId: article.category.id,
+    author: article.author.name,
+    publishedAt: article.publishedAt?.toISOString() ?? article.updatedAt.toISOString(),
+    coverImage: article.coverImage,
+    isPopular: article.isPopular,
+    isHighlight: article.isHighlight,
+    status: article.status,
+  }));
 }
 
 export async function getAdminArticlesList(page = 1) {
@@ -270,7 +357,6 @@ export async function getAllEvents(): Promise<EventView[]> {
       startAt: true,
       endAt: true,
       slug: true,
-      description: true,
       coverImage: true,
       isPublished: true,
     },
@@ -329,8 +415,25 @@ function mapPublicationAdmin(pub: {
 }
 
 export async function getAllPublications(): Promise<PublicationView[]> {
-  const pubs = await prisma.publication.findMany({ orderBy: { updatedAt: "desc" } });
-  return pubs.map(mapPublicationAdmin);
+  const pubs = await prisma.publication.findMany({
+    orderBy: { updatedAt: "desc" },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      period: true,
+      type: true,
+      summary: true,
+      isPublished: true,
+    },
+  });
+  return pubs.map((pub) =>
+    mapPublicationAdmin({
+      ...pub,
+      content: "",
+      chartData: null,
+    })
+  );
 }
 
 export async function getAdminPublicationsList() {
@@ -418,8 +521,13 @@ export async function getPublicationById(id: string): Promise<PublicationView | 
   return pub ? mapPublicationAdmin(pub) : null;
 }
 
-export async function getSurveyData(): Promise<SurveyDataView> {
-  const live = await getLiveSurveyData();
+export async function getSurveyData(options?: {
+  /** Homepage: jangan re-aggregate responses — hanya chartData tersimpan. */
+  allowLiveAggregate?: boolean;
+}): Promise<SurveyDataView> {
+  const live = await getLiveSurveyData({
+    allowLiveAggregate: options?.allowLiveAggregate,
+  });
   return live ?? defaultSurveyData;
 }
 
@@ -578,7 +686,7 @@ function buildMenuBundle(
   }[],
   requests: { menuName: string; reason: string | null }[] = []
 ): MenuCategoryBundle {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
   const favorites = items
     .filter((item) => item.category === categoryType)
     .sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name))
@@ -633,11 +741,18 @@ export async function getMenuRequestNameSuggestions(
   query: string,
   limit = 6
 ): Promise<MenuNameSuggestion[]> {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
+  const q = query.trim();
   const requests = await prisma.menuRequest.findMany({
-    where: { category: categoryType },
+    where: {
+      category: categoryType,
+      ...(q.length >= 2
+        ? { menuName: { contains: q, mode: "insensitive" } }
+        : {}),
+    },
     select: { menuName: true },
     orderBy: { createdAt: "desc" },
+    take: 80,
   });
 
   return filterMenuNameSuggestions(aggregateMenuRequestNames(requests), query, limit);
@@ -646,12 +761,13 @@ export async function getMenuRequestNameSuggestions(
 export async function getMenuDataByCategory(
   categoryId: MenuCategoryId
 ): Promise<MenuCategoryBundle> {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
 
   const [favorites, weekly, requests] = await Promise.all([
     prisma.menuItem.findMany({
       where: { category: categoryType },
       orderBy: [{ votes: "desc" }, { name: "asc" }],
+      take: 40,
       select: {
         id: true,
         name: true,
@@ -675,6 +791,7 @@ export async function getMenuDataByCategory(
       where: { category: categoryType },
       select: { menuName: true, reason: true },
       orderBy: { createdAt: "desc" },
+      take: 100,
     }),
   ]);
 
@@ -722,25 +839,25 @@ export async function getAllMenuData(): Promise<
       "porsi-kecil",
       allItems,
       allWeekly,
-      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["porsi-kecil"])
+      requestsByCategory(toMenuCategoryType("porsi-kecil"))
     ),
     "porsi-besar": buildMenuBundle(
       "porsi-besar",
       allItems,
       allWeekly,
-      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["porsi-besar"])
+      requestsByCategory(toMenuCategoryType("porsi-besar"))
     ),
     "ibu-hamil": buildMenuBundle(
       "ibu-hamil",
       allItems,
       allWeekly,
-      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE["ibu-hamil"])
+      requestsByCategory(toMenuCategoryType("ibu-hamil"))
     ),
     balita: buildMenuBundle(
       "balita",
       allItems,
       allWeekly,
-      requestsByCategory(MENU_CATEGORY_ID_TO_TYPE.balita)
+      requestsByCategory(toMenuCategoryType("balita"))
     ),
   };
 }
@@ -748,27 +865,25 @@ export async function getAllMenuData(): Promise<
 export async function getMenuPreviewTopItems(): Promise<
   Record<MenuCategoryId, { emoji: string; name: string } | null>
 > {
-  const items = await prisma.menuItem.findMany({
-    where: { category: { in: Object.values(MenuCategoryType) } },
-    orderBy: { votes: "desc" },
-    select: { category: true, emoji: true, name: true },
-  });
-
-  const topByType = new Map<MenuCategoryType, { emoji: string; name: string }>();
-  for (const item of items) {
-    if (!topByType.has(item.category)) {
-      topByType.set(item.category, {
-        emoji: item.emoji ?? "🍽️",
-        name: item.name,
-      });
-    }
-  }
+  const types = Object.values(MenuCategoryType) as MenuCategoryType[];
+  const tops = await Promise.all(
+    types.map((category) =>
+      prisma.menuItem.findFirst({
+        where: { category },
+        orderBy: { votes: "desc" },
+        select: { emoji: true, name: true },
+      })
+    )
+  );
 
   const result = {} as Record<MenuCategoryId, { emoji: string; name: string } | null>;
-  for (const type of Object.values(MenuCategoryType)) {
-    const id = MENU_CATEGORY_TYPE_TO_ID[type];
-    result[id] = topByType.get(type) ?? null;
-  }
+  types.forEach((type, index) => {
+    const id = MENU_CATEGORY_TYPE_TO_ID[type as MenuCategoryTypeId];
+    const top = tops[index];
+    result[id] = top
+      ? { emoji: top.emoji ?? "🍽️", name: top.name }
+      : null;
+  });
 
   return result;
 }
@@ -781,7 +896,7 @@ export async function getAdminMenuOverview(): Promise<
 
   const stats = await Promise.all(
     ids.map(async (id) => {
-      const categoryType = MENU_CATEGORY_ID_TO_TYPE[id];
+      const categoryType = toMenuCategoryType(id);
       const [topFavorite, weeklyCount] = await Promise.all([
         prisma.menuItem.findFirst({
           where: { category: categoryType },
@@ -840,7 +955,7 @@ export async function getMenuRequestCounts(): Promise<Record<MenuCategoryId, num
   };
 
   for (const row of counts) {
-    const id = MENU_CATEGORY_TYPE_TO_ID[row.category];
+    const id = MENU_CATEGORY_TYPE_TO_ID[row.category as MenuCategoryTypeId];
     result[id] = row._count._all;
   }
 
@@ -990,7 +1105,7 @@ export async function getSurveyById(id: string): Promise<SurveyView | null> {
 }
 
 export async function getWeeklyMenuEntries(categoryId: MenuCategoryId) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
   return prisma.weeklyMenuEntry.findMany({
     where: { category: categoryType, isActive: true },
     orderBy: { sortOrder: "asc" },
@@ -998,7 +1113,7 @@ export async function getWeeklyMenuEntries(categoryId: MenuCategoryId) {
 }
 
 export async function getMenuItemsByCategory(categoryId: MenuCategoryId) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
   return prisma.menuItem.findMany({
     where: { category: categoryType, isActive: true },
     orderBy: { votes: "desc" },
@@ -1022,7 +1137,7 @@ export async function getMenuRequests(category?: MenuCategoryType, limit = 50) {
 }
 
 export async function getAdminMenuItems(categoryId: MenuCategoryId) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
   return prisma.menuItem.findMany({
     where: { category: categoryType },
     orderBy: [{ votes: "desc" }, { name: "asc" }],
@@ -1038,7 +1153,7 @@ export async function getAdminMenuItems(categoryId: MenuCategoryId) {
 }
 
 export async function getAdminWeeklyMenu(categoryId: MenuCategoryId) {
-  const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const categoryType = toMenuCategoryType(categoryId);
   const entries = await prisma.weeklyMenuEntry.findMany({
     where: { category: categoryType },
     select: {

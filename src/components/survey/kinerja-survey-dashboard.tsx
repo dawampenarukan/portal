@@ -7,7 +7,7 @@ import { FillSurveyButton } from "@/components/survey/fill-survey-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { PublicationView, SurveyDataView, SurveyPublicationView } from "@/lib/types";
+import type { SurveyDataView, SurveyPublicationView } from "@/lib/types";
 
 const emptySurvey: SurveyDataView = {
   satisfactionScore: 0,
@@ -25,8 +25,8 @@ interface ActiveSurveyOption {
 
 interface KinerjaSurveyDashboardProps {
   publications: SurveyPublicationView[];
-  performancePublications: PublicationView[];
-  activeSurveys: ActiveSurveyOption[];
+  /** Opsional — tombol isi survey bisa di-stream terpisah di page. */
+  activeSurveys?: ActiveSurveyOption[];
   defaultPublicationId: string | null;
 }
 
@@ -48,8 +48,7 @@ function resolveDefaultId(
 
 export function KinerjaSurveyDashboard({
   publications,
-  performancePublications,
-  activeSurveys,
+  activeSurveys = [],
   defaultPublicationId,
 }: KinerjaSurveyDashboardProps) {
   const initialId = useMemo(
@@ -88,7 +87,9 @@ export function KinerjaSurveyDashboard({
             </div>
           )}
         </div>
-        <FillSurveyButton surveys={activeSurveys} />
+        {activeSurveys.length > 0 && (
+          <FillSurveyButton surveys={activeSurveys} />
+        )}
       </div>
 
       <AtmPagePanel variant="glass">
@@ -170,25 +171,6 @@ export function KinerjaSurveyDashboard({
           </div>
         )}
       </section>
-
-      {performancePublications.length > 0 && (
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">Laporan Kinerja</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {performancePublications.map((pub) => (
-              <Card key={pub.id}>
-                <CardContent className="p-6">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    {pub.period}
-                  </p>
-                  <h3 className="mt-2 text-lg font-bold">{pub.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{pub.summary}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

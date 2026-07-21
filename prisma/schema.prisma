@@ -3,8 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  /// Runtime (Vercel): pakai Neon **pooled** (`-pooler`) + `connection_limit=1`.
+  url       = env("DATABASE_URL")
+  /// Migrate / `db:deploy`: pakai Neon **direct** (bukan pooler). Lokal: samakan dengan DATABASE_URL.
+  directUrl = env("DIRECT_URL")
 }
 
 enum UserRole {
@@ -299,4 +302,5 @@ model OrganolepticItem {
   notes        String?
 
   @@index([checklistId, sortOrder])
+  @@index([safety])
 }

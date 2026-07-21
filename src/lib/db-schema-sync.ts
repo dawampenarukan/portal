@@ -26,9 +26,16 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
   const organolepticChecklistTable = !!tableRow?.exists;
   let createdByIdColumn = false;
   let criticismImagesColumn = false;
+  let evaluatedAtColumn = false;
+  let organolepticItemSafetyIndex = false;
 
   if (organolepticChecklistTable) {
-    const [colRows] = await prisma.$queryRaw<{ created_by: boolean; criticism_images: boolean }[]>`
+    const [colRows] = await prisma.$queryRaw<{
+      created_by: boolean;
+      criticism_images: boolean;
+      evaluated_at: boolean;
+      safety_idx: boolean;
+    }[]>`
       SELECT
         EXISTS (
           SELECT 1 FROM information_schema.columns
@@ -41,10 +48,23 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
           WHERE table_schema = 'public'
             AND table_name = 'OrganolepticChecklist'
             AND column_name = 'criticismImages'
-        ) AS criticism_images
+        ) AS criticism_images,
+        EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'OrganolepticChecklist'
+            AND column_name = 'evaluatedAt'
+        ) AS evaluated_at,
+        EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE schemaname = 'public'
+            AND indexname = 'OrganolepticItem_safety_idx'
+        ) AS safety_idx
     `;
     createdByIdColumn = !!colRows?.created_by;
     criticismImagesColumn = !!colRows?.criticism_images;
+    evaluatedAtColumn = !!colRows?.evaluated_at;
+    organolepticItemSafetyIndex = !!colRows?.safety_idx;
   }
 
   const organolepticEntryRole = !!roleRow?.exists;
@@ -54,11 +74,14 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
     organolepticChecklistTable,
     createdByIdColumn,
     criticismImagesColumn,
+    evaluatedAtColumn,
+    organolepticItemSafetyIndex,
     ready:
       organolepticEntryRole &&
       organolepticChecklistTable &&
       createdByIdColumn &&
-      criticismImagesColumn,
+      criticismImagesColumn &&
+      evaluatedAtColumn,
   };
 }
 
@@ -117,23 +140,26 @@ async function addOrganolepticColumns(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "OrganolepticChecklist_evaluatedAt_idx"
     ON "OrganolepticChecklist"("evaluatedAt");
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "OrganolepticItem_safety_idx"
+    ON "OrganolepticItem"("safety");
+  `);
 }
 
-/** Tambah kolom organoleptik yang belum ada — aman dijalankan berulang. */
+/**
+ * Tambah kolom organoleptik yang belum ada — aman dijalankan berulang.
+ * JANGAN panggil dari query/API hot path (cold start Vercel).
+ * Pakai lewat syncProductionSchema / POST /api/admin/schema-sync / npm run db:deploy.
+ */
 export async function ensureOrganolepticSchema(): Promise<void> {
   const status = await getSchemaStatus();
   if (!status.organolepticChecklistTable) return;
 
-  // Selalu coba tambah kolom opsional (IF NOT EXISTS) agar field paket ikut ter-sync.
   await addOrganolepticColumns();
 }
 
-export async function ensureOrganolepticSchemaOnce(): Promise<void> {
-  if (globalForSchema.organolepticSchemaEnsured) return;
-  await ensureOrganolepticSchema();
-  globalForSchema.organolepticSchemaEnsured = true;
-}
-
+/** Sinkron schema production (admin / script). Satu-satunya jalur DDL runtime yang diizinkan. */
 export async function syncProductionSchema(): Promise<string[]> {
   const applied: string[] = [];
 
@@ -151,21 +177,31 @@ export async function syncProductionSchema(): Promise<string[]> {
   `);
   applied.push("UserRole.ORGANOLEPTIC_ENTRY");
 
-  const status = await getSchemaStatus();
-  if (!status.organolepticChecklistTable) {
+  const before = await getSchemaStatus();
+  if (!before.organolepticChecklistTable) {
     throw new Error(
       "Tabel organoleptik belum ada. Jalankan dari lokal: npm run env:pull && npm run db:deploy"
     );
   }
 
-  if (!status.createdByIdColumn || !status.criticismImagesColumn) {
-    await addOrganolepticColumns();
-    if (!status.createdByIdColumn) applied.push("OrganolepticChecklist.createdById");
-    if (!status.criticismImagesColumn) applied.push("OrganolepticChecklist.criticismImages");
-  } else {
-    await addOrganolepticColumns();
-    applied.push("OrganolepticChecklist.packageColumns");
-  }
+  // Table sudah dicek — langsung DDL kolom (tanpa getSchemaStatus ekstra)
+  await addOrganolepticColumns();
 
+  const after = await getSchemaStatus();
+  if (!before.createdByIdColumn && after.createdByIdColumn) {
+    applied.push("OrganolepticChecklist.createdById");
+  }
+  if (!before.criticismImagesColumn && after.criticismImagesColumn) {
+    applied.push("OrganolepticChecklist.criticismImages");
+  }
+  if (!before.evaluatedAtColumn && after.evaluatedAtColumn) {
+    applied.push("OrganolepticChecklist.evaluatedAt");
+  }
+  if (after.organolepticItemSafetyIndex) {
+    applied.push("OrganolepticItem.safety_idx");
+  }
+  applied.push("OrganolepticChecklist.packageColumns");
+
+  globalForSchema.organolepticSchemaEnsured = true;
   return applied;
 }

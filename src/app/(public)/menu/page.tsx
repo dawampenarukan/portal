@@ -1,9 +1,7 @@
-import { MenuPageContent } from "@/components/menu/menu-page-content";
+import { Suspense } from "react";
+import { MenuPageBody } from "@/components/menu/menu-page-sections";
 import { AtmPageHeader } from "@/components/layout/atm-page-shell";
-import { getMenuDataByCategoryCached } from "@/lib/cached-queries";
-import { getMenuCategory } from "@/lib/menu-meta";
-import { safeQuery } from "@/lib/safe-db";
-import type { MenuCategoryBundle } from "@/lib/types";
+import { CardGridSkeleton } from "@/components/ui/route-skeletons";
 
 export const revalidate = 30;
 
@@ -13,22 +11,25 @@ export const metadata = {
     "Lihat menu favorit dan ajukan request menu untuk Porsi Kecil, Porsi Besar, Ibu Hamil, dan Balita.",
 };
 
-const emptyBundle: MenuCategoryBundle = { favorites: [], thisWeek: [], topRequests: [] };
-
 interface PageProps {
   searchParams: Promise<{ kategori?: string }>;
 }
 
-export default async function MenuPage({ searchParams }: PageProps) {
-  const { kategori } = await searchParams;
-  const categoryId = getMenuCategory(kategori ?? "porsi-kecil");
-
-  const initialMenuData = await safeQuery(
-    () => getMenuDataByCategoryCached(categoryId),
-    emptyBundle,
-    "getMenuDataByCategory"
+function MenuBodyFallback() {
+  return (
+    <div className="mt-2 space-y-8 animate-pulse">
+      <div className="flex gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-10 w-28 shrink-0 rounded-full bg-muted" />
+        ))}
+      </div>
+      <div className="h-32 rounded-3xl bg-muted/60" />
+      <CardGridSkeleton count={4} cols="lg:grid-cols-5" />
+    </div>
   );
+}
 
+export default function MenuPage({ searchParams }: PageProps) {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
       <AtmPageHeader
@@ -38,7 +39,9 @@ export default async function MenuPage({ searchParams }: PageProps) {
         description="Lihat menu yang paling disukai dan ajukan menu impianmu! Tersedia untuk siswa SD, SMP, ibu hamil, dan balita."
       />
 
-      <MenuPageContent initialCategory={kategori} initialMenuData={initialMenuData} />
+      <Suspense fallback={<MenuBodyFallback />}>
+        <MenuPageBody searchParams={searchParams} />
+      </Suspense>
     </div>
   );
 }

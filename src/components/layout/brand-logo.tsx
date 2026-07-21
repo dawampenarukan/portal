@@ -31,11 +31,11 @@ export function BrandLogo({
 
   return (
     <Image
-      src="/images/logo.png?v=3"
+      src="/images/logo.png"
       alt={`Logo ${SITE_NAME}`}
       width={width}
       height={height}
-      unoptimized
+      sizes={`${width}px`}
       style={{ width: "auto" }}
       className={cn(
         "shrink-0 object-contain",

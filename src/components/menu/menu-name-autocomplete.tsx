@@ -40,8 +40,7 @@ export function MenuNameAutocomplete({
     setLoading(true);
     const timer = window.setTimeout(() => {
       fetch(
-        `/api/menu-requests/suggestions?category=${categoryId}&q=${encodeURIComponent(query)}`,
-        { cache: "no-store" }
+        `/api/menu-requests/suggestions?category=${categoryId}&q=${encodeURIComponent(query)}`
       )
         .then((res) => (res.ok ? res.json() : { suggestions: [] }))
         .then((data: { suggestions?: MenuNameSuggestion[] }) => {

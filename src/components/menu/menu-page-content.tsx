@@ -31,6 +31,14 @@ interface MenuPageContentProps {
   initialMenuData: MenuCategoryBundle;
 }
 
+function syncMenuCategoryUrl(id: MenuCategoryId) {
+  if (typeof window === "undefined") return;
+  const url = `/menu?kategori=${id}`;
+  // replaceState (bukan router.replace) — sinkron URL untuk share/refresh
+  // tanpa memicu ulang Suspense/RSC (hindari flash skeleton saat ganti tab).
+  window.history.replaceState(window.history.state, "", url);
+}
+
 export function MenuPageContent({
   initialCategory,
   initialMenuData,
@@ -69,7 +77,8 @@ export function MenuPageContent({
   );
 
   const fetchCategoryData = useCallback(async (id: MenuCategoryId) => {
-    const res = await fetch(`/api/menu-data?category=${id}`, { cache: "no-store" });
+    // API sudah di-cache server-side (tag menu-data) — jangan force no-store.
+    const res = await fetch(`/api/menu-data?category=${id}`);
     if (!res.ok) return null;
     return (await res.json()) as MenuCategoryBundle;
   }, []);
@@ -88,6 +97,7 @@ export function MenuPageContent({
   const switchCategory = useCallback(
     async (id: MenuCategoryId) => {
       setActiveId(id);
+      syncMenuCategoryUrl(id);
       if (bundles[id]) return;
 
       setLoadingCategory(id);

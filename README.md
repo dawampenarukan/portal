@@ -23,7 +23,7 @@ Portal publikasi berita, event, hasil survey kepuasan, dan layanan masukan masya
 cd portal
 npm install
 cp .env.example .env
-# Edit DATABASE_URL dan NEXTAUTH_SECRET di .env
+# Edit DATABASE_URL, DIRECT_URL (lokal: boleh sama), dan NEXTAUTH_SECRET di .env
 
 npm run db:setup   # generate, push schema, seed data
 npm run dev
@@ -63,7 +63,7 @@ Buka [http://localhost:3000](http://localhost:3000)
 | `/admin/publikasi` | Publikasi fixed |
 | `/admin/komentar` | Moderasi komentar |
 | `/admin/masukan` | Inbox masukan + status |
-| `/admin/menu` | Kelola menu favorit & jadwal |
+| `/admin/menu` | Kelola menu favorit & jadwal (tombol **Dari Inventory** = sync Rencana Produksi) |
 | `/admin/survey` | Survey builder + publikasi hasil |
 
 ## API Routes
@@ -92,24 +92,72 @@ npm run db:setup     # Setup database + seed
 npm run db:studio    # Prisma Studio
 ```
 
+## Sync Menu Minggu Ini ← Inventory
+
+Portal bisa mengisi **Menu Minggu Ini** dari **Rencana Produksi** Inventory (`GET /api/fp-public/plans`).
+
+1. Di Inventory: buat API key dengan scope `food-production:read` (Utiliti → API Keys).
+2. Di portal `.env` / Vercel env:
+
+```bash
+INVENTORY_APP_URL="http://localhost:3001"   # atau URL inventory production
+INVENTORY_API_KEY="sk_..."
+# INVENTORY_KITCHEN_ID=""                   # opsional
+```
+
+3. Admin → **Kelola Menu** → **Sync semua dari Inventory**, atau per kategori → **Dari Inventory**.
+
+Mapping kategori: `PORSI_KECIL`/`PORSI_BESAR` sama; `POSYANDU_BUMIL_BUSUI` → Ibu Hamil; `POSYANDU_BALITA` → Balita. Status `DRAFT`/`CANCELLED` dilewati.
+
+---
+
 ## Deploy ke Vercel
 
 Build Vercel **tidak** menjalankan `prisma db push` (tidak butuh koneksi DB saat compile).
 
-Setelah mengubah `prisma/schema.prisma`, jalankan schema ke Neon **dari mesin lokal**:
+### Database Neon (performa serverless)
+
+Pakai **dua** connection string agar cold start cepat dan migrate tetap aman:
+
+| Variabel | Dipakai untuk | Sumber di Neon |
+|----------|---------------|----------------|
+| `DATABASE_URL` | Runtime app (Vercel / `npm run start`) | **Pooled** — host ada `-pooler`. Tambahkan `connection_limit=1` |
+| `DIRECT_URL` | `prisma db push` / migrate (`npm run db:deploy`) | **Direct** — host tanpa `-pooler` |
+
+Contoh (host/password diganti):
 
 ```bash
-npm run env:pull          # tarik DATABASE_URL production dari Vercel
-npm run db:deploy         # push schema ke Neon
+# Vercel + .env.local (production data)
+DATABASE_URL="postgresql://USER:PASS@ep-xxxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&connection_limit=1"
+DIRECT_URL="postgresql://USER:PASS@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+```
+
+Lokal (Postgres WSL): kedua URL boleh sama — lihat `.env.example`.
+
+### Sync schema ke Neon
+
+Setelah mengubah `prisma/schema.prisma`, jalankan dari mesin lokal:
+
+```bash
+npm run env:pull          # tarik env production (DATABASE_URL + DIRECT_URL jika ada)
+npm run db:deploy         # push schema via DIRECT_URL
 npm run db:ensure-admin   # pastikan akun admin & entri ada
 ```
 
-Jika `db:deploy` gagal dengan pooler URL, di Neon dashboard gunakan connection string **Direct** (bukan pooler) sebagai `DATABASE_URL` sementara, lalu jalankan lagi.
+Prisma memakai `DIRECT_URL` untuk `db push`. Jangan pakai pooler sebagai satu-satunya URL untuk migrate.
 
-Pastikan di Vercel → Settings → Environment Variables sudah ada:
-- `DATABASE_URL`
+Schema organoleptik **tidak** di-ALTER saat request runtime (demi performa cold start). Setelah ubah `schema.prisma`, sync lewat `npm run db:deploy` atau tombol schema-sync di `/admin/akun` (super admin).
+
+### Env Vercel yang wajib
+
+Pastikan di Vercel → Settings → Environment Variables:
+
+- `DATABASE_URL` — Neon **pooled** + `connection_limit=1`
+- `DIRECT_URL` — Neon **direct** (untuk deploy schema dari lokal / CI). Build Vercel akan fallback ke `DATABASE_URL` jika kosong, tetapi migrate tetap butuh direct.
 - `NEXTAUTH_SECRET` atau `AUTH_SECRET`
 - `NEXTAUTH_URL` = URL production (mis. `https://sppgpenarukan2.vercel.app`)
+
+Setelah mengubah env DB, **Redeploy**. Verifikasi: `https://<app>/api/health` → `DATABASE_POOLER: "yes"` dan `performanceHints` idealnya `[]`.
 
 ## Status Development
 

@@ -87,6 +87,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     if (!access.ok) return access.response;
 
     await deleteOrganolepticChecklist(id);
+    revalidatePublicContent({ organoleptic: true, menu: true });
     return NextResponse.json({ ok: true });
   } catch {
     return serverError("Gagal menghapus checklist");

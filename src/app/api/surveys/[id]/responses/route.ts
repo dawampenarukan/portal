@@ -1,9 +1,12 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { PublicationType } from "@prisma/client";
 import { badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
-import { buildSurveyPublicationSlug, syncSurveyPublication } from "@/lib/survey-aggregation";
-import { PublicationType } from "@prisma/client";
+import {
+  buildSurveyPublicationSlug,
+  syncSurveyPublication,
+} from "@/lib/survey-aggregation";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -43,20 +46,25 @@ export async function POST(request: Request, { params }: Params) {
       },
     });
 
-    try {
-      const published = await prisma.publication.findFirst({
-        where: {
-          slug: buildSurveyPublicationSlug(survey.title),
-          type: PublicationType.SURVEY_RESULT,
-          isPublished: true,
-        },
-        select: { id: true },
-      });
-      await syncSurveyPublication(id, { publish: Boolean(published) });
-      revalidatePublicContent({ survey: true, publications: true });
-    } catch (err) {
-      console.error("[survey:sync]", err);
-    }
+    const surveyTitle = survey.title;
+
+    // Sync publikasi + revalidate setelah response dikirim — tidak blokir submit.
+    after(async () => {
+      try {
+        const published = await prisma.publication.findFirst({
+          where: {
+            slug: buildSurveyPublicationSlug(surveyTitle),
+            type: PublicationType.SURVEY_RESULT,
+            isPublished: true,
+          },
+          select: { id: true },
+        });
+        await syncSurveyPublication(id, { publish: Boolean(published) });
+        revalidatePublicContent({ survey: true, publications: true });
+      } catch (err) {
+        console.error("[survey:sync]", err);
+      }
+    });
 
     return NextResponse.json({ id: response.id }, { status: 201 });
   } catch (err) {

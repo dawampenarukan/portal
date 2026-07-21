@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { revalidateAdminStats } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, { params }: Params) {
           authorId: session!.user.id,
         },
       });
+      revalidateAdminStats();
       return NextResponse.json(reply);
     }
 
@@ -36,6 +38,7 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     });
 
+    revalidateAdminStats();
     return NextResponse.json(comment);
   } catch {
     return serverError("Gagal memperbarui komentar");
@@ -49,6 +52,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
   try {
     await prisma.comment.delete({ where: { id } });
+    revalidateAdminStats();
     return NextResponse.json({ ok: true });
   } catch {
     return notFound();

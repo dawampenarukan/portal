@@ -3,16 +3,14 @@ import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { auth } from "@/auth";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
-import { OrganolepticChecklistList } from "@/components/admin/organoleptic-checklist-list";
-import { Button } from "@/components/ui/button";
 import {
-  getOrganolepticChecklists,
-  getOrganolepticDailySummary,
-} from "@/lib/organoleptic-queries";
+  OrganolepticAdminListSection,
+  OrganolepticAdminSummaryCards,
+} from "@/components/admin/organoleptic-admin-sections";
+import { Button } from "@/components/ui/button";
 import { getOrganolepticOwnerFilter } from "@/lib/organoleptic-scope";
 import {
   formatInspectionDateInput,
-  formatOrganolepticPeriodLabel,
   normalizeInspectionDateRange,
 } from "@/lib/organoleptic-meta";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
@@ -52,17 +50,6 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
   const showAllEntries = isFullAdminRole(session?.user?.role);
   const isEntryOnly = isOrganolepticEntryRole(session?.user?.role);
 
-  const [summary, checklists] = await Promise.all([
-    getOrganolepticDailySummary(range.from, createdById, range.to),
-    getOrganolepticChecklists({
-      date: range.from,
-      dateEnd: range.to,
-      createdById,
-    }),
-  ]);
-
-  const periodLabel = formatOrganolepticPeriodLabel(summary.date, summary.dateEnd);
-
   return (
     <div className="space-y-6">
       <div>
@@ -87,34 +74,33 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard label="Periode" value={periodLabel} />
-        <SummaryCard label="Lembar" value={String(summary.checklistCount)} />
-        <SummaryCard label="Total item menu" value={String(summary.itemCount)} />
-        <SummaryCard label="Aman" value={String(summary.safeCount)} />
-        <SummaryCard label="Tidak aman" value={String(summary.unsafeCount)} />
-      </div>
+      <Suspense
+        fallback={
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-20 animate-pulse rounded-2xl border bg-muted/40" />
+            ))}
+          </div>
+        }
+      >
+        <OrganolepticAdminSummaryCards
+          dateFrom={range.from}
+          dateTo={range.to}
+          createdById={createdById}
+        />
+      </Suspense>
 
       <Suspense fallback={<AdminCardSkeleton rows={5} />}>
-        <OrganolepticChecklistList
-          initialChecklists={checklists}
-          initialDate={range.from}
-          initialDateEnd={range.to}
-          initialFocus={focus}
+        <OrganolepticAdminListSection
+          dateFrom={range.from}
+          dateTo={range.to}
+          focus={focus}
+          createdById={createdById}
           currentUserId={session?.user?.id}
           userRole={session?.user?.role}
           showAllEntries={showAllEntries}
         />
       </Suspense>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-bold leading-snug">{value}</p>
     </div>
   );
 }

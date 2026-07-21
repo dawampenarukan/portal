@@ -1,6 +1,6 @@
 import { auth } from "@/auth";
 import { PublicHeader } from "@/components/layout/public-header";
-import { getOrganolepticAdminNotices } from "@/lib/organoleptic-queries";
+import { getOrganolepticAdminNoticesCached } from "@/lib/cached-queries";
 import { isFullAdminRole } from "@/lib/roles";
 import { safeQuery } from "@/lib/safe-db";
 
@@ -10,7 +10,7 @@ export async function PublicHeaderServer() {
 
   const organolepticNotices = isAdmin
     ? await safeQuery(
-        () => getOrganolepticAdminNotices(),
+        () => getOrganolepticAdminNoticesCached(),
         { unsafeCount: 0, returnedPackagesCount: 0 },
         "getOrganolepticAdminNotices"
       )

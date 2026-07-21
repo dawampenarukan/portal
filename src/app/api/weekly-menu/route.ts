@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
+import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
 
   try {
     const entries = await prisma.weeklyMenuEntry.findMany({
-      where: { category: MENU_CATEGORY_ID_TO_TYPE[categoryId] },
+      where: { category: toMenuCategoryType(categoryId) },
       orderBy: { sortOrder: "asc" },
     });
     return NextResponse.json(entries);
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
     const trimmedDay = dayLabel.trim();
 
-    const categoryType = MENU_CATEGORY_ID_TO_TYPE[catId];
+    const categoryType = toMenuCategoryType(catId);
     const trimmedMenu = menuText.trim();
     const menuEmoji = normalizeMenuIcon(emoji);
 

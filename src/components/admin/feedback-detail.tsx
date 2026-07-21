@@ -1,11 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import type { Feedback } from "@prisma/client";
 
 const statusOptions = ["NEW", "IN_PROGRESS", "RESOLVED", "REJECTED"] as const;
 const statusLabel: Record<string, string> = {
@@ -15,6 +15,19 @@ const statusLabel: Record<string, string> = {
   REJECTED: "Ditolak",
 };
 
+/** Shape API feedback — tanpa import @prisma/client di client bundle. */
+interface FeedbackDetailData {
+  id: string;
+  title: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  description: string;
+  status: (typeof statusOptions)[number];
+  adminNotes: string | null;
+  images: string[];
+}
+
 interface FeedbackDetailProps {
   feedbackId: string;
 }
@@ -22,7 +35,7 @@ interface FeedbackDetailProps {
 export function FeedbackDetail({ feedbackId }: FeedbackDetailProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackDetailData | null>(null);
   const [status, setStatus] = useState<(typeof statusOptions)[number]>("NEW");
   const [adminNotes, setAdminNotes] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +49,7 @@ export function FeedbackDetail({ feedbackId }: FeedbackDetailProps) {
     try {
       const res = await fetch(`/api/feedback/${feedbackId}`);
       if (!res.ok) return;
-      const data = (await res.json()) as Feedback;
+      const data = (await res.json()) as FeedbackDetailData;
       setFeedback(data);
       setStatus(data.status);
       setAdminNotes(data.adminNotes ?? "");
@@ -83,12 +96,18 @@ export function FeedbackDetail({ feedbackId }: FeedbackDetailProps) {
                 {feedback.images.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     {feedback.images.map((img) => (
-                      <img
+                      <div
                         key={img}
-                        src={img}
-                        alt="Lampiran"
-                        className="rounded-lg border object-cover"
-                      />
+                        className="relative aspect-video overflow-hidden rounded-lg border"
+                      >
+                        <Image
+                          src={img}
+                          alt="Lampiran"
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 50vw, 240px"
+                        />
+                      </div>
                     ))}
                   </div>
                 )}

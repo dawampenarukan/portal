@@ -1,7 +1,8 @@
 import { MenuCategoryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_MENU_ICON, normalizeMenuIcon } from "@/lib/menu-icons";
-import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
+import type { MenuCategoryId } from "@/lib/menu-meta";
+import { toMenuCategoryType } from "@/lib/menu-meta.server";
 
 export async function syncMenuItemFromWeekly(
   category: MenuCategoryType,
@@ -41,7 +42,7 @@ export async function syncMenuItemFromWeekly(
 
 export async function syncMenuItemsForCategory(categoryId: MenuCategoryId) {
   try {
-    const categoryType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+    const categoryType = toMenuCategoryType(categoryId);
     const entries = await prisma.weeklyMenuEntry.findMany({
       where: { category: categoryType },
       select: { menuText: true, emoji: true },

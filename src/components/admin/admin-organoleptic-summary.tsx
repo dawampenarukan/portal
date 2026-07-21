@@ -14,10 +14,11 @@ import {
 import { formatDate } from "@/lib/utils";
 
 export async function AdminOrganolepticSummary() {
-  const [summary, recent] = await Promise.all([
+  const [summary, recentResult] = await Promise.all([
     getOrganolepticDailySummary(),
     getOrganolepticChecklists({ limit: 5 }),
   ]);
+  const recent = recentResult.checklists;
 
   return (
     <Card>

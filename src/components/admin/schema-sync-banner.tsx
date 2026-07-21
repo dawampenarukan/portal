@@ -53,6 +53,11 @@ export function SchemaSyncBanner({ initialStatus }: SchemaSyncBannerProps) {
             <li>Tabel organoleptik: {status.organolepticChecklistTable ? "✓" : "✗ belum ada"}</li>
             <li>Kolom pemilik entri: {status.createdByIdColumn ? "✓" : "✗ belum ada"}</li>
             <li>Kolom gambar kritik: {status.criticismImagesColumn ? "✓" : "✗ belum ada"}</li>
+            <li>Kolom evaluasi temuan: {status.evaluatedAtColumn ? "✓" : "✗ belum ada"}</li>
+            <li>
+              Index safety item:{" "}
+              {status.organolepticItemSafetyIndex ? "✓" : "✗ belum ada"}
+            </li>
           </ul>
         </div>
       </div>

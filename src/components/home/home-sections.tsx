@@ -10,23 +10,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import {
   getActiveSurveySummariesCached,
+  getHomeArticlesPayloadCached,
+  getHomeSurveyDataCached,
   getOrganolepticPublicDisplayCached,
-  getPublishedArticlesForListCached,
   getPublishedEventsCached,
   getPublishedPublicationsCached,
-  getSurveyDataCached,
 } from "@/lib/cached-queries";
 import { filterUpcomingEvents } from "@/lib/event-utils";
 import { safeQuery } from "@/lib/safe-db";
-
-const emptySurvey = {
-  satisfactionScore: 0,
-  npsScore: 0,
-  respondents: 0,
-  target: 0,
-  aspects: [],
-  trend: [],
-};
 
 const emptyOrganoleptic = {
   summary: {
@@ -46,24 +37,13 @@ const emptyOrganoleptic = {
 };
 
 export async function HomeHeroSection() {
-  const articles = await safeQuery(
-    () => getPublishedArticlesForListCached(),
-    [],
-    "getPublishedArticles"
-  );
-  const hero = articles[0];
+  const { hero } = await getHomeArticlesPayloadCached();
   if (!hero) return null;
   return <HeroArticle {...hero} />;
 }
 
 export async function HomeHighlightsSection() {
-  const articles = await safeQuery(
-    () => getPublishedArticlesForListCached(),
-    [],
-    "getPublishedArticles"
-  );
-  const highlights = articles.filter((a) => a.isHighlight);
-  const popular = articles.filter((a) => a.isPopular);
+  const { highlights, popular } = await getHomeArticlesPayloadCached();
 
   return (
     <section className="grid gap-8 lg:grid-cols-3">
@@ -99,18 +79,14 @@ export async function HomeHighlightsSection() {
 }
 
 export async function HomeLatestNewsSection() {
-  const articles = await safeQuery(
-    () => getPublishedArticlesForListCached(),
-    [],
-    "getPublishedArticles"
-  );
+  const { latest } = await getHomeArticlesPayloadCached();
 
   return (
     <section>
       <SectionTitle emoji="📰" title="Berita Terbaru" href="/berita" linkLabel="Lihat semua" />
       <Card className="charming-card border-0">
         <CardContent className="p-4">
-          {articles.map((article) => (
+          {latest.map((article) => (
             <NewsListItem key={article.id} {...article} />
           ))}
         </CardContent>
@@ -172,7 +148,7 @@ export async function HomePublicationsSection() {
 
 export async function HomeSurveySection() {
   const [surveyData, activeSurveys] = await Promise.all([
-    safeQuery(() => getSurveyDataCached(), emptySurvey, "getSurveyData"),
+    getHomeSurveyDataCached(),
     safeQuery(() => getActiveSurveySummariesCached(), [], "getActiveSurveySummaries"),
   ]);
 

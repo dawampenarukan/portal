@@ -54,7 +54,9 @@ export default async function BeritaDetailPage({ params }: PageProps) {
                 src={article.coverImage}
                 alt={article.title}
                 fill
+                priority
                 fallbackEmoji='📰'
+                sizes='(max-width: 768px) 100vw, 720px'
               />
             </div>
 

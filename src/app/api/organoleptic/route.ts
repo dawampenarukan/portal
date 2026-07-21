@@ -26,6 +26,9 @@ export async function GET(request: Request) {
   const summary = searchParams.get("summary") === "1";
   const limitParam = searchParams.get("limit");
   const limit = limitParam ? Number(limitParam) : undefined;
+  const focusParam = searchParams.get("focus");
+  const focus =
+    focusParam === "unsafe" || focusParam === "returned" ? focusParam : null;
   const createdById = getOrganolepticOwnerFilter(session!.user.role, session!.user.id);
 
   try {
@@ -38,13 +41,14 @@ export async function GET(request: Request) {
       return NextResponse.json(data);
     }
 
-    const checklists = await getOrganolepticChecklists({
+    const result = await getOrganolepticChecklists({
       date: date ?? undefined,
       dateEnd: dateEnd ?? undefined,
       limit: limit && limit > 0 ? limit : undefined,
       createdById,
+      focus,
     });
-    return NextResponse.json(checklists);
+    return NextResponse.json(result);
   } catch {
     return serverError("Gagal memuat checklist organoleptik");
   }

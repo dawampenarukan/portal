@@ -1,11 +1,11 @@
+import "server-only";
+
 import {
   OrganolepticPlaceType,
   OrganolepticSafety,
   OrganolepticTiming,
-  Prisma,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { ensureOrganolepticSchemaOnce } from "@/lib/db-schema-sync";
 import {
   averageScores,
   eachInspectionDateKeys,
@@ -13,7 +13,20 @@ import {
   formatInspectionTrendLabel,
   normalizeInspectionDateRange,
   parseInspectionDate,
+  ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
+  ORGANOLEPTIC_LIST_HARD_CAP,
+  type OrganolepticPlaceTypeId,
+  type OrganolepticSafetyId,
+  type OrganolepticTimingId,
 } from "@/lib/organoleptic-meta";
+import {
+  OrganolepticChecklistView,
+  OrganolepticDailySummary,
+  OrganolepticPublicView,
+  OrganolepticUnsafeTrendPoint,
+} from "@/lib/types";
+
+export { ORGANOLEPTIC_LIST_DEFAULT_LIMIT, ORGANOLEPTIC_LIST_HARD_CAP };
 
 function shiftInspectionDateKey(dateStr: string, deltaDays: number): string {
   const d = parseInspectionDate(dateStr)!;
@@ -21,12 +34,6 @@ function shiftInspectionDateKey(dateStr: string, deltaDays: number): string {
   shifted.setUTCDate(shifted.getUTCDate() + deltaDays);
   return formatInspectionDateInput(shifted);
 }
-import {
-  OrganolepticChecklistView,
-  OrganolepticDailySummary,
-  OrganolepticPublicView,
-  OrganolepticUnsafeTrendPoint,
-} from "@/lib/types";
 
 function mapChecklist(
   row: {
@@ -79,6 +86,7 @@ function mapChecklist(
     createdByName: row.createdBy?.name ?? null,
     createdAt: row.createdAt.toISOString(),
     items: row.items
+      .slice()
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((item) => ({
         id: item.id,
@@ -105,19 +113,90 @@ function inspectionDateFilter(date?: string, dateEnd?: string) {
   return { inspectionDate: { gte, lte } };
 }
 
-async function loadEvaluatedAtMap(ids: string[]): Promise<Map<string, Date | null>> {
-  const map = new Map<string, Date | null>();
-  if (ids.length === 0) return map;
+const checklistDetailSelect = {
+  id: true,
+  inspectorName: true,
+  placeType: true,
+  placeName: true,
+  inspectionDate: true,
+  inspectionTime: true,
+  timing: true,
+  packagesReceived: true,
+  packagesConsumed: true,
+  packagesReturned: true,
+  returnReason: true,
+  criticism: true,
+  criticismImages: true,
+  evaluatedAt: true,
+  createdById: true,
+  createdAt: true,
+  createdBy: { select: { name: true } },
+  items: {
+    select: {
+      id: true,
+      sortOrder: true,
+      foodName: true,
+      tasteScore: true,
+      colorScore: true,
+      aromaScore: true,
+      textureScore: true,
+      safety: true,
+      notes: true,
+    },
+    orderBy: { sortOrder: "asc" as const },
+  },
+};
 
-  const rows = await prisma.$queryRaw<{ id: string; evaluatedAt: Date | null }[]>`
-    SELECT "id", "evaluatedAt"
-    FROM "OrganolepticChecklist"
-    WHERE "id" IN (${Prisma.join(ids)})
-  `;
-  for (const row of rows) {
-    map.set(row.id, row.evaluatedAt);
+/** List admin: tanpa criticism/images/notes — cukup untuk kartu ringkas. */
+const checklistListSelect = {
+  id: true,
+  inspectorName: true,
+  placeType: true,
+  placeName: true,
+  inspectionDate: true,
+  inspectionTime: true,
+  timing: true,
+  packagesReturned: true,
+  evaluatedAt: true,
+  createdById: true,
+  createdAt: true,
+  createdBy: { select: { name: true } },
+  items: {
+    select: {
+      id: true,
+      sortOrder: true,
+      tasteScore: true,
+      colorScore: true,
+      aromaScore: true,
+      textureScore: true,
+      safety: true,
+    },
+    orderBy: { sortOrder: "asc" as const },
+  },
+};
+
+export type OrganolepticFocusFilter = "unsafe" | "returned";
+
+export type OrganolepticChecklistListResult = {
+  checklists: OrganolepticChecklistView[];
+  truncated: boolean;
+  limit: number;
+};
+
+function focusWhere(focus?: OrganolepticFocusFilter | null) {
+  if (focus === "unsafe") {
+    return {
+      evaluatedAt: null,
+      items: { some: { safety: OrganolepticSafety.TIDAK_AMAN } },
+    };
   }
-  return map;
+  if (focus === "returned") {
+    return {
+      evaluatedAt: null,
+      packagesReturned: { gt: 0 },
+    };
+  }
+  return {};
 }
 
 export async function getOrganolepticChecklists(options?: {
@@ -125,40 +204,59 @@ export async function getOrganolepticChecklists(options?: {
   dateEnd?: string;
   limit?: number;
   createdById?: string;
-}): Promise<OrganolepticChecklistView[]> {
-  await ensureOrganolepticSchemaOnce();
+  focus?: OrganolepticFocusFilter | null;
+}): Promise<OrganolepticChecklistListResult> {
+  const requested =
+    options?.limit && options.limit > 0
+      ? options.limit
+      : ORGANOLEPTIC_LIST_DEFAULT_LIMIT;
+  const limit = Math.min(requested, ORGANOLEPTIC_LIST_HARD_CAP);
+
+  // Ambil limit+1 untuk deteksi truncate akurat (hindari false positive saat tepat = limit).
   const rows = await prisma.organolepticChecklist.findMany({
     where: {
       ...inspectionDateFilter(options?.date, options?.dateEnd),
       ...(options?.createdById ? { createdById: options.createdById } : {}),
+      ...focusWhere(options?.focus),
     },
-    include: { items: true, createdBy: { select: { name: true } } },
+    select: checklistListSelect,
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
-    take: options?.limit,
+    take: limit + 1,
   });
-  const evaluatedMap = await loadEvaluatedAtMap(rows.map((r) => r.id));
-  return rows.map((row) =>
-    mapChecklist({
-      ...row,
-      evaluatedAt: evaluatedMap.get(row.id) ?? null,
-    })
-  );
+
+  const truncated = rows.length > limit;
+  const page = truncated ? rows.slice(0, limit) : rows;
+
+  return {
+    checklists: page.map((row) =>
+      mapChecklist({
+        ...row,
+        packagesReceived: null,
+        packagesConsumed: null,
+        returnReason: null,
+        criticism: null,
+        criticismImages: [],
+        items: row.items.map((item) => ({
+          ...item,
+          foodName: "",
+          notes: null,
+        })),
+      })
+    ),
+    truncated,
+    limit,
+  };
 }
 
 export async function getOrganolepticChecklistById(
   id: string
 ): Promise<OrganolepticChecklistView | null> {
-  await ensureOrganolepticSchemaOnce();
   const row = await prisma.organolepticChecklist.findUnique({
     where: { id },
-    include: { items: true, createdBy: { select: { name: true } } },
+    select: checklistDetailSelect,
   });
   if (!row) return null;
-  const evaluatedMap = await loadEvaluatedAtMap([id]);
-  return mapChecklist({
-    ...row,
-    evaluatedAt: evaluatedMap.get(id) ?? null,
-  });
+  return mapChecklist(row);
 }
 
 export async function getOrganolepticChecklistOwnership(id: string) {
@@ -168,12 +266,22 @@ export async function getOrganolepticChecklistOwnership(id: string) {
   });
 }
 
+type SummaryAggregateRow = {
+  checklistCount: number;
+  itemCount: number;
+  safeCount: number;
+  unsafeCount: number;
+  avgTaste: number;
+  avgColor: number;
+  avgAroma: number;
+  avgTexture: number;
+};
+
 export async function getOrganolepticDailySummary(
   dateInput?: string,
   createdById?: string,
   dateEndInput?: string
 ): Promise<OrganolepticDailySummary> {
-  await ensureOrganolepticSchemaOnce();
   const fallback = formatInspectionDateInput(new Date());
   const range = normalizeInspectionDateRange(
     dateInput ?? fallback,
@@ -195,31 +303,61 @@ export async function getOrganolepticDailySummary(
     };
   }
 
-  const checklists = await prisma.organolepticChecklist.findMany({
-    where: {
-      ...inspectionDateFilter(range.from, range.to),
-      ...(createdById ? { createdById } : {}),
-    },
-    include: { items: true },
-  });
+  const gte = parseInspectionDate(range.from)!;
+  const lte = parseInspectionDate(range.to)!;
 
-  const allItems = checklists.flatMap((c) => c.items);
-  const safeCount = allItems.filter((i) => i.safety === OrganolepticSafety.AMAN).length;
-  const unsafeCount = allItems.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length;
-  const avgs = averageScores(allItems);
+  const [row] = createdById
+    ? await prisma.$queryRaw<SummaryAggregateRow[]>`
+        SELECT
+          COUNT(DISTINCT c."id")::int AS "checklistCount",
+          COUNT(i."id")::int AS "itemCount",
+          COUNT(i."id") FILTER (WHERE i."safety" = 'AMAN'::"OrganolepticSafety")::int AS "safeCount",
+          COUNT(i."id") FILTER (WHERE i."safety" = 'TIDAK_AMAN'::"OrganolepticSafety")::int AS "unsafeCount",
+          COALESCE(AVG(i."tasteScore"), 0)::float AS "avgTaste",
+          COALESCE(AVG(i."colorScore"), 0)::float AS "avgColor",
+          COALESCE(AVG(i."aromaScore"), 0)::float AS "avgAroma",
+          COALESCE(AVG(i."textureScore"), 0)::float AS "avgTexture"
+        FROM "OrganolepticChecklist" c
+        LEFT JOIN "OrganolepticItem" i ON i."checklistId" = c."id"
+        WHERE c."inspectionDate" >= ${gte}
+          AND c."inspectionDate" <= ${lte}
+          AND c."createdById" = ${createdById}
+      `
+    : await prisma.$queryRaw<SummaryAggregateRow[]>`
+        SELECT
+          COUNT(DISTINCT c."id")::int AS "checklistCount",
+          COUNT(i."id")::int AS "itemCount",
+          COUNT(i."id") FILTER (WHERE i."safety" = 'AMAN'::"OrganolepticSafety")::int AS "safeCount",
+          COUNT(i."id") FILTER (WHERE i."safety" = 'TIDAK_AMAN'::"OrganolepticSafety")::int AS "unsafeCount",
+          COALESCE(AVG(i."tasteScore"), 0)::float AS "avgTaste",
+          COALESCE(AVG(i."colorScore"), 0)::float AS "avgColor",
+          COALESCE(AVG(i."aromaScore"), 0)::float AS "avgAroma",
+          COALESCE(AVG(i."textureScore"), 0)::float AS "avgTexture"
+        FROM "OrganolepticChecklist" c
+        LEFT JOIN "OrganolepticItem" i ON i."checklistId" = c."id"
+        WHERE c."inspectionDate" >= ${gte}
+          AND c."inspectionDate" <= ${lte}
+      `;
+
+  const itemCount = Number(row?.itemCount ?? 0);
+  const avgTaste = Number(row?.avgTaste ?? 0);
+  const avgColor = Number(row?.avgColor ?? 0);
+  const avgAroma = Number(row?.avgAroma ?? 0);
+  const avgTexture = Number(row?.avgTexture ?? 0);
 
   return {
     date: range.from,
     dateEnd: range.to !== range.from ? range.to : undefined,
-    checklistCount: checklists.length,
-    itemCount: allItems.length,
-    safeCount,
-    unsafeCount,
-    avgTaste: avgs.taste,
-    avgColor: avgs.color,
-    avgAroma: avgs.aroma,
-    avgTexture: avgs.texture,
-    avgOverall: avgs.overall,
+    checklistCount: Number(row?.checklistCount ?? 0),
+    itemCount,
+    safeCount: Number(row?.safeCount ?? 0),
+    unsafeCount: Number(row?.unsafeCount ?? 0),
+    avgTaste,
+    avgColor,
+    avgAroma,
+    avgTexture,
+    avgOverall:
+      itemCount > 0 ? (avgTaste + avgColor + avgAroma + avgTexture) / 4 : 0,
   };
 }
 
@@ -229,17 +367,17 @@ export interface OrganolepticItemInput {
   colorScore: number;
   aromaScore: number;
   textureScore: number;
-  safety: OrganolepticSafety;
+  safety: OrganolepticSafetyId;
   notes?: string | null;
 }
 
 export interface OrganolepticChecklistInput {
   inspectorName: string;
-  placeType: OrganolepticPlaceType;
+  placeType: OrganolepticPlaceTypeId;
   placeName: string;
   inspectionDate: string;
   inspectionTime: string;
-  timing: OrganolepticTiming;
+  timing: OrganolepticTimingId;
   packagesReceived?: number | null;
   packagesConsumed?: number | null;
   packagesReturned?: number | null;
@@ -253,7 +391,6 @@ export async function createOrganolepticChecklist(
   data: OrganolepticChecklistInput,
   createdById: string
 ) {
-  await ensureOrganolepticSchemaOnce();
   const inspectionDate = parseInspectionDate(data.inspectionDate);
   if (!inspectionDate) throw new Error("Tanggal tidak valid");
 
@@ -285,7 +422,7 @@ export async function createOrganolepticChecklist(
         })),
       },
     },
-    include: { items: true, createdBy: { select: { name: true } } },
+    select: checklistDetailSelect,
   });
 
   return mapChecklist(row);
@@ -296,74 +433,16 @@ export async function deleteOrganolepticChecklist(id: string) {
 }
 
 export async function evaluateOrganolepticChecklist(id: string) {
-  await ensureOrganolepticSchemaOnce();
-
-  // Raw SQL: aman meski Prisma Client di proses Next belum reload field baru.
-  const updated = await prisma.$executeRaw`
-    UPDATE "OrganolepticChecklist"
-    SET "evaluatedAt" = CURRENT_TIMESTAMP, "updatedAt" = CURRENT_TIMESTAMP
-    WHERE "id" = ${id}
-  `;
-  if (Number(updated) === 0) {
+  try {
+    const row = await prisma.organolepticChecklist.update({
+      where: { id },
+      data: { evaluatedAt: new Date() },
+      select: checklistDetailSelect,
+    });
+    return mapChecklist(row);
+  } catch {
     throw new Error("Checklist tidak ditemukan");
   }
-
-  const [row] = await prisma.$queryRaw<
-    {
-      id: string;
-      inspectorName: string;
-      placeType: OrganolepticPlaceType;
-      placeName: string;
-      inspectionDate: Date;
-      inspectionTime: string;
-      timing: OrganolepticTiming;
-      packagesReceived: number | null;
-      packagesConsumed: number | null;
-      packagesReturned: number | null;
-      returnReason: string | null;
-      criticism: string | null;
-      criticismImages: string[];
-      evaluatedAt: Date | null;
-      createdById: string | null;
-      createdAt: Date;
-      createdByName: string | null;
-    }[]
-  >`
-    SELECT
-      c."id",
-      c."inspectorName",
-      c."placeType",
-      c."placeName",
-      c."inspectionDate",
-      c."inspectionTime",
-      c."timing",
-      c."packagesReceived",
-      c."packagesConsumed",
-      c."packagesReturned",
-      c."returnReason",
-      c."criticism",
-      c."criticismImages",
-      c."evaluatedAt",
-      c."createdById",
-      c."createdAt",
-      u."name" AS "createdByName"
-    FROM "OrganolepticChecklist" c
-    LEFT JOIN "User" u ON u."id" = c."createdById"
-    WHERE c."id" = ${id}
-  `;
-
-  if (!row) throw new Error("Checklist tidak ditemukan");
-
-  const items = await prisma.organolepticItem.findMany({
-    where: { checklistId: id },
-    orderBy: { sortOrder: "asc" },
-  });
-
-  return mapChecklist({
-    ...row,
-    createdBy: row.createdByName ? { name: row.createdByName } : null,
-    items,
-  });
 }
 
 export interface OrganolepticAdminNotices {
@@ -373,8 +452,6 @@ export interface OrganolepticAdminNotices {
 
 /** Agregat notice untuk badge navigasi admin — hanya temuan belum dievaluasi. */
 export async function getOrganolepticAdminNotices(): Promise<OrganolepticAdminNotices> {
-  await ensureOrganolepticSchemaOnce();
-
   const [unsafeRow] = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint AS count
     FROM "OrganolepticItem" i
@@ -474,7 +551,11 @@ type OrganolepticChecklistWithItems = {
 function buildPlaceSummaries(checklists: OrganolepticChecklistWithItems[]) {
   const groups = new Map<
     string,
-    { placeName: string; placeType: OrganolepticPlaceType; items: OrganolepticChecklistWithItems["items"] }
+    {
+      placeName: string;
+      placeType: OrganolepticPlaceType;
+      items: OrganolepticChecklistWithItems["items"];
+    }
   >();
 
   for (const checklist of checklists) {
@@ -494,8 +575,11 @@ function buildPlaceSummaries(checklists: OrganolepticChecklistWithItems[]) {
   return Array.from(groups.values()).map((group) => ({
     placeName: group.placeName,
     placeType: group.placeType,
-    safeCount: group.items.filter((i) => i.safety === OrganolepticSafety.AMAN).length,
-    unsafeCount: group.items.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length,
+    safeCount: group.items.filter((i) => i.safety === OrganolepticSafety.AMAN)
+      .length,
+    unsafeCount: group.items.filter(
+      (i) => i.safety === OrganolepticSafety.TIDAK_AMAN
+    ).length,
     avgOverall: averageScores(group.items).overall,
   }));
 }
@@ -506,8 +590,12 @@ function buildSummaryFromChecklists(
   dateEnd?: string
 ): OrganolepticDailySummary {
   const allItems = checklists.flatMap((c) => c.items);
-  const safeCount = allItems.filter((i) => i.safety === OrganolepticSafety.AMAN).length;
-  const unsafeCount = allItems.filter((i) => i.safety === OrganolepticSafety.TIDAK_AMAN).length;
+  const safeCount = allItems.filter(
+    (i) => i.safety === OrganolepticSafety.AMAN
+  ).length;
+  const unsafeCount = allItems.filter(
+    (i) => i.safety === OrganolepticSafety.TIDAK_AMAN
+  ).length;
   const avgs = averageScores(allItems);
 
   return {
@@ -525,7 +613,25 @@ function buildSummaryFromChecklists(
   };
 }
 
-async function buildPublicViewForDay(dateStr: string): Promise<OrganolepticPublicView> {
+const publicChecklistSelect = {
+  placeName: true,
+  placeType: true,
+  inspectionDate: true,
+  createdAt: true,
+  items: {
+    select: {
+      tasteScore: true,
+      colorScore: true,
+      aromaScore: true,
+      textureScore: true,
+      safety: true,
+    },
+  },
+};
+
+async function buildPublicViewForDay(
+  dateStr: string
+): Promise<OrganolepticPublicView> {
   const trendWindow = resolveTrendWindow(dateStr);
   const trendFrom = parseInspectionDate(trendWindow.from)!;
   const trendTo = parseInspectionDate(trendWindow.to)!;
@@ -534,7 +640,7 @@ async function buildPublicViewForDay(dateStr: string): Promise<OrganolepticPubli
 
   const checklists = await prisma.organolepticChecklist.findMany({
     where: { inspectionDate: { gte, lte } },
-    include: { items: true },
+    select: publicChecklistSelect,
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
   });
 
@@ -568,7 +674,7 @@ async function buildPublicViewForRange(
 
   const checklists = await prisma.organolepticChecklist.findMany({
     where: { inspectionDate: { gte, lte } },
-    include: { items: true },
+    select: publicChecklistSelect,
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],
   });
 
@@ -594,8 +700,6 @@ export type OrganolepticPublicFilter = {
 export async function getOrganolepticPublicDisplay(
   filter?: OrganolepticPublicFilter
 ): Promise<OrganolepticPublicView> {
-  await ensureOrganolepticSchemaOnce();
-
   if (filter?.dateFrom && filter?.dateTo) {
     return buildPublicViewForRange(filter.dateFrom, filter.dateTo);
   }
@@ -604,18 +708,25 @@ export async function getOrganolepticPublicDisplay(
     return buildPublicViewForDay(filter.date);
   }
 
-  let dateStr = formatInspectionDateInput(new Date());
-  let view = await buildPublicViewForDay(dateStr);
+  const today = formatInspectionDateInput(new Date());
+  const todayDate = parseInspectionDate(today)!;
 
-  if (view.summary.checklistCount === 0) {
-    const latest = await prisma.organolepticChecklist.findFirst({
+  const [todayCount, latest] = await Promise.all([
+    prisma.organolepticChecklist.count({
+      where: { inspectionDate: todayDate },
+    }),
+    prisma.organolepticChecklist.findFirst({
       orderBy: { inspectionDate: "desc" },
       select: { inspectionDate: true },
-    });
-    if (!latest) return emptyPublicView();
-    dateStr = formatInspectionDateInput(latest.inspectionDate);
-    view = await buildPublicViewForDay(dateStr);
-  }
+    }),
+  ]);
 
-  return view;
+  if (!latest) return emptyPublicView();
+
+  const dateStr =
+    todayCount > 0
+      ? today
+      : formatInspectionDateInput(latest.inspectionDate);
+
+  return buildPublicViewForDay(dateStr);
 }

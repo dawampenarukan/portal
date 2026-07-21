@@ -1,11 +1,13 @@
+import { Suspense } from "react";
 import { AuthSessionProvider } from "@/components/providers/session-provider";
-import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import {
+  AdminSidebarFallback,
+  AdminSidebarWithBadges,
+} from "@/components/layout/admin-sidebar-badges";
 import { OrganolepticEntrySidebar } from "@/components/layout/organoleptic-entry-sidebar";
 import { auth } from "@/auth";
-import { getNewFeedbackCountCached } from "@/lib/cached-queries";
-import { getOrganolepticAdminNotices } from "@/lib/organoleptic-queries";
-import { safeQuery } from "@/lib/safe-db";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
+import { USER_ROLE_SUPER_ADMIN } from "@/lib/user-constants";
 import { redirect } from "next/navigation";
 
 export default async function AdminPanelLayout({
@@ -21,35 +23,23 @@ export default async function AdminPanelLayout({
   }
 
   const isEntryOnly = isOrganolepticEntryRole(role);
-  const isFullAdmin = isFullAdminRole(role);
+  const isSuperAdmin = role === USER_ROLE_SUPER_ADMIN;
 
-  if (!isEntryOnly && !isFullAdmin) {
+  if (!isEntryOnly && !isFullAdminRole(role)) {
     redirect("/admin/login");
   }
 
-  const newFeedbackCount = isFullAdmin
-    ? await safeQuery(() => getNewFeedbackCountCached(), 0, "getNewFeedbackCount")
-    : 0;
-
-  // Live query (tanpa cache) agar badge langsung hilang setelah "Telah di Evaluasi"
-  const organolepticNotices = isFullAdmin
-    ? await safeQuery(
-        () => getOrganolepticAdminNotices(),
-        { unsafeCount: 0, returnedPackagesCount: 0 },
-        "getOrganolepticAdminNotices"
-      )
-    : { unsafeCount: 0, returnedPackagesCount: 0 };
-
   return (
-    <AuthSessionProvider>
+    <AuthSessionProvider session={session}>
       <div className="flex min-h-screen bg-muted/30">
         {isEntryOnly ? (
           <OrganolepticEntrySidebar />
         ) : (
-          <AdminSidebar
-            newFeedbackCount={newFeedbackCount}
-            organolepticNotices={organolepticNotices}
-          />
+          <Suspense
+            fallback={<AdminSidebarFallback isSuperAdmin={isSuperAdmin} />}
+          >
+            <AdminSidebarWithBadges isSuperAdmin={isSuperAdmin} />
+          </Suspense>
         )}
         <div className="flex flex-1 flex-col">
           <header className="border-b bg-white px-6 py-4">

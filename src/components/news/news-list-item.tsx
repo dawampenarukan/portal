@@ -25,7 +25,13 @@ export function NewsListItem({
   return (
     <article className="flex gap-4 border-b border-border/60 py-4 last:border-b-0">
       <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl">
-        <ArticleCoverImage src={coverImage} alt={title} fallbackEmoji="📰" />
+        <ArticleCoverImage
+          src={coverImage}
+          alt={title}
+          fallbackEmoji="📰"
+          sizes="80px"
+        />
+
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2">

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { Prisma, PublicationType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
@@ -226,7 +228,12 @@ export async function syncSurveyPublication(
   return chartData;
 }
 
-export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
+export async function getLiveSurveyData(options?: {
+  /** false = hanya baca publication.chartData (aman untuk homepage). */
+  allowLiveAggregate?: boolean;
+}): Promise<SurveyDataView | null> {
+  const allowLiveAggregate = options?.allowLiveAggregate !== false;
+
   const publishedPub = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },
@@ -244,6 +251,8 @@ export async function getLiveSurveyData(): Promise<SurveyDataView | null> {
 
   const fromLatest = parseStoredChartData(latestPub?.chartData);
   if (fromLatest && fromLatest.respondents > 0) return fromLatest;
+
+  if (!allowLiveAggregate) return null;
 
   const activeSurvey = await prisma.survey.findFirst({
     where: { isActive: true, responses: { some: {} } },

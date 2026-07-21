@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   const router = useRouter();
   const [entries, setEntries] = useState(() => sortEntries(initialEntries));
   const [loading, setLoading] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{
@@ -132,33 +133,83 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
     await refresh();
   }
 
+  async function syncFromInventory() {
+    if (
+      !confirm(
+        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal kategori ini untuk minggu berjalan akan diganti."
+      )
+    ) {
+      return;
+    }
+    setLoading(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch("/api/weekly-menu/sync-inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categoryId }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        result?: { message?: string; daysWritten?: number };
+      };
+      if (!res.ok) {
+        setSyncMsg(data.error || "Gagal sinkron dari inventory");
+        return;
+      }
+      setSyncMsg(data.result?.message || "Sinkron selesai");
+      await refresh();
+    } catch {
+      setSyncMsg("Gagal menghubungi server");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const isFormOpen = showForm || editingId !== null;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="font-semibold">Menu Minggu Ini</h3>
           <p className="text-xs text-muted-foreground">{entries.length} hari terjadwal</p>
         </div>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={availableDays.length === 0 && !showForm}
-          onClick={() => {
-            setEditingId(null);
-            setForm({
-              dayLabel: availableDays[0] ?? "",
-              menuText: "",
-              emoji: DEFAULT_MENU_ICON,
-            });
-            setShowForm(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Tambah Hari
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={loading}
+            onClick={() => void syncFromInventory()}
+            title="Ambil dari Inventory → Food Production → Rencana Produksi"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Dari Inventory
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={availableDays.length === 0 && !showForm}
+            onClick={() => {
+              setEditingId(null);
+              setForm({
+                dayLabel: availableDays[0] ?? "",
+                menuText: "",
+                emoji: DEFAULT_MENU_ICON,
+              });
+              setShowForm(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Tambah Hari
+          </Button>
+        </div>
       </div>
+      {syncMsg && (
+        <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          {syncMsg}
+        </p>
+      )}
 
       {isFormOpen && (
         <form onSubmit={handleSubmit} className="space-y-3 rounded-lg border bg-muted/20 p-4">

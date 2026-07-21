@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
-import { OrganolepticForm } from "@/components/admin/organoleptic-form";
+import { OrganolepticFormLoader } from "@/components/admin/organoleptic-form-loader";
 
 export const metadata = { title: "Input Uji Organoleptik" };
 
@@ -23,7 +23,7 @@ export default function AdminOrganoleptikNewPage() {
 
       <Card>
         <CardContent className="p-6">
-          <OrganolepticForm />
+          <OrganolepticFormLoader />
         </CardContent>
       </Card>
     </div>

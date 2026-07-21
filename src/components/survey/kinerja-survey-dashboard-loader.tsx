@@ -1,11 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { PublicationView, SurveyPublicationView } from "@/lib/types";
+import type { SurveyPublicationView } from "@/lib/types";
 
 const KinerjaSurveyDashboard = dynamic(
   () =>
-    import("@/components/survey/kinerja-survey-dashboard").then((m) => m.KinerjaSurveyDashboard),
+    import("@/components/survey/kinerja-survey-dashboard").then(
+      (m) => m.KinerjaSurveyDashboard
+    ),
   {
     ssr: false,
     loading: () => (
@@ -25,11 +27,12 @@ interface ActiveSurveyOption {
 
 interface KinerjaSurveyDashboardLoaderProps {
   publications: SurveyPublicationView[];
-  performancePublications: PublicationView[];
-  activeSurveys: ActiveSurveyOption[];
+  activeSurveys?: ActiveSurveyOption[];
   defaultPublicationId: string | null;
 }
 
-export function KinerjaSurveyDashboardLoader(props: KinerjaSurveyDashboardLoaderProps) {
+export function KinerjaSurveyDashboardLoader(
+  props: KinerjaSurveyDashboardLoaderProps
+) {
   return <KinerjaSurveyDashboard {...props} />;
 }

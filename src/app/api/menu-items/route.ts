@@ -1,7 +1,7 @@
-import { MenuCategoryType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
+import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { prisma } from "@/lib/prisma";
 
 const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
 
   try {
     const items = await prisma.menuItem.findMany({
-      where: { category: MENU_CATEGORY_ID_TO_TYPE[categoryId] },
+      where: { category: toMenuCategoryType(categoryId) },
       orderBy: [{ votes: "desc" }, { name: "asc" }],
     });
     return NextResponse.json(items);

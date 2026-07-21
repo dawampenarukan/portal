@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { usePathname } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { UserRole } from "@prisma/client";
 import {
   BarChart3,
   Calendar,
@@ -39,15 +37,16 @@ const iconMap = {
 interface AdminSidebarProps {
   newFeedbackCount?: number;
   organolepticNotices?: MenuOrganolepticNoticesData;
+  /** Dari server layout — jangan pakai useSession agar SSR/CSR nav sama (hindari hydration mismatch). */
+  isSuperAdmin?: boolean;
 }
 
 export function AdminSidebar({
   newFeedbackCount = 0,
   organolepticNotices = { unsafeCount: 0, returnedPackagesCount: 0 },
+  isSuperAdmin = false,
 }: AdminSidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
-  const isSuperAdmin = session?.user?.role === UserRole.SUPER_ADMIN;
   const navItems = ADMIN_NAV_ITEMS.filter(
     (item) => item.href !== "/admin/akun" || isSuperAdmin
   );

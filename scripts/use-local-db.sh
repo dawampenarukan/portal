@@ -15,7 +15,9 @@ fi
 echo ""
 echo "Pastikan .env berisi:"
 echo '  DATABASE_URL="postgresql://postgres:...@localhost:5432/sppg_penarukan2"'
+echo '  DIRECT_URL="postgresql://postgres:...@localhost:5432/sppg_penarukan2"'
 echo '  NEXTAUTH_SECRET="..."'
 echo '  NEXTAUTH_URL="http://localhost:3000"'
+echo "  (lokal: DATABASE_URL dan DIRECT_URL boleh sama)"
 echo ""
 echo "Jalankan: npm run dev"

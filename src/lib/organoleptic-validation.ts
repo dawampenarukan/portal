@@ -1,9 +1,7 @@
 import {
-  OrganolepticPlaceType,
-  OrganolepticTiming,
-} from "@prisma/client";
-import {
   deriveOrganolepticSafety,
+  isOrganolepticPlaceTypeId,
+  isOrganolepticTimingId,
   isValidScore,
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
   ORGANOLEPTIC_MAX_CRITICISM_IMAGES,
@@ -14,9 +12,6 @@ import type {
   OrganolepticChecklistInput,
   OrganolepticItemInput,
 } from "@/lib/organoleptic-queries";
-
-const PLACE_TYPES = new Set<string>(Object.values(OrganolepticPlaceType));
-const TIMINGS = new Set<string>(Object.values(OrganolepticTiming));
 
 function parseItem(raw: unknown, index: number): OrganolepticItemInput | string {
   if (!raw || typeof raw !== "object") {
@@ -80,8 +75,12 @@ export function parseOrganolepticPayload(
   if (!placeName) return { error: "Nama tempat pemeriksaan wajib diisi" };
   if (!parseInspectionDate(inspectionDate)) return { error: "Tanggal tidak valid" };
   if (!inspectionTime) return { error: "Waktu pemeriksaan wajib diisi" };
-  if (!PLACE_TYPES.has(placeType)) return { error: "Tempat pemeriksaan tidak valid" };
-  if (!TIMINGS.has(timing)) return { error: "Waktu uji tidak valid" };
+  if (!isOrganolepticPlaceTypeId(placeType)) {
+    return { error: "Tempat pemeriksaan tidak valid" };
+  }
+  if (!isOrganolepticTimingId(timing)) {
+    return { error: "Waktu uji tidak valid" };
+  }
 
   if (!Array.isArray(raw.items) || raw.items.length === 0) {
     return {
@@ -187,11 +186,11 @@ export function parseOrganolepticPayload(
   return {
     data: {
       inspectorName,
-      placeType: placeType as OrganolepticPlaceType,
+      placeType,
       placeName,
       inspectionDate,
       inspectionTime,
-      timing: timing as OrganolepticTiming,
+      timing,
       packagesReceived,
       packagesConsumed: packagesConsumedOut,
       packagesReturned: packagesReturnedOut,

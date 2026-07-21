@@ -6,7 +6,13 @@ interface ArticleCoverImageProps {
   alt: string;
   className?: string;
   fallbackEmoji?: string;
+  /**
+   * Default true — parent harus `relative` + ukuran eksplisit
+   * (aspect-*, h/w, absolute inset, dll.).
+   */
   fill?: boolean;
+  sizes?: string;
+  priority?: boolean;
 }
 
 export function ArticleCoverImage({
@@ -14,7 +20,9 @@ export function ArticleCoverImage({
   alt,
   className,
   fallbackEmoji = "📰",
-  fill = false,
+  fill = true,
+  sizes = "(max-width: 768px) 100vw, 50vw",
+  priority = false,
 }: ArticleCoverImageProps) {
   if (src) {
     if (fill) {
@@ -24,14 +32,22 @@ export function ArticleCoverImage({
           alt={alt}
           fill
           className={cn("object-cover", className)}
-          sizes="(max-width: 768px) 100vw, 50vw"
+          sizes={sizes}
+          priority={priority}
         />
       );
     }
 
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} className={cn("h-full w-full object-cover", className)} />
+      <Image
+        src={src}
+        alt={alt}
+        width={800}
+        height={450}
+        className={cn("h-full w-full object-cover", className)}
+        sizes={sizes}
+        priority={priority}
+      />
     );
   }
 

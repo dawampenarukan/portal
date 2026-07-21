@@ -1,16 +1,30 @@
 import { NextResponse } from "next/server";
 import { ArticleStatus } from "@prisma/client";
-import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
+import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
-import { revalidatePublicContent } from "@/lib/revalidate-public";
+import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
 
+/** List admin — tanpa content penuh (detail lewat GET /api/articles/[id]). */
 export async function GET() {
   const { error } = await requireAdmin();
   if (error) return error;
 
   const articles = await prisma.article.findMany({
-    include: { author: true, category: true },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      excerpt: true,
+      coverImage: true,
+      status: true,
+      isPopular: true,
+      isHighlight: true,
+      publishedAt: true,
+      updatedAt: true,
+      category: { select: { id: true, name: true } },
+      author: { select: { id: true, name: true } },
+    },
     orderBy: { updatedAt: "desc" },
   });
   return NextResponse.json(articles);
@@ -64,6 +78,7 @@ export async function POST(request: Request) {
     });
 
     revalidatePublicContent({ articles: true });
+    revalidateAdminStats();
 
     return NextResponse.json(article, { status: 201 });
   } catch {

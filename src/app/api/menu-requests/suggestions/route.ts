@@ -17,7 +17,14 @@ export async function GET(request: Request) {
 
   try {
     const suggestions = await getMenuRequestNameSuggestions(category, query);
-    return NextResponse.json({ suggestions });
+    return NextResponse.json(
+      { suggestions },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=15, stale-while-revalidate=30",
+        },
+      }
+    );
   } catch {
     return NextResponse.json({ error: "Gagal memuat saran menu" }, { status: 500 });
   }

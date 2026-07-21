@@ -37,7 +37,7 @@ strip_empty() {
   fi
 }
 
-for key in DATABASE_URL NEXTAUTH_SECRET AUTH_SECRET BLOB_READ_WRITE_TOKEN; do
+for key in DATABASE_URL DIRECT_URL NEXTAUTH_SECRET AUTH_SECRET BLOB_READ_WRITE_TOKEN; do
   strip_empty "${key}"
 done
 
@@ -61,9 +61,32 @@ if ! grep -qE '^DATABASE_URL=.+$' "${ENV_FILE}" 2>/dev/null; then
   echo "  Dev akan pakai DATABASE_URL dari .env (localhost)."
   echo ""
   echo "  Untuk pakai DB production, set di Vercel Dashboard:"
-  echo "  Settings → Environment Variables → DATABASE_URL"
+  echo "  Settings → Environment Variables → DATABASE_URL (Neon pooled + connection_limit=1)"
   echo "  Lalu jalankan ulang: npm run env:pull"
   echo ""
+fi
+
+# DIRECT_URL wajib untuk prisma db push; fallback ke DATABASE_URL jika belum di Vercel
+if ! grep -qE '^DIRECT_URL=.+$' "${ENV_FILE}" 2>/dev/null; then
+  if grep -qE '^DATABASE_URL=.+$' "${ENV_FILE}" 2>/dev/null; then
+    grep '^DATABASE_URL=' "${ENV_FILE}" | sed 's/^DATABASE_URL=/DIRECT_URL=/' >> "${ENV_FILE}"
+    echo "⚠ DIRECT_URL belum ada di Vercel — sementara disalin dari DATABASE_URL."
+    echo "  Disarankan: set DIRECT_URL = Neon direct (tanpa -pooler) di Vercel Dashboard."
+  elif [ -f "${ENV_SOURCE}" ] && grep -qE '^DIRECT_URL=.+$' "${ENV_SOURCE}"; then
+    grep '^DIRECT_URL=' "${ENV_SOURCE}" >> "${ENV_FILE}"
+    echo "  (DIRECT_URL diambil dari .env)"
+  fi
+fi
+
+if grep -qE '^DIRECT_URL=.*-pooler' "${ENV_FILE}" 2>/dev/null; then
+  echo "⚠ DIRECT_URL masih mengandung -pooler — db:deploy bisa bermasalah."
+  echo "  Ganti DIRECT_URL ke Neon Direct di Vercel, lalu npm run env:pull lagi."
+fi
+
+if grep -qE '^DATABASE_URL=' "${ENV_FILE}" 2>/dev/null && ! grep -qE '^DATABASE_URL=.*-pooler' "${ENV_FILE}" 2>/dev/null; then
+  if grep -qE '^DATABASE_URL=.*neon\.tech' "${ENV_FILE}" 2>/dev/null; then
+    echo "⚠ DATABASE_URL Neon tanpa -pooler — untuk runtime Vercel lebih baik pakai pooled + connection_limit=1."
+  fi
 fi
 
 # Validasi NEXTAUTH_SECRET

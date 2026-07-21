@@ -2,7 +2,10 @@ import { MenuCategoryType } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { MENU_CATEGORY_TYPE_TO_ID } from "@/lib/menu-meta";
+import {
+  MENU_CATEGORY_TYPE_TO_ID,
+  type MenuCategoryTypeId,
+} from "@/lib/menu-meta";
 import { getMenuDataByCategory } from "@/lib/queries";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
 
     revalidatePublicContent({ menu: true });
 
-    const categoryId = MENU_CATEGORY_TYPE_TO_ID[category as MenuCategoryType];
+    const categoryId = MENU_CATEGORY_TYPE_TO_ID[category as MenuCategoryTypeId];
     const { topRequests } = await getMenuDataByCategory(categoryId);
 
     return NextResponse.json({ id: menuRequest.id, topRequests }, { status: 201 });

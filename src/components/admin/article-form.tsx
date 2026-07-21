@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -140,14 +141,19 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
         <Input type="file" accept="image/*" onChange={handleCoverUpload} />
         {coverImage && (
           <div className="mt-3">
-            <img
-              src={coverImage}
-              alt="Preview cover"
-              className="h-32 w-auto rounded-lg border object-cover"
-            />
+            <div className="relative h-32 w-56 overflow-hidden rounded-lg border">
+              <Image
+                src={coverImage}
+                alt="Preview cover"
+                fill
+                className="object-cover"
+                sizes="224px"
+              />
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">{coverImage}</p>
           </div>
         )}
+
       </div>
       <div className="flex gap-4">
         <label className="flex items-center gap-2 text-sm">
