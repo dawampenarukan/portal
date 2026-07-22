@@ -28,7 +28,7 @@ export function SurveyActions({ surveyId }: SurveyActionsProps) {
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       <Link href={`/admin/survey/${surveyId}/edit`} prefetch={false}>
         <Button size="sm" variant="outline">Edit</Button>
       </Link>

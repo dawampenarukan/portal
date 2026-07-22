@@ -364,6 +364,33 @@ export async function getAllEvents(): Promise<EventView[]> {
   return events.map(mapEventAdmin);
 }
 
+export async function getAdminEventsList(page = 1) {
+  const skip = pageOffset(page);
+  const [events, total] = await Promise.all([
+    prisma.event.findMany({
+      orderBy: { startAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+      select: {
+        id: true,
+        title: true,
+        location: true,
+        startAt: true,
+        endAt: true,
+        slug: true,
+        coverImage: true,
+        isPublished: true,
+      },
+    }),
+    prisma.event.count(),
+  ]);
+
+  return {
+    total,
+    items: events.map(mapEventAdmin),
+  };
+}
+
 export async function getEventById(id: string): Promise<EventView | null> {
   const event = await prisma.event.findUnique({ where: { id } });
   return event ? mapEventAdmin(event) : null;
@@ -436,34 +463,42 @@ export async function getAllPublications(): Promise<PublicationView[]> {
   );
 }
 
-export async function getAdminPublicationsList() {
-  const pubs = await prisma.publication.findMany({
-    select: {
-      id: true,
-      title: true,
-      period: true,
-      summary: true,
-      type: true,
-      isPublished: true,
-    },
-    orderBy: { updatedAt: "desc" },
-    take: 50,
-  });
-
+export async function getAdminPublicationsList(page = 1) {
+  const skip = pageOffset(page);
   const typeMap: Record<PublicationType, string> = {
     SURVEY_RESULT: "survey",
     PERFORMANCE_REPORT: "performance",
     INFOGRAPHIC: "infographic",
   };
 
-  return pubs.map((pub) => ({
-    id: pub.id,
-    title: pub.title,
-    period: pub.period,
-    type: typeMap[pub.type],
-    summary: pub.summary ?? "",
-    isPublished: pub.isPublished,
-  }));
+  const [pubs, total] = await Promise.all([
+    prisma.publication.findMany({
+      select: {
+        id: true,
+        title: true,
+        period: true,
+        summary: true,
+        type: true,
+        isPublished: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+    }),
+    prisma.publication.count(),
+  ]);
+
+  return {
+    total,
+    items: pubs.map((pub) => ({
+      id: pub.id,
+      title: pub.title,
+      period: pub.period,
+      type: typeMap[pub.type],
+      summary: pub.summary ?? "",
+      isPublished: pub.isPublished,
+    })),
+  };
 }
 
 export async function getSurveyPublications(): Promise<SurveyPublicationView[]> {
@@ -1023,18 +1058,26 @@ export async function getAllSurveys(): Promise<SurveyView[]> {
   }));
 }
 
-export async function getAdminSurveysList() {
-  return prisma.survey.findMany({
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      respondentTarget: true,
-      isActive: true,
-      _count: { select: { responses: true, questions: true } },
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+export async function getAdminSurveysList(page = 1) {
+  const skip = pageOffset(page);
+  const [surveys, total] = await Promise.all([
+    prisma.survey.findMany({
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        respondentTarget: true,
+        isActive: true,
+        _count: { select: { responses: true, questions: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: ADMIN_PAGE_SIZE,
+    }),
+    prisma.survey.count(),
+  ]);
+
+  return { total, items: surveys };
 }
 
 export async function getActiveSurveySummaries() {

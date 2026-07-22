@@ -26,6 +26,7 @@ export function EventCarousel({ events }: EventCarouselProps) {
               alt={event.title}
               fill
               fallbackEmoji="🎉"
+              sizes="(max-width: 768px) 85vw, 280px"
             />
           </div>
           <CardContent className="p-5">

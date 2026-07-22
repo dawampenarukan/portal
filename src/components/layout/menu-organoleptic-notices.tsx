@@ -31,14 +31,21 @@ export function MenuOrganolepticNotices({
 
   const isAdmin = tone === "admin";
 
+  // Admin drawer: larger hit area; public chrome stays compact
+  const sizeClass = isAdmin
+    ? "inline-flex h-8 min-w-8 items-center justify-center rounded-full px-2 text-xs font-bold"
+    : "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold";
+
   const unsafeClass = cn(
-    "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold transition hover:opacity-90",
+    sizeClass,
+    "transition hover:opacity-90",
     isAdmin
       ? "bg-coral text-white"
       : "bg-coral text-white shadow-sm ring-2 ring-white/80"
   );
   const returnedClass = cn(
-    "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold transition hover:opacity-90",
+    sizeClass,
+    "transition hover:opacity-90",
     isAdmin
       ? "bg-sunny text-amber-950"
       : "bg-sunny text-amber-950 shadow-sm ring-2 ring-white/80"

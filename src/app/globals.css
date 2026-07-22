@@ -93,7 +93,9 @@ body {
 .atm-page-shell {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  /* Keep horizontal clip for blobs; allow vertical overflow so dropdowns aren't clipped */
+  overflow-x: hidden;
+  overflow-y: visible;
   border-radius: 2rem;
   padding: 1.25rem;
   border: 2px solid transparent;

@@ -18,6 +18,7 @@ import {
   getSurveyPublications,
   getTrendingTopics,
   getActiveSurveySummaries,
+  getSurveyById,
   PUBLISHED_ARTICLES_LIST_TAKE,
 } from "@/lib/queries";
 import type { MenuCategoryId } from "@/lib/menu-meta";
@@ -144,6 +145,15 @@ export const getActiveSurveySummariesCached = unstable_cache(
   ["active-survey-summaries"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG] }
 );
+
+/** Public survey fill page — bust via SURVEY_TAG on create/update/delete/publish. */
+export function getSurveyByIdCached(id: string) {
+  return unstable_cache(
+    () => getSurveyById(id),
+    ["survey-by-id", id],
+    { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG, `survey-${id}`] }
+  )();
+}
 
 export const getSurveyPublicationsCached = unstable_cache(
   () => getSurveyPublications(),

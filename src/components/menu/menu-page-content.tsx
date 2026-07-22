@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useState } from "react";
 import { MenuFavorites } from "@/components/menu/menu-favorites";
-import { MenuRequestForm } from "@/components/menu/menu-request-form";
 import { MenuTopRequests } from "@/components/menu/menu-top-requests";
 import { AtmPagePanel, AtmPageShell } from "@/components/layout/atm-page-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +14,19 @@ import {
 } from "@/lib/menu-meta";
 import type { MenuCategoryBundle, TopMenuRequestView } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const MenuRequestForm = dynamic(
+  () =>
+    import("@/components/menu/menu-request-form").then((m) => m.MenuRequestForm),
+  {
+    loading: () => (
+      <div
+        className="h-56 animate-pulse rounded-xl bg-muted/60"
+        aria-label="Memuat form request"
+      />
+    ),
+  }
+);
 
 const TAB_IDLE_COLORS: Record<MenuCategoryId, string> = {
   "porsi-kecil":
@@ -29,39 +42,33 @@ const TAB_IDLE_COLORS: Record<MenuCategoryId, string> = {
 interface MenuPageContentProps {
   initialCategory?: string;
   initialMenuData: MenuCategoryBundle;
+  /** SSR from voter cookie — avoids /api/menu-votes/mine waterfall. */
+  initialFavoritedIds?: string[];
 }
 
 function syncMenuCategoryUrl(id: MenuCategoryId) {
   if (typeof window === "undefined") return;
   const url = `/menu?kategori=${id}`;
-  // replaceState (bukan router.replace) — sinkron URL untuk share/refresh
-  // tanpa memicu ulang Suspense/RSC (hindari flash skeleton saat ganti tab).
   window.history.replaceState(window.history.state, "", url);
 }
 
 export function MenuPageContent({
   initialCategory,
   initialMenuData,
+  initialFavoritedIds = [],
 }: MenuPageContentProps) {
   const activeIdDefault = getMenuCategory(initialCategory ?? "porsi-kecil");
   const [activeId, setActiveId] = useState<MenuCategoryId>(activeIdDefault);
-  const [bundles, setBundles] = useState<Record<MenuCategoryId, MenuCategoryBundle | undefined>>(
-    () => ({
-      "porsi-kecil": activeIdDefault === "porsi-kecil" ? initialMenuData : undefined,
-      "porsi-besar": activeIdDefault === "porsi-besar" ? initialMenuData : undefined,
-      "ibu-hamil": activeIdDefault === "ibu-hamil" ? initialMenuData : undefined,
-      balita: activeIdDefault === "balita" ? initialMenuData : undefined,
-    })
-  );
+  const [bundles, setBundles] = useState<
+    Record<MenuCategoryId, MenuCategoryBundle | undefined>
+  >(() => ({
+    "porsi-kecil": activeIdDefault === "porsi-kecil" ? initialMenuData : undefined,
+    "porsi-besar": activeIdDefault === "porsi-besar" ? initialMenuData : undefined,
+    "ibu-hamil": activeIdDefault === "ibu-hamil" ? initialMenuData : undefined,
+    balita: activeIdDefault === "balita" ? initialMenuData : undefined,
+  }));
   const [loadingCategory, setLoadingCategory] = useState<MenuCategoryId | null>(null);
-  const [favoritedIds, setFavoritedIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    fetch("/api/menu-votes/mine")
-      .then((res) => (res.ok ? res.json() : { favoritedIds: [] }))
-      .then((data: { favoritedIds: string[] }) => setFavoritedIds(data.favoritedIds ?? []))
-      .catch(() => setFavoritedIds([]));
-  }, []);
+  const [favoritedIds] = useState<string[]>(initialFavoritedIds);
 
   const prefetchCategory = useCallback(
     (id: MenuCategoryId) => {
@@ -77,7 +84,6 @@ export function MenuPageContent({
   );
 
   const fetchCategoryData = useCallback(async (id: MenuCategoryId) => {
-    // API sudah di-cache server-side (tag menu-data) — jangan force no-store.
     const res = await fetch(`/api/menu-data?category=${id}`);
     if (!res.ok) return null;
     return (await res.json()) as MenuCategoryBundle;
@@ -121,7 +127,7 @@ export function MenuPageContent({
 
   return (
     <AtmPageShell theme="menu" innerClassName="space-y-8">
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 snap-x snap-mandatory">
         {MENU_CATEGORIES.map((cat) => (
           <button
             key={cat.id}
@@ -130,7 +136,7 @@ export function MenuPageContent({
             onMouseEnter={() => prefetchCategory(cat.id)}
             onFocus={() => prefetchCategory(cat.id)}
             className={cn(
-              "flex shrink-0 items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-all",
+              "flex shrink-0 snap-start items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold transition-all",
               activeId === cat.id
                 ? "bg-gradient-to-r from-primary to-[#3cb88a] text-white shadow-lg shadow-primary/30 ring-2 ring-white/60"
                 : TAB_IDLE_COLORS[cat.id]

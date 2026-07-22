@@ -16,13 +16,13 @@ export function OrganolepticEntrySidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r bg-primary text-primary-foreground">
+    <aside className="flex h-full min-h-0 w-full flex-1 flex-col border-r bg-primary text-primary-foreground">
       <div className="border-b border-white/10 p-4">
         <BrandLogo size="sm" tone="light" />
         <p className="mt-2 text-xs text-primary-foreground/70">Entri Uji Organoleptik</p>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive =

@@ -72,13 +72,13 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
           </p>
           <div className="mt-3">
             {q.type === "rating" && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setAnswer(q.id, String(n))}
-                    className={`h-10 w-10 rounded-full border text-sm font-medium ${
+                    className={`inline-flex h-11 min-w-11 items-center justify-center rounded-full border text-sm font-medium ${
                       answers[q.id] === String(n) ? "bg-primary text-white" : ""
                     }`}
                   >
@@ -88,13 +88,13 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
               </div>
             )}
             {q.type === "nps" && (
-              <div className="flex flex-wrap gap-1">
+              <div className="grid grid-cols-6 gap-2 sm:grid-cols-11">
                 {Array.from({ length: 11 }, (_, n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setAnswer(q.id, String(n))}
-                    className={`h-8 w-8 rounded border text-xs ${
+                    className={`inline-flex h-11 min-h-11 w-full items-center justify-center rounded-lg border text-sm font-medium ${
                       answers[q.id] === String(n) ? "bg-primary text-white" : ""
                     }`}
                   >
@@ -106,12 +106,16 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
             {q.type === "multiple_choice" && q.options && (
               <div className="space-y-2">
                 {q.options.map((opt) => (
-                  <label key={opt} className="flex items-center gap-2 text-sm">
+                  <label
+                    key={opt}
+                    className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+                  >
                     <input
                       type="radio"
                       name={q.id}
                       checked={answers[q.id] === opt}
                       onChange={() => setAnswer(q.id, opt)}
+                      className="h-4 w-4 shrink-0"
                     />
                     {opt}
                   </label>
@@ -130,7 +134,7 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
       ))}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button type="submit" disabled={submitting}>
+      <Button type="submit" disabled={submitting} className="w-full sm:w-auto">
         {submitting ? "Mengirim..." : "Kirim Jawaban"}
       </Button>
     </form>

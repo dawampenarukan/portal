@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { ChartSkeleton } from "@/components/ui/route-skeletons";
+import { DeferUntilVisible } from "@/components/ui/defer-until-visible";
 import type { OrganolepticPublicView } from "@/lib/types";
 
 const OrganolepticWidget = dynamic(
@@ -11,5 +12,9 @@ const OrganolepticWidget = dynamic(
 );
 
 export function OrganolepticWidgetLoader({ data }: { data: OrganolepticPublicView }) {
-  return <OrganolepticWidget data={data} />;
+  return (
+    <DeferUntilVisible fallback={<ChartSkeleton />}>
+      <OrganolepticWidget data={data} />
+    </DeferUntilVisible>
+  );
 }

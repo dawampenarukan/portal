@@ -68,6 +68,7 @@ export default async function EventPage() {
                       alt={event.title}
                       fill
                       fallbackEmoji='🎉'
+                      sizes='(max-width: 768px) 100vw, 33vw'
                     />
                   </div>
                   <CardContent className='p-5'>

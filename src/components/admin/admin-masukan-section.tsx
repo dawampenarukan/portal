@@ -24,8 +24,38 @@ export async function AdminMasukanList({ page }: { page: number }) {
       <CardHeader>
         <CardTitle className="text-base">Daftar Masukan</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
+      <CardContent className="space-y-4">
+        {/* Mobile: cards */}
+        <div className="space-y-3 md:hidden">
+          {feedbacks.map((fb) => (
+            <div key={fb.id} className="rounded-xl border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium leading-snug">{fb.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{fb.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {fb.category ?? "-"}
+                  </p>
+                </div>
+                <Badge
+                  variant={fb.status === "NEW" ? "popular" : "secondary"}
+                  className="shrink-0"
+                >
+                  {statusLabel[fb.status] ?? fb.status}
+                </Badge>
+              </div>
+              <div className="mt-3">
+                <FeedbackDetail feedbackId={fb.id} />
+              </div>
+            </div>
+          ))}
+          {feedbacks.length === 0 && (
+            <p className="text-sm text-muted-foreground">Belum ada masukan.</p>
+          )}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -40,7 +70,9 @@ export async function AdminMasukanList({ page }: { page: number }) {
               {feedbacks.map((fb) => (
                 <tr key={fb.id} className="border-b last:border-0">
                   <td className="py-3 pr-4">{fb.name}</td>
-                  <td className="py-3 pr-4 font-medium">{fb.title}</td>
+                  <td className="max-w-xs truncate py-3 pr-4 font-medium">
+                    {fb.title}
+                  </td>
                   <td className="py-3 pr-4">{fb.category ?? "-"}</td>
                   <td className="py-3 pr-4">
                     <Badge variant={fb.status === "NEW" ? "popular" : "secondary"}>
@@ -55,6 +87,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
             </tbody>
           </table>
         </div>
+
         <PaginationNav basePath="/admin/masukan" page={page} total={total} />
       </CardContent>
     </Card>

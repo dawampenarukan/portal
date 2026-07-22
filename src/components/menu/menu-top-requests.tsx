@@ -1,6 +1,3 @@
-"use client";
-
-import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TopMenuRequestView } from "@/lib/types";
 
@@ -52,11 +49,9 @@ function TopRequestRow({
   );
 }
 
+/** Server-safe list — no client JS needed. */
 export function MenuTopRequests({ items }: MenuTopRequestsProps) {
-  const maxCount = useMemo(
-    () => Math.max(1, ...items.map((item) => item.requestCount)),
-    [items]
-  );
+  const maxCount = Math.max(1, ...items.map((item) => item.requestCount));
 
   if (items.length === 0) {
     return (

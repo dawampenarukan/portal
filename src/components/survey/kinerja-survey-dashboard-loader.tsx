@@ -1,7 +1,16 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { DeferUntilVisible } from "@/components/ui/defer-until-visible";
 import type { SurveyPublicationView } from "@/lib/types";
+
+const dashboardFallback = (
+  <div className="space-y-6 animate-pulse" aria-label="Memuat dashboard survey">
+    <div className="h-10 w-64 max-w-full rounded-lg bg-muted" />
+    <div className="h-48 rounded-xl bg-muted/60" />
+    <div className="h-64 rounded-xl bg-muted/60" />
+  </div>
+);
 
 const KinerjaSurveyDashboard = dynamic(
   () =>
@@ -10,13 +19,7 @@ const KinerjaSurveyDashboard = dynamic(
     ),
   {
     ssr: false,
-    loading: () => (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-10 w-64 rounded-lg bg-muted" />
-        <div className="h-48 rounded-xl bg-muted/60" />
-        <div className="h-64 rounded-xl bg-muted/60" />
-      </div>
-    ),
+    loading: () => dashboardFallback,
   }
 );
 
@@ -34,5 +37,9 @@ interface KinerjaSurveyDashboardLoaderProps {
 export function KinerjaSurveyDashboardLoader(
   props: KinerjaSurveyDashboardLoaderProps
 ) {
-  return <KinerjaSurveyDashboard {...props} />;
+  return (
+    <DeferUntilVisible fallback={dashboardFallback}>
+      <KinerjaSurveyDashboard {...props} />
+    </DeferUntilVisible>
+  );
 }

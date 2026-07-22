@@ -4,6 +4,7 @@ import {
   AdminSidebarFallback,
   AdminSidebarWithBadges,
 } from "@/components/layout/admin-sidebar-badges";
+import { AdminShell } from "@/components/layout/admin-shell";
 import { OrganolepticEntrySidebar } from "@/components/layout/organoleptic-entry-sidebar";
 import { auth } from "@/auth";
 import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
@@ -29,28 +30,25 @@ export default async function AdminPanelLayout({
     redirect("/admin/login");
   }
 
+  const sidebar = isEntryOnly ? (
+    <OrganolepticEntrySidebar />
+  ) : (
+    <Suspense fallback={<AdminSidebarFallback isSuperAdmin={isSuperAdmin} />}>
+      <AdminSidebarWithBadges isSuperAdmin={isSuperAdmin} />
+    </Suspense>
+  );
+
   return (
     <AuthSessionProvider session={session}>
-      <div className="flex min-h-screen bg-muted/30">
-        {isEntryOnly ? (
-          <OrganolepticEntrySidebar />
-        ) : (
-          <Suspense
-            fallback={<AdminSidebarFallback isSuperAdmin={isSuperAdmin} />}
-          >
-            <AdminSidebarWithBadges isSuperAdmin={isSuperAdmin} />
-          </Suspense>
-        )}
-        <div className="flex flex-1 flex-col">
-          <header className="border-b bg-white px-6 py-4">
-            <p className="text-sm text-muted-foreground">
-              {isEntryOnly ? "Panel Entri Organoleptik" : "Panel Administrasi"}
-            </p>
-            <h1 className="text-lg font-semibold">SPPG Penarukan 2</h1>
-          </header>
-          <main className="flex-1 p-6">{children}</main>
-        </div>
-      </div>
+      <AdminShell
+        sidebar={sidebar}
+        subtitle={
+          isEntryOnly ? "Panel Entri Organoleptik" : "Panel Administrasi"
+        }
+        title="SPPG Penarukan 2"
+      >
+        {children}
+      </AdminShell>
     </AuthSessionProvider>
   );
 }

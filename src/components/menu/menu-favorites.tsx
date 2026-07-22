@@ -36,7 +36,7 @@ function FavoriteRow({
           {menu.emoji}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-extrabold text-white">
                 {rank}
@@ -53,7 +53,10 @@ function FavoriteRow({
                 variant={isFav ? "default" : "outline"}
                 disabled={loading}
                 onClick={onToggle}
-                className={cn("gap-1.5 rounded-full", isFav && "bg-coral hover:bg-coral/90")}
+                className={cn(
+                  "min-h-11 gap-1.5 rounded-full sm:min-h-9",
+                  isFav && "bg-coral hover:bg-coral/90"
+                )}
                 aria-pressed={isFav}
                 aria-label={isFav ? "Batalkan favorit" : "Tandai favorit"}
               >

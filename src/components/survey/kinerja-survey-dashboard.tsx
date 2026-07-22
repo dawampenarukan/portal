@@ -93,7 +93,7 @@ export function KinerjaSurveyDashboard({
       </div>
 
       <AtmPagePanel variant="glass">
-        <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillHref} />
+        <SurveyWidgetLoader data={surveyData} fillSurveyHref={fillHref} eager />
       </AtmPagePanel>
 
       <section>
