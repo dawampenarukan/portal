@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import {
   ADMIN_FEEDBACK_TAG,
   ADMIN_STATS_TAG,
@@ -10,9 +10,20 @@ import {
   PUBLICATIONS_TAG,
   SURVEY_TAG,
 } from "@/lib/cached-queries";
+import { MENU_CATEGORIES } from "@/lib/menu-meta";
 
 function invalidateCacheTag(tag: string) {
   revalidateTag(tag, "max");
+}
+
+function invalidateMenuCaches() {
+  invalidateCacheTag(MENU_DATA_TAG);
+  for (const cat of MENU_CATEGORIES) {
+    invalidateCacheTag(`${MENU_DATA_TAG}-${cat.id}`);
+  }
+  // Bust Full Route Cache / ISR halaman publik + admin
+  revalidatePath("/menu");
+  revalidatePath("/admin/menu", "layout");
 }
 
 /**
@@ -36,7 +47,7 @@ export function revalidatePublicContent(scope?: {
     invalidateCacheTag(EVENTS_TAG);
     invalidateCacheTag(PUBLICATIONS_TAG);
     invalidateCacheTag(SURVEY_TAG);
-    invalidateCacheTag(MENU_DATA_TAG);
+    invalidateMenuCaches();
     invalidateCacheTag(ORGANOLEPTIC_TAG);
     invalidateCacheTag(ADMIN_STATS_TAG);
     return;
@@ -55,7 +66,7 @@ export function revalidatePublicContent(scope?: {
     invalidateCacheTag(SURVEY_TAG);
     invalidateCacheTag(ADMIN_STATS_TAG);
   }
-  if (scope.menu) invalidateCacheTag(MENU_DATA_TAG);
+  if (scope.menu) invalidateMenuCaches();
   if (scope.organoleptic) invalidateCacheTag(ORGANOLEPTIC_TAG);
 }
 

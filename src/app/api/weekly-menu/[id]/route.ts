@@ -4,7 +4,7 @@ import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
-import { sortOrderForDay } from "@/lib/week-days";
+import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -28,6 +28,9 @@ export async function PATCH(request: Request, { params }: Params) {
       where: { id },
       data: {
         dayLabel: nextDayLabel,
+        menuDate: body.dayLabel
+          ? dateForDayLabelInCurrentWeek(nextDayLabel)
+          : existing.menuDate,
         menuText: nextMenuText,
         emoji: nextEmoji,
         sortOrder: body.dayLabel ? sortOrderForDay(nextDayLabel) : existing.sortOrder,

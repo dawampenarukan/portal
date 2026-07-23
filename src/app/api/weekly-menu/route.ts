@@ -6,7 +6,7 @@ import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
-import { sortOrderForDay } from "@/lib/week-days";
+import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
 
 const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
 
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       data: {
         category: categoryType,
         dayLabel: trimmedDay,
+        menuDate: dateForDayLabelInCurrentWeek(trimmedDay),
         menuText: trimmedMenu,
         emoji: menuEmoji,
         sortOrder: sortOrderForDay(trimmedDay),

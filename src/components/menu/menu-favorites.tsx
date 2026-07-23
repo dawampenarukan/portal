@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,17 @@ import type { FavoriteMenuView } from "@/lib/types";
 interface MenuFavoritesProps {
   favorites: FavoriteMenuView[];
   favoritedIds: string[];
+}
+
+/** Soften ALL-CAPS inventory names for public display. */
+function displayMenuName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length >= 4 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
+    return trimmed
+      .toLowerCase()
+      .replace(/(^|[\s·-])(\S)/g, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+  }
+  return trimmed;
 }
 
 function FavoriteRow({
@@ -41,7 +52,7 @@ function FavoriteRow({
               <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-extrabold text-white">
                 {rank}
               </span>
-              <span className="font-extrabold">{menu.name}</span>
+              <span className="text-sm font-bold sm:text-base">{displayMenuName(menu.name)}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <span className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-primary">
@@ -80,10 +91,19 @@ function FavoriteRow({
   );
 }
 
-export function MenuFavorites({ favorites: initialFavorites, favoritedIds }: MenuFavoritesProps) {
-  const [items, setItems] = useState(initialFavorites);
+export function MenuFavorites({ favorites, favoritedIds }: MenuFavoritesProps) {
+  const [items, setItems] = useState(favorites);
   const [favorited, setFavorited] = useState(() => new Set(favoritedIds));
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // Update list saat ganti kategori / fetch fresh — tanpa hard refresh
+  useEffect(() => {
+    setItems(favorites);
+  }, [favorites]);
+
+  useEffect(() => {
+    setFavorited(new Set(favoritedIds));
+  }, [favoritedIds]);
 
   const maxVotes = useMemo(() => Math.max(1, ...items.map((m) => m.votes)), [items]);
   const hasMore = items.length > 5;

@@ -10,7 +10,8 @@ export async function syncMenuItemFromWeekly(
   emoji?: string | null
 ) {
   const name = menuText.trim();
-  if (!name) return null;
+  // Jangan simpan teks gabungan multi-hari/multi-menu sebagai satu favorit
+  if (!name || name.includes(" · ")) return null;
 
   const icon = normalizeMenuIcon(emoji);
 

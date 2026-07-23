@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getMenuDataByCategoryCached } from "@/lib/cached-queries";
+import { getMenuDataByCategory } from "@/lib/queries";
 import { isMenuCategoryId } from "@/lib/menu-meta";
 
 export async function GET(request: Request) {
@@ -9,10 +9,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const data = await getMenuDataByCategoryCached(category);
+    // Fresh dari DB — dipakai saat ganti tab kategori di client (tanpa hard refresh)
+    const data = await getMenuDataByCategory(category);
     return NextResponse.json(data, {
       headers: {
-        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        "Cache-Control": "private, no-store",
       },
     });
   } catch {

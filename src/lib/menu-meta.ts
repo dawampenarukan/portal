@@ -1,6 +1,7 @@
 /**
  * Metadata kategori menu — aman untuk client bundle (tanpa @prisma/client).
- * Nilai string di bawah selaras dengan enum Prisma MenuCategoryType.
+ * Nilai string di bawah selaras dengan enum Prisma MenuCategoryType
+ * dan KATEGORI_PORSI_OPTIONS di Inventory (Rencana Produksi).
  */
 
 export type MenuCategoryId = "porsi-kecil" | "porsi-besar" | "ibu-hamil" | "balita";
@@ -22,44 +23,47 @@ export interface MenuCategory {
   color: string;
 }
 
+/**
+ * Urutan & copy selaras Inventory Food Production → Kategori Porsi:
+ * PORSI_BESAR, PORSI_KECIL, POSYANDU_BUMIL_BUSUI, POSYANDU_BALITA
+ */
 export const MENU_CATEGORIES: MenuCategory[] = [
   {
-    id: "porsi-kecil",
-    label: "Menu Porsi Kecil",
-    shortLabel: "Porsi Kecil",
-    emoji: "🧒",
-    description:
-      "Porsi disesuaikan untuk siswa SD kelas 1–3 dengan nutrisi seimbang dan mudah dikonsumsi.",
-    audience: "SD Kelas 1 – 3",
-    color: "from-sky/40 to-accent",
-  },
-  {
     id: "porsi-besar",
-    label: "Menu Porsi Besar",
-    shortLabel: "Porsi Besar",
+    label: "Porsi besar",
+    shortLabel: "Porsi besar",
     emoji: "🎒",
     description:
-      "Porsi lebih besar untuk siswa SD kelas 4–6 dan SMP yang membutuhkan energi lebih.",
-    audience: "SD Kelas 4 – SMP",
+      "Porsi besar untuk Kelas 3 SD–SMA serta bumil/busui sesuai acuan Rencana Produksi.",
+    audience: "Kelas 3 SD – SMA, Bumil Busui",
     color: "from-secondary/60 to-sunny/40",
   },
   {
-    id: "ibu-hamil",
-    label: "Menu Ibu Hamil",
-    shortLabel: "Ibu Hamil",
-    emoji: "🤰",
+    id: "porsi-kecil",
+    label: "Porsi kecil",
+    shortLabel: "Porsi kecil",
+    emoji: "🧒",
     description:
-      "Menu khusus dengan zat besi, asam folat, dan protein tinggi untuk kesehatan ibu dan janin.",
-    audience: "Ibu Hamil",
+      "Porsi kecil untuk PAUD–SD Kelas 3 dan balita sesuai acuan Rencana Produksi.",
+    audience: "PAUD – SD Kelas 3, Balita",
+    color: "from-sky/40 to-accent",
+  },
+  {
+    id: "ibu-hamil",
+    label: "Posyandu Bumil Busui",
+    shortLabel: "Bumil Busui",
+    emoji: "🤰",
+    description: "Paket totebag Posyandu untuk ibu hamil dan menyusui.",
+    audience: "Totebag",
     color: "from-lavender/30 to-coral/20",
   },
   {
     id: "balita",
-    label: "Menu Balita",
-    shortLabel: "Balita",
+    label: "Posyandu Balita",
+    shortLabel: "Posyandu Balita",
     emoji: "👶",
-    description: "Tekstur lembut, gizi padat, dan porsi kecil yang aman untuk anak balita.",
-    audience: "Balita (1–5 tahun)",
+    description: "Paket totebag Posyandu untuk balita.",
+    audience: "Totebag",
     color: "from-sunny/40 to-secondary/50",
   },
 ];

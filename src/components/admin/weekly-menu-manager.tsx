@@ -2,13 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MenuIconPicker } from "@/components/admin/menu-icon-picker";
 import { DEFAULT_MENU_ICON, normalizeMenuIcon, type MenuFoodIcon } from "@/lib/menu-icons";
-import { WEEK_DAYS, getDaySortOrder, sortOrderForDay } from "@/lib/week-days";
+import {
+  WEEK_DAYS,
+  compareWeeklyEntries,
+  formatWeeklyMenuHeading,
+  sortOrderForDay,
+} from "@/lib/week-days";
 import type { WeeklyMenuEntryView } from "@/lib/types";
 import type { MenuCategoryId } from "@/lib/menu-meta";
 
@@ -18,11 +23,7 @@ interface WeeklyMenuManagerProps {
 }
 
 function sortEntries(entries: WeeklyMenuEntryView[]) {
-  return [...entries].sort((a, b) => {
-    const dayDiff = getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel);
-    if (dayDiff !== 0) return dayDiff;
-    return a.sortOrder - b.sortOrder;
-  });
+  return [...entries].sort(compareWeeklyEntries);
 }
 
 export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuManagerProps) {
@@ -59,12 +60,12 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   );
 
   async function refresh() {
-    router.refresh();
     const res = await fetch(`/api/weekly-menu?category=${categoryId}`);
     if (res.ok) {
       const data = (await res.json()) as WeeklyMenuEntryView[];
       setEntries(sortEntries(data));
     }
+    router.refresh();
   }
 
   function resetForm() {
@@ -136,7 +137,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   async function syncFromInventory() {
     if (
       !confirm(
-        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal kategori ini diganti dari rencana Disetujui/Diproses/Selesai (minggu ini + minggu depan). Favorit lama yang tidak ada di sync akan disembunyikan."
+        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai untuk minggu berjalan (Senin–Jumat). Favorit lama yang tidak ada di sync akan disembunyikan."
       )
     ) {
       return;
@@ -226,6 +227,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
             syncMsg.startsWith("Tidak ada") ||
             syncMsg.includes("Gagal") ||
             syncMsg.includes("belum di-set") ||
+            syncMsg.includes("menolak API key") ||
             syncMsg.includes("HTTP")
               ? "border-destructive/40 bg-destructive/5 text-destructive"
               : "border-border bg-muted/30 text-muted-foreground"
@@ -295,63 +297,73 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">Belum ada jadwal menu mingguan.</p>
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <div className="grid grid-cols-[5rem_1fr_auto] gap-3 border-b bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Hari</span>
-            <span>Menu</span>
-            <span className="text-right">Aksi</span>
-          </div>
-          <div className="divide-y">
-            {sortEntries(entries).map((entry) => (
-              <div
-                key={entry.id}
-                className="grid grid-cols-[5rem_1fr_auto] items-center gap-3 px-4 py-3"
-              >
-                <span className="font-semibold text-primary">{entry.dayLabel}</span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm">
-                    <span className="mr-1.5">{normalizeMenuIcon(entry.emoji)}</span>
+        <ul className="divide-y rounded-lg border">
+          {sortEntries(entries).map((entry) => (
+            <li key={entry.id} className="px-3 py-3 sm:px-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="text-xs font-medium text-primary">
+                    {formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate)}
+                  </p>
+                  <p className="text-sm leading-snug text-foreground">
+                    <span className="mr-1 opacity-70" aria-hidden>
+                      {normalizeMenuIcon(entry.emoji)}
+                    </span>
                     {entry.menuText}
                   </p>
                   <Badge
                     variant={entry.isActive ? "success" : "secondary"}
-                    className="mt-1 text-[10px]"
+                    className="text-[10px] font-normal"
                   >
                     {entry.isActive ? "Aktif" : "Disembunyikan"}
                   </Badge>
                 </div>
-                <div className="flex shrink-0 items-center justify-end gap-1">
+                <div className="flex shrink-0 items-center gap-0.5 opacity-60 hover:opacity-100">
                   <Button
-                    size="sm"
-                    variant="outline"
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
                     disabled={loading}
                     onClick={() => startEdit(entry)}
                     aria-label="Edit"
+                    title="Edit"
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button
-                    size="sm"
-                    variant="outline"
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
                     disabled={loading}
-                    onClick={() => toggleActive(entry)}
+                    onClick={() => void toggleActive(entry)}
+                    aria-label={entry.isActive ? "Sembunyikan" : "Tampilkan"}
+                    title={entry.isActive ? "Sembunyikan" : "Tampilkan"}
                   >
-                    {entry.isActive ? "Sembunyikan" : "Tampilkan"}
+                    {entry.isActive ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
                   </Button>
                   <Button
-                    size="sm"
+                    type="button"
+                    size="icon"
                     variant="ghost"
+                    className="h-7 w-7 hover:text-destructive"
                     disabled={loading}
-                    onClick={() => deleteEntry(entry.id)}
+                    onClick={() => void deleteEntry(entry.id)}
                     aria-label="Hapus"
+                    title="Hapus"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

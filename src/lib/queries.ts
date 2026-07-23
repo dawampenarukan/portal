@@ -11,7 +11,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { filterMenuNameSuggestions } from "@/lib/menu-request-suggestions";
 import { slugify } from "@/lib/slug";
-import { getDaySortOrder } from "@/lib/week-days";
+import { compareWeeklyEntries, formatWeeklyMenuHeading } from "@/lib/week-days";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
 import {
   MENU_CATEGORY_TYPE_TO_ID,
@@ -715,6 +715,7 @@ function buildMenuBundle(
   weekly: {
     category: MenuCategoryType;
     dayLabel: string;
+    menuDate?: string | null;
     menuText: string;
     emoji: string | null;
     sortOrder: number;
@@ -735,15 +736,19 @@ function buildMenuBundle(
 
   const sortedWeekly = weekly
     .filter((entry) => entry.category === categoryType)
-    .sort((a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder);
+    .sort(compareWeeklyEntries);
 
   const categoryItems = items.filter((item) => item.category === categoryType);
 
   return {
     favorites,
-    thisWeek: sortedWeekly.map(
-      (entry) => `${entry.emoji ?? "🍽️"} ${entry.dayLabel}: ${entry.menuText}`
-    ),
+    thisWeek: sortedWeekly.map((entry) => ({
+      dayLabel: entry.dayLabel,
+      menuDate: entry.menuDate ?? null,
+      heading: formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate),
+      menuText: entry.menuText,
+      emoji: entry.emoji ?? "🍽️",
+    })),
     topRequests: aggregateTopMenuRequests(requests, categoryItems, 2),
   };
 }
@@ -800,7 +805,7 @@ export async function getMenuDataByCategory(
 
   const [favorites, weekly, requests] = await Promise.all([
     prisma.menuItem.findMany({
-      where: { category: categoryType },
+      where: { category: categoryType, isActive: true },
       orderBy: [{ votes: "desc" }, { name: "asc" }],
       take: 40,
       select: {
@@ -817,6 +822,7 @@ export async function getMenuDataByCategory(
       select: {
         category: true,
         dayLabel: true,
+        menuDate: true,
         menuText: true,
         emoji: true,
         sortOrder: true,
@@ -840,6 +846,7 @@ export async function getAllMenuData(): Promise<
 
   const [allItems, allWeekly, allRequests] = await Promise.all([
     prisma.menuItem.findMany({
+      where: { isActive: true },
       orderBy: [{ votes: "desc" }, { name: "asc" }],
       select: {
         id: true,
@@ -855,6 +862,7 @@ export async function getAllMenuData(): Promise<
       select: {
         category: true,
         dayLabel: true,
+        menuDate: true,
         menuText: true,
         emoji: true,
         sortOrder: true,
@@ -904,7 +912,7 @@ export async function getMenuPreviewTopItems(): Promise<
   const tops = await Promise.all(
     types.map((category) =>
       prisma.menuItem.findFirst({
-        where: { category },
+        where: { category, isActive: true },
         orderBy: { votes: "desc" },
         select: { emoji: true, name: true },
       })
@@ -934,7 +942,7 @@ export async function getAdminMenuOverview(): Promise<
       const categoryType = toMenuCategoryType(id);
       const [topFavorite, weeklyCount] = await Promise.all([
         prisma.menuItem.findFirst({
-          where: { category: categoryType },
+          where: { category: categoryType, isActive: true },
           orderBy: { votes: "desc" },
           select: { name: true, votes: true },
         }),
@@ -1182,7 +1190,7 @@ export async function getMenuRequests(category?: MenuCategoryType, limit = 50) {
 export async function getAdminMenuItems(categoryId: MenuCategoryId) {
   const categoryType = toMenuCategoryType(categoryId);
   return prisma.menuItem.findMany({
-    where: { category: categoryType },
+    where: { category: categoryType, isActive: true },
     orderBy: [{ votes: "desc" }, { name: "asc" }],
     select: {
       id: true,
@@ -1202,15 +1210,14 @@ export async function getAdminWeeklyMenu(categoryId: MenuCategoryId) {
     select: {
       id: true,
       dayLabel: true,
+      menuDate: true,
       menuText: true,
       emoji: true,
       sortOrder: true,
       isActive: true,
     },
   });
-  return entries.sort(
-    (a, b) => getDaySortOrder(a.dayLabel) - getDaySortOrder(b.dayLabel) || a.sortOrder - b.sortOrder
-  );
+  return entries.sort(compareWeeklyEntries);
 }
 
 export async function getNewFeedbackCount(): Promise<number> {

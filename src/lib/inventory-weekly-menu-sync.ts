@@ -74,29 +74,23 @@ function requireInventoryConfig() {
   return { base, apiKey };
 }
 
-/** Senin–Minggu minggu berjalan menurut kalender Asia/Jakarta. */
+/** Senin–Jumat minggu berjalan (Asia/Jakarta) — “Menu Minggu Ini”. */
 export function currentWeekRange(ref = new Date()): { from: string; to: string } {
   const jakartaDate = formatInJakarta(ref);
   const monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
-  const sunday = addDays(monday, 6);
+  const friday = addDays(monday, 4);
   return {
     from: format(monday, "yyyy-MM-dd"),
-    to: format(sunday, "yyyy-MM-dd"),
+    to: format(friday, "yyyy-MM-dd"),
   };
 }
 
 /**
- * Minggu berjalan + minggu depan (14 hari dari Senin).
- * Supaya rencana di Senin minggu depan (mis. 27 Jul) ikut terambil.
+ * Default sync = minggu berjalan Senin–Jumat.
+ * Contoh: hari ini Kamis 23 Jul → Senin 20 Jul – Jumat 24 Jul.
  */
 export function defaultSyncRange(ref = new Date()): { from: string; to: string } {
-  const jakartaDate = formatInJakarta(ref);
-  const monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
-  const end = addDays(monday, 13);
-  return {
-    from: format(monday, "yyyy-MM-dd"),
-    to: format(end, "yyyy-MM-dd"),
-  };
+  return currentWeekRange(ref);
 }
 
 /** Ambil Y-M-D “hari ini” di Jakarta lalu parse ke Date lokal noon. */
@@ -159,6 +153,11 @@ async function fetchProductionPlans(from: string, to: string): Promise<InvPlan[]
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Inventory menolak API key (HTTP ${res.status}). Buat key baru di Inventory → Utiliti → API Keys dengan scope food-production:read, lalu set INVENTORY_API_KEY di .env portal dan restart npm run dev.`
+      );
+    }
     throw new Error(`Inventory plans HTTP ${res.status}: ${text.slice(0, 200)}`);
   }
 
@@ -182,7 +181,12 @@ async function pruneOrphanMenuItems(
     select: { id: true, name: true },
   });
   const orphanIds = active
-    .filter((item) => !keepNames.has(item.name.trim().toLowerCase()))
+    .filter((item) => {
+      const name = item.name.trim();
+      // Nama gabungan "A · B" bukan item favorit yang valid
+      if (name.includes(" · ")) return true;
+      return !keepNames.has(name.toLowerCase());
+    })
     .map((item) => item.id);
   if (orphanIds.length === 0) return 0;
   await prisma.menuItem.updateMany({
@@ -194,7 +198,7 @@ async function pruneOrphanMenuItems(
 
 /**
  * Timpa WeeklyMenuEntry untuk satu kategori dari Rencana Produksi
- * (default: minggu ini + minggu depan).
+ * (default: minggu berjalan Senin–Jumat).
  * Hari tanpa data inventory → entri kategori dihapus (jadwal bersih).
  */
 export async function syncWeeklyMenuFromInventory(
@@ -213,8 +217,8 @@ export async function syncWeeklyMenuFromInventory(
   let skippedStatus = 0;
   let plansUsed = 0;
 
-  /** dayLabel → unique menu names (order preserved) */
-  const byDay = new Map<string, string[]>();
+  /** dayDate (YYYY-MM-DD) → unique menu names */
+  const byDate = new Map<string, { dayLabel: string; menus: string[] }>();
   const syncedNames = new Set<string>();
 
   for (const plan of plans) {
@@ -237,12 +241,14 @@ export async function syncWeeklyMenuFromInventory(
     if (!resolvedNames.length) continue;
 
     plansUsed += 1;
-    const existing = byDay.get(dayLabel) || [];
+    const existing = byDate.get(plan.tanggal) || { dayLabel, menus: [] };
     for (const n of resolvedNames) {
-      if (!existing.some((x) => x.toLowerCase() === n.toLowerCase())) existing.push(n);
+      if (!existing.menus.some((x) => x.toLowerCase() === n.toLowerCase())) {
+        existing.menus.push(n);
+      }
       syncedNames.add(n.toLowerCase());
     }
-    byDay.set(dayLabel, existing);
+    byDate.set(plan.tanggal, existing);
   }
 
   await prisma.weeklyMenuEntry.deleteMany({ where: { category } });
@@ -250,14 +256,18 @@ export async function syncWeeklyMenuFromInventory(
   let daysWritten = 0;
   let menusTouched = 0;
 
-  for (const dayLabel of WEEK_DAYS) {
-    const menus = byDay.get(dayLabel);
-    if (!menus?.length) continue;
+  const datedEntries = Array.from(byDate.entries()).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
+
+  for (const [menuDate, { dayLabel, menus }] of datedEntries) {
+    if (!menus.length) continue;
     const menuText = menus.join(" · ");
     await prisma.weeklyMenuEntry.create({
       data: {
         category: category as MenuCategoryType,
         dayLabel,
+        menuDate,
         menuText,
         emoji: DEFAULT_MENU_ICON,
         sortOrder: sortOrderForDay(dayLabel),

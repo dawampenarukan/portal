@@ -123,9 +123,19 @@ export interface TopMenuRequestView {
   emoji: string;
 }
 
+export interface WeeklyMenuPublicItem {
+  dayLabel: string;
+  /** YYYY-MM-DD bila tersedia. */
+  menuDate: string | null;
+  /** Judul tampilan: "Senin - 27 Jul 2026" */
+  heading: string;
+  menuText: string;
+  emoji: string;
+}
+
 export interface MenuCategoryBundle {
   favorites: FavoriteMenuView[];
-  thisWeek: string[];
+  thisWeek: WeeklyMenuPublicItem[];
   topRequests: TopMenuRequestView[];
 }
 
@@ -141,6 +151,8 @@ export interface MenuItemAdminView {
 export interface WeeklyMenuEntryView {
   id: string;
   dayLabel: string;
+  /** YYYY-MM-DD bila dari sync Inventory / kalender. */
+  menuDate: string | null;
   menuText: string;
   emoji: string | null;
   sortOrder: number;

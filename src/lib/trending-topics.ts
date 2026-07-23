@@ -4,12 +4,12 @@ export const FALLBACK_TRENDING_TOPICS: TrendingTopicView[] = [
   { id: "fallback-menu", title: "Menu Favorit Minggu Ini 🍽️", href: "/menu" },
   {
     id: "fallback-menu-kecil",
-    title: "Request Menu Porsi Kecil 🧒",
+    title: "Request Menu Porsi kecil 🧒",
     href: "/menu?kategori=porsi-kecil",
   },
   {
     id: "fallback-ibu-hamil",
-    title: "Tips Gizi Buat Ibu Hamil 🤰",
+    title: "Menu Posyandu Bumil Busui 🤰",
     href: "/menu?kategori=ibu-hamil",
   },
   { id: "fallback-survey", title: "Yuk Isi Survey! ⭐", href: "/kinerja" },

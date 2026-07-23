@@ -123,9 +123,9 @@ INVENTORY_API_KEY="sk_..."
 
 3. Admin → **Kelola Menu** → **Sync semua dari Inventory**, atau per kategori → **Dari Inventory**.
 
-- Rentang default: **minggu ini + minggu depan** (14 hari dari Senin, Asia/Jakarta).
+- Rentang default: **minggu berjalan Senin–Jumat** (Asia/Jakarta). Contoh Kamis 23 Jul → Senin 20 – Jumat 24 Jul.
 - Status yang di-sync: `APPROVED` / `PROCESSING` / `COMPLETED` (Draft, Diajukan, Dibatalkan dilewati).
-- Mapping: `PORSI_KECIL`/`PORSI_BESAR` sama; `POSYANDU_BUMIL_BUSUI` → Ibu Hamil; `POSYANDU_BALITA` → Balita.
+- Mapping: `PORSI_BESAR`/`PORSI_KECIL` sama; `POSYANDU_BUMIL_BUSUI` → Posyandu Bumil Busui; `POSYANDU_BALITA` → Posyandu Balita (label & audiens selaras Inventory).
 - Setelah sync: `MenuItem` yang tidak ada di hasil sync dinonaktifkan (favorit seed/mock hilang dari UI).
 
 ---

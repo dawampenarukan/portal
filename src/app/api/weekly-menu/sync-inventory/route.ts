@@ -41,7 +41,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, result });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Gagal sinkron dari inventory";
-    if (msg.includes("INVENTORY_APP_URL") || msg.includes("INVENTORY_API_KEY")) {
+    const isConfig =
+      msg.includes("INVENTORY_APP_URL") ||
+      msg.includes("INVENTORY_API_KEY") ||
+      msg.includes("menolak API key") ||
+      msg.includes("HTTP 401") ||
+      msg.includes("HTTP 403") ||
+      msg.includes("HTTP 404");
+    if (isConfig) {
       return badRequest(msg);
     }
     console.error("[sync-inventory]", e);

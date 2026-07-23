@@ -52,6 +52,17 @@ function syncMenuCategoryUrl(id: MenuCategoryId) {
   window.history.replaceState(window.history.state, "", url);
 }
 
+/** Soften ALL-CAPS inventory names for public display. */
+function displayMenuName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length >= 4 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
+    return trimmed
+      .toLowerCase()
+      .replace(/(^|[\s·-])(\S)/g, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+  }
+  return trimmed;
+}
+
 export function MenuPageContent({
   initialCategory,
   initialMenuData,
@@ -70,24 +81,21 @@ export function MenuPageContent({
   const [loadingCategory, setLoadingCategory] = useState<MenuCategoryId | null>(null);
   const [favoritedIds] = useState<string[]>(initialFavoritedIds);
 
-  const prefetchCategory = useCallback(
-    (id: MenuCategoryId) => {
-      if (bundles[id]) return;
-      fetch(`/api/menu-data?category=${id}`).then(async (res) => {
-        if (res.ok) {
-          const data = (await res.json()) as MenuCategoryBundle;
-          setBundles((prev) => (prev[id] ? prev : { ...prev, [id]: data }));
-        }
-      });
-    },
-    [bundles]
-  );
-
   const fetchCategoryData = useCallback(async (id: MenuCategoryId) => {
-    const res = await fetch(`/api/menu-data?category=${id}`);
+    const res = await fetch(`/api/menu-data?category=${id}`, { cache: "no-store" });
     if (!res.ok) return null;
     return (await res.json()) as MenuCategoryBundle;
   }, []);
+
+  const prefetchCategory = useCallback(
+    (id: MenuCategoryId) => {
+      if (id === activeId || loadingCategory === id) return;
+      void fetchCategoryData(id).then((data) => {
+        if (data) setBundles((prev) => ({ ...prev, [id]: data }));
+      });
+    },
+    [activeId, fetchCategoryData, loadingCategory]
+  );
 
   const handleRequestSubmitted = useCallback(
     (topRequests: TopMenuRequestView[]) => {
@@ -102,11 +110,21 @@ export function MenuPageContent({
 
   const switchCategory = useCallback(
     async (id: MenuCategoryId) => {
+      if (id === activeId && bundles[id] && loadingCategory !== id) {
+        // Sudah di tab ini — tetap refresh diam-diam agar data admin terbaru masuk
+        void fetchCategoryData(id).then((data) => {
+          if (data) setBundles((prev) => ({ ...prev, [id]: data }));
+        });
+        return;
+      }
+
       setActiveId(id);
       syncMenuCategoryUrl(id);
-      if (bundles[id]) return;
 
-      setLoadingCategory(id);
+      // Tampilkan data cache segera bila ada, sambil fetch fresh
+      const hadCache = Boolean(bundles[id]);
+      if (!hadCache) setLoadingCategory(id);
+
       try {
         const data = await fetchCategoryData(id);
         if (data) {
@@ -116,7 +134,7 @@ export function MenuPageContent({
         setLoadingCategory(null);
       }
     },
-    [bundles, fetchCategoryData]
+    [activeId, bundles, fetchCategoryData, loadingCategory]
   );
 
   const category = getMenuCategoryMeta(activeId);
@@ -195,22 +213,43 @@ export function MenuPageContent({
         <AtmPagePanel variant="sidebar" className="space-y-6 lg:col-span-2">
           <Card className="charming-card border-0 bg-white/75 backdrop-blur-sm">
             <CardContent className="p-5">
-              <h3 className="mb-3 flex items-center gap-2 font-extrabold">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky/35 to-primary/20 text-base">
+              <h3 className="mb-3 flex items-center gap-2 text-base font-bold">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky/25 text-sm">
                   📅
                 </span>
                 Menu Minggu Ini
               </h3>
-              <ul className="space-y-2">
-                {thisWeek.map((item) => (
-                  <li
-                    key={item}
-                    className="atm-stripe-item rounded-xl px-3 py-2 text-sm font-semibold text-foreground/85"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
+              {thisWeek.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Belum ada jadwal menu minggu ini.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {thisWeek.map((item) => (
+                    <li
+                      key={`${item.menuDate ?? item.dayLabel}-${item.menuText}`}
+                      className="atm-stripe-item rounded-xl px-3 py-2.5"
+                    >
+                      <div className="flex gap-2.5">
+                        <span
+                          className="mt-0.5 shrink-0 text-base leading-none opacity-70"
+                          aria-hidden
+                        >
+                          {item.emoji}
+                        </span>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="text-xs font-medium text-primary">
+                            {item.heading}
+                          </p>
+                          <p className="text-sm leading-snug text-foreground/90">
+                            {displayMenuName(item.menuText)}
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
 

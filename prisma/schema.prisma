@@ -251,6 +251,8 @@ model WeeklyMenuEntry {
   id        String           @id @default(cuid())
   category  MenuCategoryType
   dayLabel  String
+  /** Tanggal sajian YYYY-MM-DD (dari Rencana Produksi / kalender minggu). */
+  menuDate  String?
   menuText  String
   emoji     String?          @default("🍽️")
   sortOrder Int              @default(0)
@@ -258,6 +260,7 @@ model WeeklyMenuEntry {
   updatedAt DateTime         @updatedAt
 
   @@index([category, sortOrder])
+  @@index([category, menuDate])
 }
 
 model OrganolepticChecklist {
