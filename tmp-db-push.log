@@ -1,0 +1,143 @@
+=== Started: 2026-07-23T21:52:38+07:00 ===
+
+=== Step 1: Node version ===
+Now using node v22.13.1 (npm v10.9.2)
+
+=== Step 2: Load env ===
+Sourced: .env.production.migrate
+
+=== Step 3: DATABASE_URL / DIRECT_URL host check (no passwords) ===
+Traceback (most recent call last):
+  File "<string>", line 6, in <module>
+  File "/usr/lib/python3.12/urllib/parse.py", line 395, in urlparse
+    splitresult = urlsplit(url, scheme, allow_fragments)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/parse.py", line 516, in urlsplit
+    _check_bracketed_netloc(netloc)
+  File "/usr/lib/python3.12/urllib/parse.py", line 454, in _check_bracketed_netloc
+    _check_bracketed_host(hostname)
+  File "/usr/lib/python3.12/urllib/parse.py", line 463, in _check_bracketed_host
+    ip = ipaddress.ip_address(hostname) # Throws Value Error if not IPv6 or IPv4
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/ipaddress.py", line 54, in ip_address
+    raise ValueError(f'{address!r} does not appear to be an IPv4 or IPv6 address')
+ValueError: 'SENSITIVE' does not appear to be an IPv4 or IPv6 address
+DATABASE_URL host: 
+DATABASE_URL contains neon.tech: no
+DIRECT_URL: (not set)
+DIRECT_URL contains neon.tech: no
+
+=== Step 4: npx prisma db push ===
+warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
+For more information, see: https://pris.ly/prisma-config
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "sppg_penarukan2", schema "public" at "localhost:5432"
+
+The database is already in sync with the Prisma schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.19.3) to ./node_modules/@prisma/client in 540ms
+
+
+=== db push exit code: 0 ===
+
+=== Step 5: curl menu-data API ===
+{"error":"Gagal memuat menu"}
+500
+
+=== HTTP status code: 500 ===
+
+=== Finished: 2026-07-23T21:52:50+07:00 ===
+
+=== Retry production push: 2026-07-23T21:54:36+07:00 ===
+
+=== Step 1: Node + env pull ===
+Now using node v22.13.1 (npm v10.9.2)
+
+
+> portal@0.1.0 env:pull
+> bash scripts/pull-vercel-env.sh
+
+==> Menarik environment production dari Vercel ke .env.local...
+Vercel CLI belum terpasang. Jalankan:
+  npm i -g vercel
+  vercel login
+
+=== env:pull exit code: 1 ===
+=== env pull worked: no ===
+
+=== Step 2: Host check (no passwords) ===
+DATABASE_URL: (not set)
+DATABASE_URL contains neon.tech: no
+DIRECT_URL: (not set)
+DIRECT_URL contains neon.tech: no
+
+=== Step 3: prisma db push (production) ===
+Skipping db push — env pull did not yield real DATABASE_URL
+
+=== db push exit code: 1 ===
+=== production db push succeeded: no ===
+
+=== Step 4: curl menu-data API ===
+{"error":"Gagal memuat menu"}
+500
+
+=== HTTP status code: 500 ===
+
+=== Summary ===
+env pull worked: no
+production db push succeeded: no
+final HTTP status: 500
+=== Finished retry: 2026-07-23T21:54:50+07:00 ===
+
+=== Retry production push: 2026-07-23T21:58:53+07:00 ===
+
+=== Step 1: Node + env pull ===
+Now using node v22.13.1 (npm v10.9.2)
+
+Global vercel CLI not found; using npx vercel
+Pulling production env to .env.local...
+Vercel CLI 56.5.0 (Node.js 22.13.1)
+Retrieving project…
+> Downloading `production` environment variables for singgihs-projects-b900d292/portalpenarukan2
+Downloading
+
+✓ Created         .env.local file
+
+=== env:pull exit code: 0 ===
+=== env pull worked: no ===
+
+=== Step 2: Host check (no passwords) ===
+DATABASE_URL host: (parse error)
+DATABASE_URL contains neon.tech: no
+DIRECT_URL host: (parse error)
+DIRECT_URL contains neon.tech: no
+
+=== Step 3: prisma db push (production) ===
+Skipping db push — env pull did not yield real DATABASE_URL
+
+=== db push exit code: 1 ===
+=== production db push succeeded: no ===
+
+=== Step 4: curl menu-data API ===
+{"error":"Gagal memuat menu"}
+500
+
+=== HTTP status code: 500 ===
+
+=== Summary ===
+env pull worked: no
+production db push succeeded: no
+final HTTP status: 500
+=== Finished retry: 2026-07-23T21:59:03+07:00 ===
+
+=== Diagnostic follow-up: 2026-07-23T22:02:48+07:00 ===
+vercel env pull CLI exit: 0 (file created)
+DATABASE_URL value in pulled file: literal placeholder [SENSITIVE] (27 bytes, not a Neon URL)
+DIRECT_URL: not in Vercel production env list; copied placeholder in .env.local
+vercel env ls production keys: BLOB_*, DATABASE_URL, NEXTAUTH_*, no DIRECT_URL
+Conclusion: env pull command succeeded but Vercel stores placeholder DATABASE_URL, not real Neon credentials
+Cannot run production prisma db push without real DATABASE_URL/DIRECT_URL

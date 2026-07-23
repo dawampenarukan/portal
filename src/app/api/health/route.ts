@@ -7,6 +7,7 @@ import {
   hasBlobStorage,
 } from '@/lib/upload';
 import { prisma } from '@/lib/prisma';
+import { probeMenuDateColumn } from '@/lib/weekly-menu-db';
 
 function checkAuthUrl(): string | undefined {
   const url = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? '';
@@ -126,11 +127,13 @@ export async function GET(request: Request) {
         prisma.publication.count({ where: { type: 'SURVEY_RESULT' } }),
       ]);
 
-    const [weeklyMenuEmojiReady, menuItemVoteReady] = await Promise.all([
+    const [weeklyMenuEmojiReady, weeklyMenuDateReady, menuItemVoteReady] =
+      await Promise.all([
       prisma.weeklyMenuEntry
         .findFirst({ select: { id: true, emoji: true } })
         .then(() => true)
         .catch(() => false),
+      probeMenuDateColumn(),
       prisma.menuItemVote
         .findFirst({ select: { id: true } })
         .then(() => true)
@@ -169,7 +172,15 @@ export async function GET(request: Request) {
       },
       menuSchema: {
         weeklyMenuEmojiColumn: weeklyMenuEmojiReady,
+        weeklyMenuDateColumn: weeklyMenuDateReady,
         menuItemVoteTable: menuItemVoteReady,
+        hint: weeklyMenuDateReady
+          ? undefined
+          : 'Kolom menuDate belum ada — jalankan npm run db:deploy ke Neon production',
+      },
+      inventoryEnv: {
+        INVENTORY_APP_URL: process.env.INVENTORY_APP_URL ? 'set' : 'missing',
+        INVENTORY_API_KEY: process.env.INVENTORY_API_KEY ? 'set' : 'missing',
       },
       adminExists: !!admin,
       blobReady: hasBlobStorage(),

@@ -5,6 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
 import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
+import {
+  findWeeklyMenuEntries,
+  updateWeeklyMenuEntrySafe,
+} from "@/lib/weekly-menu-db";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -15,7 +19,8 @@ export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
 
   try {
-    const existing = await prisma.weeklyMenuEntry.findUnique({ where: { id } });
+    const matched = await findWeeklyMenuEntries({ id });
+    const existing = matched[0];
     if (!existing) return notFound("Jadwal tidak ditemukan");
 
     const body = await request.json();
@@ -24,18 +29,15 @@ export async function PATCH(request: Request, { params }: Params) {
     const nextEmoji =
       body.emoji !== undefined ? normalizeMenuIcon(body.emoji) : existing.emoji ?? normalizeMenuIcon(null);
 
-    const entry = await prisma.weeklyMenuEntry.update({
-      where: { id },
-      data: {
-        dayLabel: nextDayLabel,
-        menuDate: body.dayLabel
-          ? dateForDayLabelInCurrentWeek(nextDayLabel)
-          : existing.menuDate,
-        menuText: nextMenuText,
-        emoji: nextEmoji,
-        sortOrder: body.dayLabel ? sortOrderForDay(nextDayLabel) : existing.sortOrder,
-        isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
-      },
+    const entry = await updateWeeklyMenuEntrySafe(id, {
+      dayLabel: nextDayLabel,
+      menuDate: body.dayLabel
+        ? dateForDayLabelInCurrentWeek(nextDayLabel)
+        : existing.menuDate,
+      menuText: nextMenuText,
+      emoji: nextEmoji,
+      sortOrder: body.dayLabel ? sortOrderForDay(nextDayLabel) : existing.sortOrder,
+      isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
     });
 
     await syncMenuItemFromWeekly(existing.category, nextMenuText, nextEmoji);

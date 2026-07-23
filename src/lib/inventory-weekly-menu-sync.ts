@@ -14,6 +14,7 @@ import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { sortOrderForDay, WEEK_DAYS } from "@/lib/week-days";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
+import { createWeeklyMenuEntrySafe } from "@/lib/weekly-menu-db";
 
 /** Inventory Food Production kategori → portal MenuCategoryType. */
 const INV_KATEGORI_TO_PORTAL: Record<string, MenuCategoryTypeId> = {
@@ -263,16 +264,14 @@ export async function syncWeeklyMenuFromInventory(
   for (const [menuDate, { dayLabel, menus }] of datedEntries) {
     if (!menus.length) continue;
     const menuText = menus.join(" · ");
-    await prisma.weeklyMenuEntry.create({
-      data: {
-        category: category as MenuCategoryType,
-        dayLabel,
-        menuDate,
-        menuText,
-        emoji: DEFAULT_MENU_ICON,
-        sortOrder: sortOrderForDay(dayLabel),
-        isActive: true,
-      },
+    await createWeeklyMenuEntrySafe({
+      category: category as MenuCategoryType,
+      dayLabel,
+      menuDate,
+      menuText,
+      emoji: DEFAULT_MENU_ICON,
+      sortOrder: sortOrderForDay(dayLabel),
+      isActive: true,
     });
     daysWritten += 1;
     for (const nama of menus) {

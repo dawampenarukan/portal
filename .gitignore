@@ -28,9 +28,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files
+# env — lokal + contoh; rahasia production jangan di-commit
 .env
-.env*.local
+.env.local
+.env.neon
+.env.vercel
+.env.vercel.*
+.env.production
+.env.production.*
+!.env.example
 
 # vercel
 .vercel
@@ -42,4 +48,3 @@ next-env.d.ts
 # uploads (user-generated)
 /public/uploads/*
 !/public/uploads/.gitkeep
-.env*

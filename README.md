@@ -143,27 +143,38 @@ Pakai **dua** connection string agar cold start cepat dan migrate tetap aman:
 | `DATABASE_URL` | Runtime app (Vercel / `npm run start`) | **Pooled** — host ada `-pooler`. Tambahkan `connection_limit=1` |
 | `DIRECT_URL` | `prisma db push` / migrate (`npm run db:deploy`) | **Direct** — host tanpa `-pooler` |
 
-Contoh (host/password diganti):
+Contoh Neon (isi di **Vercel dashboard**, bukan di `.env` lokal):
 
 ```bash
-# Vercel + .env.local (production data)
 DATABASE_URL="postgresql://USER:PASS@ep-xxxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&connection_limit=1"
 DIRECT_URL="postgresql://USER:PASS@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
 ```
 
-Lokal (Postgres WSL): kedua URL boleh sama — lihat `.env.example`.
+Lokal (Postgres WSL): kedua URL sama — lihat `.env` / `.env.example`.
+
+### Dua database (lokal ≠ Vercel)
+
+| File | Peran |
+|------|--------|
+| `.env` | Postgres lokal — `npm run dev` |
+| `.env.example` | Template (boleh di-commit) |
+| Vercel Environment Variables | Neon production |
+| `.env.neon` (opsional, tidak di-commit) | Hanya untuk `npm run db:deploy` ke Neon |
+
+Jangan taruh Neon di `.env` / `.env.local` kalau ingin lokal tetap terpisah.
 
 ### Sync schema ke Neon
 
-Setelah mengubah `prisma/schema.prisma`, jalankan dari mesin lokal:
+Setelah mengubah `prisma/schema.prisma`:
 
 ```bash
-npm run env:pull          # tarik env production (DATABASE_URL + DIRECT_URL jika ada)
-npm run db:deploy         # push schema via DIRECT_URL
-npm run db:ensure-admin   # pastikan akun admin & entri ada
+# Buat .env.neon berisi DATABASE_URL + DIRECT_URL Neon (Reveal dari dashboard)
+set -a && source .env.neon && set +a
+npm run db:deploy
+# Kembali ke lokal: npm run env:local   (hapus .env.neon / .env.local)
 ```
 
-Prisma memakai `DIRECT_URL` untuk `db push`. Jangan pakai pooler sebagai satu-satunya URL untuk migrate.
+Atau: `npm run env:pull` (menulis `.env.neon`) lalu `db:deploy` — jika CLI memberi `[SENSITIVE]`, isi manual dari Neon Console.
 
 Schema organoleptik **tidak** di-ALTER saat request runtime (demi performa cold start). Setelah ubah `schema.prisma`, sync lewat `npm run db:deploy` atau tombol schema-sync di `/admin/akun` (super admin).
 

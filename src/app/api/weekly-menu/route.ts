@@ -3,10 +3,13 @@ import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
 import { toMenuCategoryType } from "@/lib/menu-meta.server";
-import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
 import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
+import {
+  createWeeklyMenuEntrySafe,
+  findWeeklyMenuEntries,
+} from "@/lib/weekly-menu-db";
 
 const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
 
@@ -23,9 +26,8 @@ export async function GET(request: Request) {
   if (!categoryId) return badRequest("Parameter category wajib diisi");
 
   try {
-    const entries = await prisma.weeklyMenuEntry.findMany({
-      where: { category: toMenuCategoryType(categoryId) },
-      orderBy: { sortOrder: "asc" },
+    const entries = await findWeeklyMenuEntries({
+      category: toMenuCategoryType(categoryId),
     });
     return NextResponse.json(entries);
   } catch {
@@ -58,16 +60,14 @@ export async function POST(request: Request) {
     const trimmedMenu = menuText.trim();
     const menuEmoji = normalizeMenuIcon(emoji);
 
-    const entry = await prisma.weeklyMenuEntry.create({
-      data: {
-        category: categoryType,
-        dayLabel: trimmedDay,
-        menuDate: dateForDayLabelInCurrentWeek(trimmedDay),
-        menuText: trimmedMenu,
-        emoji: menuEmoji,
-        sortOrder: sortOrderForDay(trimmedDay),
-        isActive: isActive !== false,
-      },
+    const entry = await createWeeklyMenuEntrySafe({
+      category: categoryType,
+      dayLabel: trimmedDay,
+      menuDate: dateForDayLabelInCurrentWeek(trimmedDay),
+      menuText: trimmedMenu,
+      emoji: menuEmoji,
+      sortOrder: sortOrderForDay(trimmedDay),
+      isActive: isActive !== false,
     });
 
     await syncMenuItemFromWeekly(categoryType, trimmedMenu, menuEmoji);
