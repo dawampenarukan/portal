@@ -23,9 +23,13 @@ const INV_KATEGORI_TO_PORTAL: Record<string, MenuCategoryTypeId> = {
   POSYANDU_BALITA: "BALITA",
 };
 
-const SKIP_PLAN_STATUS = new Set(["DRAFT", "CANCELLED"]);
+/** Hanya rencana yang sudah “terkunci” operasional untuk publik. */
+const SYNCABLE_PLAN_STATUS = new Set(["APPROVED", "PROCESSING", "COMPLETED"]);
 
 type InvPlanLine = {
+  recipeId?: string;
+  recipeKode?: string;
+  recipeNama?: string;
   menuId?: string;
   menuKode?: string;
   menuNama?: string;
@@ -49,7 +53,9 @@ export type SyncWeeklyMenuResult = {
   to: string;
   daysWritten: number;
   menusTouched: number;
+  menusPruned: number;
   plansSeen: number;
+  plansUsed: number;
   skippedStatus: number;
   message: string;
 };
@@ -79,6 +85,20 @@ export function currentWeekRange(ref = new Date()): { from: string; to: string }
   };
 }
 
+/**
+ * Minggu berjalan + minggu depan (14 hari dari Senin).
+ * Supaya rencana di Senin minggu depan (mis. 27 Jul) ikut terambil.
+ */
+export function defaultSyncRange(ref = new Date()): { from: string; to: string } {
+  const jakartaDate = formatInJakarta(ref);
+  const monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
+  const end = addDays(monday, 13);
+  return {
+    from: format(monday, "yyyy-MM-dd"),
+    to: format(end, "yyyy-MM-dd"),
+  };
+}
+
 /** Ambil Y-M-D “hari ini” di Jakarta lalu parse ke Date lokal noon. */
 function formatInJakarta(ref: Date): Date {
   const ymd = new Intl.DateTimeFormat("en-CA", {
@@ -97,6 +117,13 @@ function dayLabelFromTanggal(tanggal: string): string | null {
   const label = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   const match = WEEK_DAYS.find((w) => w.toLowerCase() === label.toLowerCase());
   return match ?? null;
+}
+
+/** Sama urutan preferensi Inventory: recipe* dulu, lalu menu* legacy. */
+function resolveLineName(line: InvPlanLine): string {
+  return String(
+    line.recipeNama || line.recipeKode || line.menuNama || line.menuKode || ""
+  ).trim();
 }
 
 function kategoriListMatches(list: string[] | undefined, portalType: MenuCategoryTypeId): boolean {
@@ -143,29 +170,56 @@ async function fetchProductionPlans(from: string, to: string): Promise<InvPlan[]
 }
 
 /**
- * Timpa WeeklyMenuEntry untuk satu kategori dari Rencana Produksi minggu ini.
+ * Nonaktifkan MenuItem kategori yang tidak muncul di sync terbaru
+ * (membersihkan sisa seed/mock agar favorit tidak menipu).
+ */
+async function pruneOrphanMenuItems(
+  category: MenuCategoryType,
+  keepNames: Set<string>
+): Promise<number> {
+  const active = await prisma.menuItem.findMany({
+    where: { category, isActive: true },
+    select: { id: true, name: true },
+  });
+  const orphanIds = active
+    .filter((item) => !keepNames.has(item.name.trim().toLowerCase()))
+    .map((item) => item.id);
+  if (orphanIds.length === 0) return 0;
+  await prisma.menuItem.updateMany({
+    where: { id: { in: orphanIds } },
+    data: { isActive: false },
+  });
+  return orphanIds.length;
+}
+
+/**
+ * Timpa WeeklyMenuEntry untuk satu kategori dari Rencana Produksi
+ * (default: minggu ini + minggu depan).
  * Hari tanpa data inventory → entri kategori dihapus (jadwal bersih).
  */
 export async function syncWeeklyMenuFromInventory(
   categoryId: MenuCategoryId,
   options?: { from?: string; to?: string }
 ): Promise<SyncWeeklyMenuResult> {
+  const defaults = defaultSyncRange();
   const range = {
-    from: options?.from || currentWeekRange().from,
-    to: options?.to || currentWeekRange().to,
+    from: options?.from || defaults.from,
+    to: options?.to || defaults.to,
   };
   const portalType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
   const category = toMenuCategoryType(categoryId);
 
   const plans = await fetchProductionPlans(range.from, range.to);
   let skippedStatus = 0;
+  let plansUsed = 0;
 
   /** dayLabel → unique menu names (order preserved) */
   const byDay = new Map<string, string[]>();
+  const syncedNames = new Set<string>();
 
   for (const plan of plans) {
     const status = String(plan.status || "").toUpperCase();
-    if (SKIP_PLAN_STATUS.has(status)) {
+    if (!SYNCABLE_PLAN_STATUS.has(status)) {
       skippedStatus += 1;
       continue;
     }
@@ -177,14 +231,16 @@ export async function syncWeeklyMenuFromInventory(
     const resolvedNames: string[] = [];
     for (const line of plan.lines || []) {
       if (!lineMatchesCategory(line, plan, portalType)) continue;
-      const nama = String(line.menuNama || line.menuKode || "").trim();
+      const nama = resolveLineName(line);
       if (nama) resolvedNames.push(nama);
     }
     if (!resolvedNames.length) continue;
 
+    plansUsed += 1;
     const existing = byDay.get(dayLabel) || [];
     for (const n of resolvedNames) {
       if (!existing.some((x) => x.toLowerCase() === n.toLowerCase())) existing.push(n);
+      syncedNames.add(n.toLowerCase());
     }
     byDay.set(dayLabel, existing);
   }
@@ -215,7 +271,17 @@ export async function syncWeeklyMenuFromInventory(
     }
   }
 
+  // Jangan prune jika Inventory mengembalikan 0 rencana di rentang
+  // (kemungkinan URL/range salah) — hindari menghapus favorit secara tidak sengaja.
+  const menusPruned =
+    plans.length > 0
+      ? await pruneOrphanMenuItems(category as MenuCategoryType, syncedNames)
+      : 0;
+
   revalidatePublicContent({ menu: true });
+
+  const detail = `${range.from} – ${range.to}; ${plansUsed}/${plans.length} rencana dipakai`;
+  const pruneNote = menusPruned > 0 ? `; ${menusPruned} favorit lama dinonaktifkan` : "";
 
   return {
     categoryId,
@@ -223,12 +289,14 @@ export async function syncWeeklyMenuFromInventory(
     to: range.to,
     daysWritten,
     menusTouched,
+    menusPruned,
     plansSeen: plans.length,
+    plansUsed,
     skippedStatus,
     message:
       daysWritten > 0
-        ? `Sinkron ${daysWritten} hari dari rencana produksi (${range.from} – ${range.to})`
-        : `Tidak ada rencana produksi cocok untuk kategori ini (${range.from} – ${range.to})`,
+        ? `Sinkron ${daysWritten} hari dari rencana produksi (${detail}${pruneNote})`
+        : `Tidak ada rencana Disetujui/Diproses/Selesai untuk kategori ini (${detail})`,
   };
 }
 

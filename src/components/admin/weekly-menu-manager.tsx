@@ -136,7 +136,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   async function syncFromInventory() {
     if (
       !confirm(
-        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal kategori ini untuk minggu berjalan akan diganti."
+        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal kategori ini diganti dari rencana Disetujui/Diproses/Selesai (minggu ini + minggu depan). Favorit lama yang tidak ada di sync akan disembunyikan."
       )
     ) {
       return;
@@ -151,13 +151,28 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
       });
       const data = (await res.json()) as {
         error?: string;
-        result?: { message?: string; daysWritten?: number };
+        result?: {
+          message?: string;
+          daysWritten?: number;
+          plansSeen?: number;
+          plansUsed?: number;
+          menusPruned?: number;
+          from?: string;
+          to?: string;
+        };
       };
       if (!res.ok) {
         setSyncMsg(data.error || "Gagal sinkron dari inventory");
         return;
       }
-      setSyncMsg(data.result?.message || "Sinkron selesai");
+      const r = data.result;
+      if (r?.message) {
+        setSyncMsg(r.message);
+      } else {
+        setSyncMsg(
+          `Sinkron selesai — ${r?.daysWritten ?? 0} hari, ${r?.plansUsed ?? 0}/${r?.plansSeen ?? 0} rencana (${r?.from ?? "?"} – ${r?.to ?? "?"})`
+        );
+      }
       await refresh();
     } catch {
       setSyncMsg("Gagal menghubungi server");
@@ -206,7 +221,17 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
         </div>
       </div>
       {syncMsg && (
-        <p className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <p
+          className={`rounded-md border px-3 py-2 text-xs ${
+            syncMsg.startsWith("Tidak ada") ||
+            syncMsg.includes("Gagal") ||
+            syncMsg.includes("belum di-set") ||
+            syncMsg.includes("HTTP")
+              ? "border-destructive/40 bg-destructive/5 text-destructive"
+              : "border-border bg-muted/30 text-muted-foreground"
+          }`}
+          role="status"
+        >
           {syncMsg}
         </p>
       )}

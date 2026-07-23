@@ -92,22 +92,41 @@ npm run db:setup     # Setup database + seed
 npm run db:studio    # Prisma Studio
 ```
 
+## Deploy VPS (HTTPS `www.sppgpenarukan2.id`)
+
+Portal dijalankan sebagai **sidecar tipis** di stack Sales compose (bukan Vercel), DB tetap **Neon**.
+
+1. DNS `A/AAAA` → `www.sppgpenarukan2.id` ke IP VPS
+2. Di `~/assignment/sales` (atau path compose ERP), isi `.env.docker`:
+   - `PORTAL_HOST=www.sppgpenarukan2.id`
+   - `PORTAL_DATABASE_URL` / `PORTAL_DIRECT_URL` (Neon)
+   - `PORTAL_NEXTAUTH_SECRET`, `PORTAL_NEXTAUTH_URL=https://www.sppgpenarukan2.id`
+3. `npm run docker:portal` (profile `portal` + `https`)
+4. Cek: `curl -fsS https://www.sppgpenarukan2.id/api/health`
+
+Resource cap: **0.3 CPU / 512 MB**. Detail: `sales/docs/DEPLOY-VPS.md` §9.2.
+
+---
+
 ## Sync Menu Minggu Ini ← Inventory
 
-Portal bisa mengisi **Menu Minggu Ini** dari **Rencana Produksi** Inventory (`GET /api/fp-public/plans`).
+Portal mengisi **Menu Minggu Ini** dari **Rencana Produksi** Inventory (`GET /api/fp-public/plans`). Nama resep memakai `recipeNama` (fallback `menuNama` legacy).
 
 1. Di Inventory: buat API key dengan scope `food-production:read` (Utiliti → API Keys).
-2. Di portal `.env` / Vercel env:
+2. Di portal `.env` / Vercel / VPS (`PORTAL_INVENTORY_*` di sales compose):
 
 ```bash
-INVENTORY_APP_URL="http://localhost:3001"   # atau URL inventory production
+INVENTORY_APP_URL="http://localhost:3001"       # lokal — atau http://43.157.226.71:3001 untuk VPS
 INVENTORY_API_KEY="sk_..."
-# INVENTORY_KITCHEN_ID=""                   # opsional
+# INVENTORY_KITCHEN_ID=""                       # opsional
 ```
 
 3. Admin → **Kelola Menu** → **Sync semua dari Inventory**, atau per kategori → **Dari Inventory**.
 
-Mapping kategori: `PORSI_KECIL`/`PORSI_BESAR` sama; `POSYANDU_BUMIL_BUSUI` → Ibu Hamil; `POSYANDU_BALITA` → Balita. Status `DRAFT`/`CANCELLED` dilewati.
+- Rentang default: **minggu ini + minggu depan** (14 hari dari Senin, Asia/Jakarta).
+- Status yang di-sync: `APPROVED` / `PROCESSING` / `COMPLETED` (Draft, Diajukan, Dibatalkan dilewati).
+- Mapping: `PORSI_KECIL`/`PORSI_BESAR` sama; `POSYANDU_BUMIL_BUSUI` → Ibu Hamil; `POSYANDU_BALITA` → Balita.
+- Setelah sync: `MenuItem` yang tidak ada di hasil sync dinonaktifkan (favorit seed/mock hilang dari UI).
 
 ---
 

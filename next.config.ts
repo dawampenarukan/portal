@@ -3,6 +3,8 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 
 /** `npm run analyze` → set ANALYZE=true; laporan chunk dibuka setelah build. */
 const nextConfig: NextConfig = {
+  // Slim image for VPS Docker (sales compose profile `portal`)
+  output: "standalone",
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
