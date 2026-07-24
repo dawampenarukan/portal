@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { PublicationActions } from "@/components/admin/publication-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaginationNav } from "@/components/admin/pagination-nav";
@@ -50,11 +51,7 @@ export async function AdminPublikasiList({ page }: { page: number }) {
             <CardContent>
               <p className="text-sm text-primary">{pub.period}</p>
               <p className="mt-2 text-sm text-muted-foreground">{pub.summary}</p>
-              <Link href={`/admin/publikasi/${pub.id}/edit`} prefetch={false}>
-                <Button variant="outline" size="sm" className="mt-4">
-                  Edit
-                </Button>
-              </Link>
+              <PublicationActions publicationId={pub.id} title={pub.title} />
             </CardContent>
           </Card>
         ))}
