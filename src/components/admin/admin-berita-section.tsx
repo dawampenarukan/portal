@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
+import { ArticleActions } from "@/components/admin/article-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PaginationNav } from "@/components/admin/pagination-nav";
+import { auth } from "@/auth";
+import { isFullAdminRole } from "@/lib/roles";
 import { getAdminArticlesList } from "@/lib/queries";
 
 const statusVariant: Record<string, "success" | "secondary" | "outline"> = {
@@ -19,7 +22,9 @@ const statusLabel: Record<string, string> = {
 };
 
 export async function AdminBeritaList({ page }: { page: number }) {
-  const { items: articles, total } = await getAdminArticlesList(page);
+  const [list, session] = await Promise.all([getAdminArticlesList(page), auth()]);
+  const { items: articles, total } = list;
+  const canDelete = isFullAdminRole(session?.user?.role);
 
   return (
     <Card>
@@ -41,15 +46,14 @@ export async function AdminBeritaList({ page }: { page: number }) {
                 </Badge>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{article.category}</p>
-              <Link
-                href={`/admin/berita/${article.id}/edit`}
-                prefetch={false}
-                className="mt-3 inline-block"
-              >
-                <Button variant="outline" size="sm" className="min-h-11">
-                  Edit
-                </Button>
-              </Link>
+              <div className="mt-3">
+                <ArticleActions
+                  articleId={article.id}
+                  title={article.title}
+                  canDelete={canDelete}
+                  compact
+                />
+              </div>
             </div>
           ))}
           {articles.length === 0 && (
@@ -83,11 +87,11 @@ export async function AdminBeritaList({ page }: { page: number }) {
                     </Badge>
                   </td>
                   <td className="py-3">
-                    <Link href={`/admin/berita/${article.id}/edit`} prefetch={false}>
-                      <Button variant="ghost" size="sm">
-                        Edit
-                      </Button>
-                    </Link>
+                    <ArticleActions
+                      articleId={article.id}
+                      title={article.title}
+                      canDelete={canDelete}
+                    />
                   </td>
                 </tr>
               ))}

@@ -169,12 +169,12 @@ Setelah mengubah `prisma/schema.prisma`:
 
 ```bash
 # Buat .env.neon berisi DATABASE_URL + DIRECT_URL Neon (Reveal dari dashboard)
-set -a && source .env.neon && set +a
 npm run db:deploy
-# Kembali ke lokal: npm run env:local   (hapus .env.neon / .env.local)
+# Skrip otomatis memakai .env.neon (bukan Postgres lokal).
+# Pastikan log menampilkan host neon.tech, bukan localhost.
 ```
 
-Atau: `npm run env:pull` (menulis `.env.neon`) lalu `db:deploy` — jika CLI memberi `[SENSITIVE]`, isi manual dari Neon Console.
+Atau: `npm run env:pull` lalu `db:deploy` — jika CLI memberi `[SENSITIVE]`, isi manual dari Neon Console.
 
 Schema organoleptik **tidak** di-ALTER saat request runtime (demi performa cold start). Setelah ubah `schema.prisma`, sync lewat `npm run db:deploy` atau tombol schema-sync di `/admin/akun` (super admin).
 
