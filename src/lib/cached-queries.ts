@@ -128,7 +128,10 @@ export const getSurveyDataCached = unstable_cache(
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG, PUBLICATIONS_TAG] }
 );
 
-/** Homepage: hanya chartData tersimpan — tanpa aggregate responses live. */
+/**
+ * Homepage: prefer chartData tersimpan; getLiveSurveyData akan repair
+ * otomatis jika chart stale (responden > 0 tapi skor rating 0).
+ */
 export const getHomeSurveyDataCached = unstable_cache(
   () =>
     safeQuery(
@@ -136,7 +139,7 @@ export const getHomeSurveyDataCached = unstable_cache(
       EMPTY_SURVEY_DATA,
       "getHomeSurveyData"
     ),
-  ["home-survey-chart-only-v1"],
+  ["home-survey-chart-v2"],
   { revalidate: REVALIDATE_PUBLIC, tags: [PUBLIC_DATA_TAG, SURVEY_TAG, PUBLICATIONS_TAG] }
 );
 

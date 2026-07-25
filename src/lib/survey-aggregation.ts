@@ -45,6 +45,76 @@ export function parseStoredChartData(data: unknown): SurveyDataView | null {
   };
 }
 
+/** Ada data responden + struktur aspek (hasil aggregate/sync sungguhan). */
+export function isUsableSurveyChart(data: SurveyDataView | null | undefined): boolean {
+  return Boolean(data && data.respondents > 0 && data.aspects.length > 0);
+}
+
+/** chart belum lengkap — perlu hitung ulang dari jawaban survey. */
+export function needsChartRepair(data: SurveyDataView | null | undefined): boolean {
+  if (!data || data.respondents <= 0) return true;
+  return data.aspects.length === 0;
+}
+
+function hasRatingSignal(data: SurveyDataView): boolean {
+  return data.satisfactionScore > 0 || data.aspects.some((a) => a.score > 0);
+}
+
+async function persistRepairedChart(publicationId: string, chartData: SurveyDataView) {
+  await prisma.publication.update({
+    where: { id: publicationId },
+    data: {
+      chartData: chartData as unknown as Prisma.InputJsonValue,
+      summary: buildSurveySummary(chartData),
+    },
+  });
+}
+
+async function resolvePublicationSurveyData(pub: {
+  id: string;
+  chartData: unknown;
+  surveyId: string | null;
+}): Promise<SurveyDataView | null> {
+  const stored = parseStoredChartData(pub.chartData);
+
+  // Chart lengkap + skor rating sudah ada → pakai tersimpan (cepat untuk homepage)
+  if (stored && isUsableSurveyChart(stored) && hasRatingSignal(stored)) {
+    return stored;
+  }
+
+  // Chart lengkap tapi skor 0 (aggregate sudah jalan, jawaban memang kosong/invalid)
+  if (stored && isUsableSurveyChart(stored) && !needsChartRepair(stored)) {
+    if (!pub.surveyId) return stored;
+    // Satu kali coba live: jika jawaban baru sudah ada skor, perbarui
+    const live = await aggregateSurveyResults(pub.surveyId);
+    if (hasRatingSignal(live) || live.respondents !== stored.respondents) {
+      try {
+        await persistRepairedChart(pub.id, live);
+      } catch (err) {
+        console.error("[survey:repair-chart]", err);
+      }
+      return live;
+    }
+    return stored;
+  }
+
+  if (!pub.surveyId) {
+    return isUsableSurveyChart(stored) ? stored : null;
+  }
+
+  const live = await aggregateSurveyResults(pub.surveyId);
+  if (live.respondents <= 0) {
+    return isUsableSurveyChart(stored) ? stored : null;
+  }
+
+  try {
+    await persistRepairedChart(pub.id, live);
+  } catch (err) {
+    console.error("[survey:repair-chart]", err);
+  }
+  return live;
+}
+
 export function buildSurveySummary(chartData: SurveyDataView): string {
   if (chartData.respondents === 0) {
     return "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.";
@@ -256,20 +326,24 @@ export async function getLiveSurveyData(options?: {
   const publishedPub = await prisma.publication.findFirst({
     where: { isPublished: true, type: PublicationType.SURVEY_RESULT },
     orderBy: { publishedAt: "desc" },
-    select: { chartData: true },
+    select: { id: true, chartData: true, surveyId: true },
   });
 
-  const fromPublished = parseStoredChartData(publishedPub?.chartData);
-  if (fromPublished && fromPublished.respondents > 0) return fromPublished;
+  if (publishedPub) {
+    const resolved = await resolvePublicationSurveyData(publishedPub);
+    if (resolved) return resolved;
+  }
 
   const latestPub = await prisma.publication.findFirst({
     where: { type: PublicationType.SURVEY_RESULT },
     orderBy: { updatedAt: "desc" },
-    select: { chartData: true },
+    select: { id: true, chartData: true, surveyId: true },
   });
 
-  const fromLatest = parseStoredChartData(latestPub?.chartData);
-  if (fromLatest && fromLatest.respondents > 0) return fromLatest;
+  if (latestPub && latestPub.id !== publishedPub?.id) {
+    const resolved = await resolvePublicationSurveyData(latestPub);
+    if (resolved) return resolved;
+  }
 
   if (!allowLiveAggregate) return null;
 

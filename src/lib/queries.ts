@@ -23,7 +23,9 @@ import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { FALLBACK_TRENDING_TOPICS } from "@/lib/trending-topics";
 import {
   buildSurveySummary,
+  aggregateSurveyResults,
   getLiveSurveyData,
+  needsChartRepair,
   parseStoredChartData,
   resolveSurveyIdFromPublicationSlug,
 } from "@/lib/survey-aggregation";
@@ -528,21 +530,27 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
     prisma.survey.findMany({ select: { id: true, title: true } }),
   ]);
 
-  return pubs.map((pub) => {
-    const mapped = mapPublicationAdmin(pub);
-    const surveyId =
-      pub.surveyId ??
-      (pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null);
-    const chartData = parseStoredChartData(pub.chartData);
+  return Promise.all(
+    pubs.map(async (pub) => {
+      const mapped = mapPublicationAdmin(pub);
+      const surveyId =
+        pub.surveyId ??
+        (pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null);
+      let chartData = parseStoredChartData(pub.chartData);
 
-    return {
-      ...mapped,
-      summary: chartData ? buildSurveySummary(chartData) : mapped.summary,
-      chartData,
-      isPublished: mapped.isPublished ?? false,
-      surveyId,
-    };
-  });
+      if (surveyId && needsChartRepair(chartData)) {
+        chartData = await aggregateSurveyResults(surveyId);
+      }
+
+      return {
+        ...mapped,
+        summary: chartData ? buildSurveySummary(chartData) : mapped.summary,
+        chartData,
+        isPublished: mapped.isPublished ?? false,
+        surveyId,
+      };
+    })
+  );
 }
 
 export async function getPerformancePublications(): Promise<PublicationView[]> {
