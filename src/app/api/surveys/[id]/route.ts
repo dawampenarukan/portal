@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { ensureNpsQuestion, normalizeRespondentTarget } from "@/lib/survey-defaults";
+import { syncSurveyPublication } from "@/lib/survey-aggregation";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
@@ -62,7 +63,24 @@ export async function PATCH(request: Request, { params }: Params) {
       include: { questions: { orderBy: { order: "asc" } } },
     });
 
-    revalidatePublicContent({ survey: true });
+    // Jika sudah punya publikasi hasil, sync ulang (judul/slug/chart ikut)
+    let hasLinkedPublication = false;
+    try {
+      hasLinkedPublication = Boolean(
+        await prisma.publication.findFirst({
+          where: { surveyId: id },
+          select: { id: true },
+        })
+      );
+    } catch {
+      hasLinkedPublication = false;
+    }
+    if (hasLinkedPublication) {
+      await syncSurveyPublication(id);
+      revalidatePublicContent({ survey: true, publications: true });
+    } else {
+      revalidatePublicContent({ survey: true });
+    }
 
     return NextResponse.json(survey);
   } catch {

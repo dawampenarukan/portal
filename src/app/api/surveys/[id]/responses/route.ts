@@ -46,16 +46,18 @@ export async function POST(request: Request, { params }: Params) {
       },
     });
 
-    const surveyTitle = survey.title;
-
     // Sync publikasi + revalidate setelah response dikirim — tidak blokir submit.
     after(async () => {
       try {
         const published = await prisma.publication.findFirst({
           where: {
-            slug: buildSurveyPublicationSlug(surveyTitle),
             type: PublicationType.SURVEY_RESULT,
             isPublished: true,
+            OR: [
+              { surveyId: id },
+              // fallback data lama sebelum backfill surveyId
+              { slug: buildSurveyPublicationSlug(survey.title), surveyId: null },
+            ],
           },
           select: { id: true },
         });

@@ -125,6 +125,9 @@ model Publication {
   chartData   Json?
   isPublished Boolean         @default(false)
   publishedAt DateTime?
+  /// FK ke Survey untuk tipe SURVEY_RESULT (satu survey → satu publikasi hasil)
+  surveyId    String?         @unique
+  survey      Survey?         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 }
@@ -156,6 +159,7 @@ model Survey {
   updatedAt        DateTime         @updatedAt
   questions        SurveyQuestion[]
   responses        SurveyResponse[]
+  publication      Publication?
 }
 
 model SurveyQuestion {

@@ -1,0 +1,31 @@
+
+> portal@0.1.0 dev
+> node scripts/check-node.mjs && next dev
+
+▲ Next.js 16.2.7 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.255.255.254:3000
+- Environments: .env
+✓ Ready in 880ms
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+- Experiments (use with caution):
+  · optimizePackageImports
+
+[browser] ⨯ unhandledRejection: ChunkLoadError: Loading chunk app-pages-internals failed.
+(error: http://localhost:3000/_next/static/chunks/app-pages-internals.js)
+    at __webpack_require__.f.j (file:///home/sdwianto/Assignment/penarukan2/portal/.next/dev/static/chunks/webpack.js?v=1784732385996:865:29)
+    at <unknown> (file:///home/sdwianto/Assignment/penarukan2/portal/.next/dev/static/chunks/webpack.js?v=1784732385996:145:40)
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (file:///home/sdwianto/Assignment/penarukan2/portal/.next/dev/static/chunks/webpack.js?v=1784732385996:144:67)
+    at fn.e (file:///home/sdwianto/Assignment/penarukan2/portal/.next/dev/static/chunks/webpack.js?v=1784732385996:381:50)
+    at loadChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:125:34)
+    at preloadModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:94:31)
+    at resolveModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2951:20)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:4384:11)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:4379:7)
+    at processBinaryChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:4602:19)
+    at progress (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:4933:9)
+ GET / 200 in 2.8s (next.js: 1054ms, application-code: 1722ms)
+ GET / 200 in 263ms (next.js: 9ms, application-code: 254ms)
+ GET / 200 in 515ms (next.js: 9ms, application-code: 506ms)
+[?25h

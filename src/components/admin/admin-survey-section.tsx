@@ -61,7 +61,11 @@ export async function AdminSurveyList({ page }: { page: number }) {
               </Badge>
             </div>
             <div className="mt-4">
-              <SurveyActions surveyId={survey.id} />
+              <SurveyActions
+                surveyId={survey.id}
+                publicationId={survey.publication?.id ?? null}
+                publicationPublished={survey.publication?.isPublished ?? false}
+              />
             </div>
           </div>
         ))}

@@ -26,6 +26,12 @@ export async function POST(request: Request) {
       return badRequest("Judul, konten, tipe, dan periode wajib diisi");
     }
 
+    if (type === PublicationType.SURVEY_RESULT) {
+      return badRequest(
+        "Hasil Survey tidak dibuat manual. Gunakan Kelola Survey → Tampilkan di Portal."
+      );
+    }
+
     const pub = await prisma.publication.create({
       data: {
         title: (title as string).trim(),
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
         content: content as string,
         type: type as PublicationType,
         period: (period as string).trim(),
-        chartData: type === PublicationType.SURVEY_RESULT ? undefined : (chartData ?? undefined),
+        chartData: chartData ?? undefined,
         isPublished: Boolean(isPublished),
         publishedAt: isPublished ? (publishedAt ? new Date(publishedAt as string) : new Date()) : null,
       },

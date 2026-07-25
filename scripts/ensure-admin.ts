@@ -89,6 +89,7 @@ async function main() {
   }
 
   console.log(`\nSelesai: ${ORGANOLEPTIC_PIC_SEEDS.length} akun PIC + admin/entri contoh.`);
+  console.log("Tip: npm run db:link-survey-pubs  → tautkan publikasi hasil survey lama.");
 }
 
 main()

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { PublicationActions } from "@/components/admin/publication-actions";
 import { PublicationForm } from "@/components/admin/publication-form";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PaginationNav } from "@/components/admin/pagination-nav";
@@ -106,11 +107,27 @@ export async function AdminPublikasiList({ page }: { page: number }) {
         {publications.map((pub) => (
           <Card key={pub.id}>
             <CardHeader>
-              <CardTitle className="text-base">{pub.title}</CardTitle>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <CardTitle className="text-base">{pub.title}</CardTitle>
+                {pub.type === "survey" && (
+                  <Badge variant={pub.surveyId ? "success" : "outline"}>
+                    {pub.surveyId ? "Taut survey" : "Hasil survey"}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-primary">{pub.period}</p>
               <p className="mt-2 text-sm text-muted-foreground">{pub.summary}</p>
+              {pub.type === "survey" && pub.surveyId && (
+                <Link
+                  href={`/admin/survey/${pub.surveyId}/edit`}
+                  prefetch={false}
+                  className="mt-2 inline-block text-xs text-primary hover:underline"
+                >
+                  Buka survey sumber →
+                </Link>
+              )}
               <PublicationActions publicationId={pub.id} title={pub.title} />
             </CardContent>
           </Card>
@@ -127,7 +144,8 @@ export function AdminPublikasiHeader() {
       <div className="min-w-0">
         <h2 className="text-2xl font-bold">Publikasi Hasil</h2>
         <p className="text-muted-foreground">
-          Kelola laporan kinerja dan hasil survey yang ditampilkan di beranda.
+          Laporan kinerja & infografis dibuat di sini. Hasil survey dipublikasikan dari Kelola
+          Survey → Tampilkan di Portal.
         </p>
       </div>
       <Link href="/admin/publikasi?buat=1" prefetch={false} className="shrink-0">

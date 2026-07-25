@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
+import { PublicationType } from "@prisma/client";
+import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
@@ -27,23 +28,37 @@ export async function PATCH(request: Request, { params }: Params) {
     const existing = await prisma.publication.findUnique({ where: { id } });
     if (!existing) return notFound();
 
+    const nextType = (body.type ?? existing.type) as PublicationType;
+    if (
+      existing.type !== PublicationType.SURVEY_RESULT &&
+      nextType === PublicationType.SURVEY_RESULT
+    ) {
+      return badRequest(
+        "Tidak bisa mengubah tipe menjadi Hasil Survey. Gunakan Kelola Survey → Tampilkan di Portal."
+      );
+    }
+
+    const isSurveyResult = existing.type === PublicationType.SURVEY_RESULT;
     const isPublished = body.isPublished !== undefined ? Boolean(body.isPublished) : existing.isPublished;
 
     const pub = await prisma.publication.update({
       where: { id },
       data: {
         title: body.title?.trim() ?? existing.title,
-        slug: body.slug?.trim() || (body.title ? slugify(body.title) : existing.slug),
+        slug: isSurveyResult
+          ? existing.slug
+          : body.slug?.trim() || (body.title ? slugify(body.title) : existing.slug),
         summary: body.summary !== undefined ? body.summary?.trim() || null : existing.summary,
         content: body.content ?? existing.content,
-        type: body.type ?? existing.type,
+        type: isSurveyResult ? PublicationType.SURVEY_RESULT : nextType,
         period: body.period?.trim() ?? existing.period,
-        chartData:
-          (body.type ?? existing.type) === "SURVEY_RESULT"
-            ? existing.chartData
-            : body.chartData !== undefined
-              ? body.chartData
-              : existing.chartData,
+        // chartData + surveyId dikelola sync Survey — jangan ditimpa/diputus
+        chartData: isSurveyResult
+          ? existing.chartData
+          : body.chartData !== undefined
+            ? body.chartData
+            : existing.chartData,
+        surveyId: existing.surveyId,
         isPublished,
         publishedAt: isPublished
           ? body.publishedAt

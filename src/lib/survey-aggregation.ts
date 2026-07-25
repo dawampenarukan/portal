@@ -192,18 +192,36 @@ export async function syncSurveyPublication(
   const period = new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" });
   const slug = buildSurveyPublicationSlug(survey.title);
   const summary = buildSurveySummary(chartData);
+  const title = `Hasil Survey: ${survey.title}`;
+  const content = `Ringkasan hasil survey ${survey.title}. Skor diperbarui otomatis dari jawaban responden.`;
 
-  const existing = await prisma.publication.findFirst({
-    where: { slug, type: PublicationType.SURVEY_RESULT },
+  // Kunci relasi: surveyId. Fallback slug untuk data lama sebelum migrasi.
+  let existing = await prisma.publication.findUnique({
+    where: { surveyId },
   });
+  if (!existing) {
+    existing = await prisma.publication.findFirst({
+      where: { slug, type: PublicationType.SURVEY_RESULT },
+    });
+  }
 
   if (existing) {
+    // Hindari bentrok unique slug jika judul diganti
+    const slugTaken = await prisma.publication.findFirst({
+      where: { slug, NOT: { id: existing.id } },
+      select: { id: true },
+    });
     await prisma.publication.update({
       where: { id: existing.id },
       data: {
-        title: `Hasil Survey: ${survey.title}`,
+        title,
+        slug: slugTaken ? existing.slug : slug,
         summary,
+        content,
+        period: existing.period || period,
         chartData: chartDataJson,
+        surveyId,
+        type: PublicationType.SURVEY_RESULT,
         ...(publish || existing.isPublished
           ? { isPublished: true, publishedAt: existing.publishedAt ?? new Date() }
           : {}),
@@ -212,13 +230,14 @@ export async function syncSurveyPublication(
   } else {
     await prisma.publication.create({
       data: {
-        title: `Hasil Survey: ${survey.title}`,
+        title,
         slug,
         period,
         type: PublicationType.SURVEY_RESULT,
         summary,
-        content: `Ringkasan hasil survey ${survey.title}. Skor diperbarui otomatis dari jawaban responden.`,
+        content,
         chartData: chartDataJson,
+        surveyId,
         isPublished: publish,
         publishedAt: publish ? new Date() : null,
       },
@@ -277,11 +296,18 @@ export async function getLiveSurveyData(options?: {
 }
 
 export async function getLiveSurveyDataForPublication(
-  publicationSlug: string | null | undefined,
-  surveys: { id: string; title: string }[]
+  publication: {
+    surveyId?: string | null;
+    slug?: string | null;
+  } | null | undefined,
+  surveys: { id: string; title: string }[] = []
 ): Promise<SurveyDataView | null> {
-  if (!publicationSlug) return null;
-  const surveyId = resolveSurveyIdFromPublicationSlug(publicationSlug, surveys);
+  if (!publication) return null;
+  if (publication.surveyId) {
+    return aggregateSurveyResults(publication.surveyId);
+  }
+  if (!publication.slug) return null;
+  const surveyId = resolveSurveyIdFromPublicationSlug(publication.slug, surveys);
   if (!surveyId) return null;
   return aggregateSurveyResults(surveyId);
 }

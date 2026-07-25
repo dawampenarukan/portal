@@ -44,6 +44,7 @@ export interface PublicationView {
   slug?: string;
   chartData?: SurveyDataView | null;
   isPublished?: boolean;
+  surveyId?: string | null;
 }
 
 export interface SurveyPublicationView extends PublicationView {

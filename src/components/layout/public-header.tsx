@@ -86,7 +86,7 @@ export function PublicHeader({ organolepticNotices = null }: PublicHeaderProps) 
             prefetch={false}
             className='hidden rounded-full bg-muted px-4 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-secondary-foreground md:inline-flex'
           >
-            Admin
+            Login
           </Link>
           <button
             type='button'
@@ -153,7 +153,7 @@ export function PublicHeader({ organolepticNotices = null }: PublicHeaderProps) 
               className='flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold hover:bg-accent'
             >
               <span>🔐</span>
-              Admin
+              Login
             </Link>
           </div>
         </nav>

@@ -422,6 +422,7 @@ function mapPublicationAdmin(pub: {
   content: string;
   chartData: unknown;
   isPublished: boolean;
+  surveyId?: string | null;
 }): PublicationView {
   const typeMap: Record<PublicationType, string> = {
     SURVEY_RESULT: "survey",
@@ -439,6 +440,7 @@ function mapPublicationAdmin(pub: {
     content: pub.content,
     chartData: pub.chartData as unknown as SurveyDataView | null,
     isPublished: pub.isPublished,
+    surveyId: pub.surveyId ?? null,
   };
 }
 
@@ -453,6 +455,7 @@ export async function getAllPublications(): Promise<PublicationView[]> {
       type: true,
       summary: true,
       isPublished: true,
+      surveyId: true,
     },
   });
   return pubs.map((pub) =>
@@ -481,6 +484,7 @@ export async function getAdminPublicationsList(page = 1) {
         summary: true,
         type: true,
         isPublished: true,
+        surveyId: true,
       },
       orderBy: { updatedAt: "desc" },
       skip,
@@ -498,6 +502,7 @@ export async function getAdminPublicationsList(page = 1) {
       type: typeMap[pub.type],
       summary: pub.summary ?? "",
       isPublished: pub.isPublished,
+      surveyId: pub.surveyId ?? null,
     })),
   };
 }
@@ -517,6 +522,7 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
         content: true,
         chartData: true,
         isPublished: true,
+        surveyId: true,
       },
     }),
     prisma.survey.findMany({ select: { id: true, title: true } }),
@@ -524,7 +530,9 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
 
   return pubs.map((pub) => {
     const mapped = mapPublicationAdmin(pub);
-    const surveyId = pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null;
+    const surveyId =
+      pub.surveyId ??
+      (pub.slug ? resolveSurveyIdFromPublicationSlug(pub.slug, surveys) : null);
     const chartData = parseStoredChartData(pub.chartData);
 
     return {
@@ -566,6 +574,7 @@ export async function getPublicationById(id: string): Promise<PublicationView | 
         content: true,
         chartData: true,
         isPublished: true,
+        surveyId: true,
       },
     });
     return pub ? mapPublicationAdmin(pub) : null;
@@ -1084,7 +1093,36 @@ export async function getAdminSurveysList(page = 1) {
     prisma.survey.count(),
   ]);
 
-  return { total, items: surveys };
+  const pubBySurveyId = new Map<string, { id: string; isPublished: boolean }>();
+  if (surveys.length > 0) {
+    try {
+      const pubs = await prisma.publication.findMany({
+        where: {
+          type: PublicationType.SURVEY_RESULT,
+          surveyId: { in: surveys.map((s) => s.id) },
+        },
+        select: { id: true, surveyId: true, isPublished: true },
+      });
+      for (const pub of pubs) {
+        if (pub.surveyId) {
+          pubBySurveyId.set(pub.surveyId, {
+            id: pub.id,
+            isPublished: pub.isPublished,
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[getAdminSurveysList] publication link:", err);
+    }
+  }
+
+  return {
+    total,
+    items: surveys.map((survey) => ({
+      ...survey,
+      publication: pubBySurveyId.get(survey.id) ?? null,
+    })),
+  };
 }
 
 export async function getActiveSurveySummaries() {

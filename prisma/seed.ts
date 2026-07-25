@@ -265,29 +265,17 @@ async function main() {
     ],
   });
 
-  await prisma.publication.createMany({
-    data: [
-      {
-        title: "Laporan Kinerja Q2 2026",
-        slug: "laporan-kinerja-q2-2026",
-        period: "Triwulan II 2026",
-        type: PublicationType.PERFORMANCE_REPORT,
-        summary: "Capaian distribusi 98%, kepuasan pelanggan meningkat 12%.",
-        content: "Laporan kinerja triwulan II 2026 SPPG Penarukan 2.",
-        isPublished: true,
-        publishedAt: new Date(),
-      },
-      {
-        title: "Hasil Survey Kepuasan Juni 2026",
-        slug: "hasil-survey-survey-kepuasan-pelanggan-juni-2026",
-        period: "Juni 2026",
-        type: PublicationType.SURVEY_RESULT,
-        summary: "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.",
-        content: "Ringkasan hasil survey kepuasan Juni 2026.",
-        isPublished: true,
-        publishedAt: new Date(),
-      },
-    ],
+  await prisma.publication.create({
+    data: {
+      title: "Laporan Kinerja Q2 2026",
+      slug: "laporan-kinerja-q2-2026",
+      period: "Triwulan II 2026",
+      type: PublicationType.PERFORMANCE_REPORT,
+      summary: "Capaian distribusi 98%, kepuasan pelanggan meningkat 12%.",
+      content: "Laporan kinerja triwulan II 2026 SPPG Penarukan 2.",
+      isPublished: true,
+      publishedAt: new Date(),
+    },
   });
 
   for (const [category, data] of Object.entries(menuSeed)) {
@@ -308,7 +296,7 @@ async function main() {
     });
   }
 
-  await prisma.survey.create({
+  const seededSurvey = await prisma.survey.create({
     data: {
       title: surveySeedTitle,
       description: "Bantu kami meningkatkan layanan dengan mengisi survey kepuasan ini.",
@@ -324,6 +312,20 @@ async function main() {
           { question: "Seberapa mungkin Anda merekomendasikan SPPG?", type: "nps", order: 5 },
         ],
       },
+    },
+  });
+
+  await prisma.publication.create({
+    data: {
+      title: "Hasil Survey Kepuasan Juni 2026",
+      slug: "hasil-survey-survey-kepuasan-pelanggan-juni-2026",
+      period: "Juni 2026",
+      type: PublicationType.SURVEY_RESULT,
+      summary: "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.",
+      content: "Ringkasan hasil survey kepuasan Juni 2026.",
+      isPublished: true,
+      publishedAt: new Date(),
+      surveyId: seededSurvey.id,
     },
   });
 
