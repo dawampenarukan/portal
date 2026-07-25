@@ -27,6 +27,8 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [schoolLocation, setSchoolLocation] = useState("");
   const [role, setRole] = useState<ManageableUserRole>(USER_ROLE_ORGANOLEPTIC_ENTRY);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -35,6 +37,8 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
   const [savingPasswordId, setSavingPasswordId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  const isEntryRole = role === USER_ROLE_ORGANOLEPTIC_ENTRY;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -45,7 +49,14 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role }),
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+        role,
+        phone,
+        schoolLocation,
+      }),
     });
 
     setSubmitting(false);
@@ -60,6 +71,8 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
     setName("");
     setEmail("");
     setPassword("");
+    setPhone("");
+    setSchoolLocation("");
     setRole(USER_ROLE_ORGANOLEPTIC_ENTRY);
     setSuccess("Akun berhasil ditambahkan");
     router.refresh();
@@ -132,7 +145,7 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
 
   return (
     <div className="space-y-6">
-      <form onSubmit={handleCreate} className="rounded-2xl border bg-card p-5 shadow-sm space-y-4">
+      <form onSubmit={handleCreate} className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
         <h3 className="font-semibold">Tambah Akun Baru</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -169,6 +182,26 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
               </option>
             </Select>
           </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">No. Telp</label>
+            <Input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+62 8xx-xxxx-xxxx"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Sekolah / Posyandu{isEntryRole ? " *" : ""}
+            </label>
+            <Input
+              value={schoolLocation}
+              onChange={(e) => setSchoolLocation(e.target.value)}
+              required={isEntryRole}
+              placeholder="Contoh: SDN 1 Tegalsari / Anggrek 1"
+            />
+          </div>
         </div>
         {error && !passwordEditId && <p className="text-sm text-destructive">{error}</p>}
         {success && !passwordEditId && <p className="text-sm text-primary">{success}</p>}
@@ -193,12 +226,23 @@ export function UserAccountsManager({ initialUsers, currentUserId }: UserAccount
             return (
               <div
                 key={user.id}
-                className="rounded-2xl border bg-card p-4 shadow-sm space-y-3"
+                className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-semibold">{user.name}</p>
                     <p className="text-sm text-muted-foreground">{user.email}</p>
+                    {(user.phone || user.schoolLocation) && (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {user.phone && <span>{user.phone}</span>}
+                        {user.phone && user.schoolLocation && <span> · </span>}
+                        {user.schoolLocation && (
+                          <span className="font-medium text-foreground/80">
+                            {user.schoolLocation}
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-muted-foreground">
                       Dibuat {formatDate(user.createdAt)}
                     </p>

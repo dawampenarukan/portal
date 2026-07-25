@@ -9,14 +9,21 @@ import type { HeaderForm } from "@/components/admin/organoleptic-form-types";
 interface Props {
   header: HeaderForm;
   readOnly: boolean;
+  /** Kunci nama pemeriksa + tempat dari profil akun login. */
+  lockProfileFields?: boolean;
+  profilePhone?: string | null;
   onChange: (patch: Partial<HeaderForm>) => void;
 }
 
 export function OrganolepticFormHeaderSection({
   header,
   readOnly,
+  lockProfileFields = false,
+  profilePhone,
   onChange,
 }: Props) {
+  const profileLocked = readOnly || lockProfileFields;
+
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div>
@@ -25,9 +32,16 @@ export function OrganolepticFormHeaderSection({
           value={header.inspectorName}
           onChange={(e) => onChange({ inspectorName: e.target.value })}
           required
-          disabled={readOnly}
+          disabled={profileLocked}
+          readOnly={lockProfileFields && !readOnly}
           placeholder="Nama asisten lapangan / pemeriksa"
         />
+        {lockProfileFields && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Otomatis dari akun login
+            {profilePhone ? ` · ${profilePhone}` : ""}
+          </p>
+        )}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">
@@ -38,7 +52,7 @@ export function OrganolepticFormHeaderSection({
           onChange={(e) =>
             onChange({ placeType: e.target.value as HeaderForm["placeType"] })
           }
-          disabled={readOnly}
+          disabled={profileLocked}
         >
           {Object.entries(ORGANOLEPTIC_PLACE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -55,9 +69,15 @@ export function OrganolepticFormHeaderSection({
           value={header.placeName}
           onChange={(e) => onChange({ placeName: e.target.value })}
           required
-          disabled={readOnly}
+          disabled={profileLocked}
+          readOnly={lockProfileFields && !readOnly}
           placeholder="Nama sekolah / posyandu"
         />
+        {lockProfileFields && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Otomatis dari Sekolah/Posyandu akun
+          </p>
+        )}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">Waktu Uji</label>

@@ -32,12 +32,22 @@ export async function POST(request: Request) {
     const name = typeof body.name === "string" ? body.name : "";
     const password = typeof body.password === "string" ? body.password : "";
     const role = typeof body.role === "string" ? body.role : "";
+    const phone = typeof body.phone === "string" ? body.phone : "";
+    const schoolLocation =
+      typeof body.schoolLocation === "string" ? body.schoolLocation : "";
 
     if (!isManageableUserRole(role)) {
       return badRequest("Role harus Admin atau Entri Organoleptik");
     }
 
-    const user = await createManageableUser({ email, name, password, role });
+    const user = await createManageableUser({
+      email,
+      name,
+      password,
+      role,
+      phone,
+      schoolLocation,
+    });
     return NextResponse.json(user, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Gagal membuat akun";

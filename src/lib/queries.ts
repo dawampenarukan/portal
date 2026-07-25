@@ -553,8 +553,26 @@ export async function getPerformancePublications(): Promise<PublicationView[]> {
 }
 
 export async function getPublicationById(id: string): Promise<PublicationView | null> {
-  const pub = await prisma.publication.findUnique({ where: { id } });
-  return pub ? mapPublicationAdmin(pub) : null;
+  try {
+    const pub = await prisma.publication.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        period: true,
+        type: true,
+        summary: true,
+        content: true,
+        chartData: true,
+        isPublished: true,
+      },
+    });
+    return pub ? mapPublicationAdmin(pub) : null;
+  } catch (err) {
+    console.error("[getPublicationById]", id, err);
+    return null;
+  }
 }
 
 export async function getSurveyData(options?: {

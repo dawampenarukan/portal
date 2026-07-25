@@ -59,12 +59,16 @@ export function isRowInactive(item: ItemForm): boolean {
   return !item.foodName.trim();
 }
 
-export function defaultHeader(): HeaderForm {
+export function defaultHeader(profile?: {
+  inspectorName?: string;
+  placeName?: string;
+  placeType?: HeaderForm["placeType"];
+}): HeaderForm {
   const now = new Date();
   return {
-    inspectorName: "",
-    placeType: "SEKOLAH",
-    placeName: "",
+    inspectorName: profile?.inspectorName?.trim() || "",
+    placeType: profile?.placeType ?? "SEKOLAH",
+    placeName: profile?.placeName?.trim() || "",
     inspectionDate: formatInspectionDateInput(now),
     inspectionTime: now.toTimeString().slice(0, 5),
     timing: "SAAT_TIBA",

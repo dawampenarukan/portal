@@ -34,7 +34,7 @@ export function PublicationActions({ publicationId, title }: PublicationActionsP
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      <Link href={`/admin/publikasi/${publicationId}/edit`} prefetch={false}>
+      <Link href={`/admin/publikasi?edit=${encodeURIComponent(publicationId)}`} prefetch={false}>
         <Button variant="outline" size="sm">
           Edit
         </Button>

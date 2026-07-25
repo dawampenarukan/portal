@@ -19,8 +19,8 @@ export default async function AdminAkunPage() {
       <div>
         <h2 className="text-2xl font-bold">Kelola Akun</h2>
         <p className="text-muted-foreground">
-          Tambah, hapus, atau ubah password akun admin dan entri organoleptik. Akun entri hanya
-          bisa mengelola checklist miliknya sendiri.
+          Tambah, hapus, atau ubah password akun admin dan entri organoleptik. Isi No. Telp dan
+          Sekolah/Posyandu agar form uji organoleptik terisi otomatis saat PIC login.
         </p>
       </div>
       <Suspense fallback={<AdminCardSkeleton rows={4} />}>

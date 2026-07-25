@@ -19,7 +19,7 @@
     "db:deploy": "node scripts/run-with-direct-url.mjs npx prisma db push",
     "db:sync-production": "tsx scripts/sync-production-schema.ts",
     "db:seed": "prisma db seed",
-    "db:ensure-admin": "tsx scripts/ensure-admin.ts",
+    "db:ensure-admin": "node scripts/run-with-direct-url.mjs tsx scripts/ensure-admin.ts",
     "db:setup": "bash scripts/setup-db.sh",
     "db:studio": "prisma studio",
     "env:pull": "bash scripts/pull-vercel-env.sh",

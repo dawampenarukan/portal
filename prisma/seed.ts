@@ -112,8 +112,27 @@ async function main() {
       name: "Entri Organoleptik",
       passwordHash: entryPasswordHash,
       role: UserRole.ORGANOLEPTIC_ENTRY,
+      schoolLocation: "Contoh Lokasi",
     },
   });
+
+  const { ORGANOLEPTIC_PIC_SEEDS, picEmail, picPassword } = await import(
+    "../src/lib/organoleptic-pic-accounts"
+  );
+  for (const pic of ORGANOLEPTIC_PIC_SEEDS) {
+    const passwordHash = await bcrypt.hash(picPassword(pic.name), 10);
+    await prisma.user.create({
+      data: {
+        email: picEmail(pic.name),
+        name: pic.name,
+        passwordHash,
+        role: UserRole.ORGANOLEPTIC_ENTRY,
+        phone: pic.phone,
+        schoolLocation: pic.schoolLocation,
+      },
+    });
+  }
+  console.log(`Seeded ${ORGANOLEPTIC_PIC_SEEDS.length} akun PIC organoleptik (@sppg.com)`);
 
   const categories = await Promise.all(
     ["Berita", "Kegiatan", "Pengumuman", "Event"].map((name) =>

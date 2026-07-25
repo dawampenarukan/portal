@@ -69,23 +69,22 @@ if (command.length === 0) {
 
 const argsJoined = command.join(" ");
 const pushing = /\bdb\s+push\b/.test(argsJoined) || argsJoined.includes("db push");
+const preferNeon = existsSync(neonPath) && Boolean(fromNeon.DATABASE_URL || fromNeon.DIRECT_URL);
 
-if (pushing) {
-  if (!existsSync(neonPath)) {
-    console.error("[db:deploy] File .env.neon tidak ada.");
-    console.error("  Buat .env.neon dengan DATABASE_URL + DIRECT_URL dari Neon, lalu simpan (Ctrl+S).");
-    process.exit(1);
-  }
-  if (!fromNeon.DATABASE_URL && !fromNeon.DIRECT_URL) {
-    console.error("[db:deploy] .env.neon ada tetapi DATABASE_URL / DIRECT_URL kosong / tidak terbaca.");
-    console.error("  Simpan file, format:");
-    console.error('  DATABASE_URL="postgresql://...pooler.../neondb?sslmode=require"');
-    console.error('  DIRECT_URL="postgresql://.../neondb?sslmode=require"');
-    process.exit(1);
-  }
+// .env.neon menang untuk semua perintah lewat wrapper (deploy + ensure-admin ke production)
+if (preferNeon) {
   if (fromNeon.DATABASE_URL) env.DATABASE_URL = fromNeon.DATABASE_URL;
   if (fromNeon.DIRECT_URL) env.DIRECT_URL = fromNeon.DIRECT_URL;
   if (!env.DIRECT_URL) env.DIRECT_URL = env.DATABASE_URL;
+  console.log(
+    `[ensure-direct-url] Memakai .env.neon → ${hostHint(env.DIRECT_URL || env.DATABASE_URL || "")}`
+  );
+}
+
+if (pushing && !preferNeon) {
+  console.error("[db:deploy] File .env.neon tidak ada / URL kosong.");
+  console.error("  Buat .env.neon dengan DATABASE_URL + DIRECT_URL dari Neon, lalu simpan (Ctrl+S).");
+  process.exit(1);
 }
 
 if (!env.DIRECT_URL && env.DATABASE_URL) {

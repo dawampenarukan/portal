@@ -1,7 +1,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { OrganolepticChecklistView } from "@/lib/types";
+import type {
+  OrganolepticChecklistView,
+  OrganolepticProfileDefaults,
+} from "@/lib/types";
 
 const OrganolepticForm = dynamic(
   () =>
@@ -26,6 +29,7 @@ const OrganolepticForm = dynamic(
 interface Props {
   initialData?: OrganolepticChecklistView;
   readOnly?: boolean;
+  profileDefaults?: OrganolepticProfileDefaults | null;
 }
 
 /** Dynamic import form berat — kurangi JS awal halaman admin organoleptik. */

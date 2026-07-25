@@ -23,23 +23,40 @@ import {
   ORGANOLEPTIC_REQUIRED_ITEMS,
   deriveOrganolepticSafety,
 } from "@/lib/organoleptic-meta";
-import type { OrganolepticChecklistView } from "@/lib/types";
+import type {
+  OrganolepticChecklistView,
+  OrganolepticProfileDefaults,
+} from "@/lib/types";
 
 interface OrganolepticFormProps {
   initialData?: OrganolepticChecklistView;
   readOnly?: boolean;
+  /** Prefill + kunci field dari profil akun (mode input baru). */
+  profileDefaults?: OrganolepticProfileDefaults | null;
 }
 
 export function OrganolepticForm({
   initialData,
   readOnly = false,
+  profileDefaults = null,
 }: OrganolepticFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initial = initialData ? checklistToForm(initialData) : null;
   const [header, setHeader] = useState<HeaderForm>(
-    initial?.header ?? defaultHeader()
+    initial?.header ??
+      defaultHeader(
+        profileDefaults
+          ? {
+              inspectorName: profileDefaults.inspectorName,
+              placeName: profileDefaults.placeName,
+              placeType: profileDefaults.placeType,
+            }
+          : undefined
+      )
   );
+  const lockProfileFields =
+    !initialData && Boolean(profileDefaults?.lockFields);
   const [criticismImages, setCriticismImages] = useState<string[]>(
     initial?.criticismImages ?? []
   );
@@ -288,6 +305,8 @@ export function OrganolepticForm({
       <OrganolepticFormHeaderSection
         header={header}
         readOnly={readOnly}
+        lockProfileFields={lockProfileFields}
+        profilePhone={profileDefaults?.phone}
         onChange={patchHeader}
       />
 

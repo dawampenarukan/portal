@@ -248,7 +248,18 @@ export interface ManageableUserView {
   email: string;
   name: string;
   role: string;
+  phone: string | null;
+  schoolLocation: string | null;
   createdAt: string;
+}
+
+/** Prefill header checklist dari profil akun login. */
+export interface OrganolepticProfileDefaults {
+  inspectorName: string;
+  placeName: string;
+  placeType: "SEKOLAH" | "POSYANDU";
+  phone: string | null;
+  lockFields: boolean;
 }
 
 export interface SchemaStatus {
