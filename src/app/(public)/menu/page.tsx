@@ -8,7 +8,7 @@ export const revalidate = 30;
 export const metadata = {
   title: "Menu Favorit & Request",
   description:
-    "Lihat menu favorit dan ajukan request menu sesuai Kategori Porsi Rencana Produksi: Porsi besar, Porsi kecil, Posyandu Bumil Busui, dan Posyandu Balita.",
+    "Lihat menu favorit dan ajukan request menu sesuai Kategori Porsi Rencana Produksi: Porsi Besar Sekolah, Porsi Kecil Sekolah, Porsi Besar Posyandu, dan Porsi Kecil Posyandu.",
 };
 
 interface PageProps {
