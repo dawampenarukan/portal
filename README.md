@@ -1,3 +1,4 @@
+<!-- Vercel auto deploy test -->
 # SPPG Penarukan 2 — Portal Informasi
 
 Portal publikasi berita, event, hasil survey kepuasan, dan layanan masukan masyarakat untuk SPPG Penarukan 2.
