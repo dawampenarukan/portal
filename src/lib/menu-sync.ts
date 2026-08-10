@@ -60,3 +60,20 @@ export async function syncMenuItemsForCategory(categoryId: MenuCategoryId) {
     console.error(`[menu-sync] Gagal sinkron kategori ${categoryId}:`, err);
   }
 }
+
+/** Hapus semua MenuItem + suara (MenuItemVote cascade). Jadwal mingguan tetap. */
+export async function resetAllMenuFavorites() {
+  return prisma.$transaction(async (tx) => {
+    const clearedRequests = await tx.menuRequest.updateMany({
+      where: { menuItemId: { not: null } },
+      data: { menuItemId: null },
+    });
+
+    const deletedItems = await tx.menuItem.deleteMany({});
+
+    return {
+      deletedItems: deletedItems.count,
+      clearedRequests: clearedRequests.count,
+    };
+  });
+}

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AdminMenuOverview } from "@/components/admin/admin-menu-overview-section";
 import { AdminOrganolepticSummary } from "@/components/admin/admin-organoleptic-summary";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
+import { ResetMenuFavoritesButton } from "@/components/admin/reset-menu-favorites-button";
 import { SyncInventoryWeeklyMenuButton } from "@/components/admin/sync-inventory-weekly-menu-button";
 
 export const metadata = { title: "Kelola Menu" };
@@ -17,7 +18,10 @@ export default function AdminMenuPage() {
             pengunjung.
           </p>
         </div>
-        <SyncInventoryWeeklyMenuButton />
+        <div className="flex flex-col items-stretch gap-3 sm:items-end">
+          <SyncInventoryWeeklyMenuButton />
+          <ResetMenuFavoritesButton />
+        </div>
       </div>
 
       <Suspense fallback={<AdminCardSkeleton rows={4} />}>

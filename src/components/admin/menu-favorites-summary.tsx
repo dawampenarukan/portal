@@ -40,7 +40,7 @@ export function MenuFavoritesSummary({ items }: MenuFavoritesSummaryProps) {
         <h3 className="font-semibold">Menu Favorit (Akumulasi)</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Daftar otomatis dari jadwal mingguan. Suara ❤️ ditambahkan pengunjung di halaman
-          /menu — tidak perlu dikelola manual.
+          /menu. Reset semua kategori tersedia di halaman Kelola Menu.
         </p>
       </div>
 
