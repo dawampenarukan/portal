@@ -5,16 +5,27 @@ import {
   normalizeFoodTemplateNames,
   saveOrganolepticFoodTemplateNames,
 } from "@/lib/organoleptic-food-template";
-import { ORGANOLEPTIC_REQUIRED_ITEMS } from "@/lib/organoleptic-meta";
+import {
+  ORGANOLEPTIC_REQUIRED_ITEMS,
+  formatInspectionDateInput,
+  parseInspectionDate,
+} from "@/lib/organoleptic-meta";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 
-export async function GET() {
+export async function GET(request: Request) {
   const { error } = await requireOrganolepticAccess();
   if (error) return error;
 
   try {
-    const foodNames = await getOrganolepticFoodTemplateNames();
-    return NextResponse.json({ foodNames });
+    const dateParam = new URL(request.url).searchParams.get("date");
+    const dateStr =
+      dateParam?.trim() || formatInspectionDateInput(new Date());
+    if (!parseInspectionDate(dateStr)) {
+      return badRequest("Parameter date tidak valid (YYYY-MM-DD)");
+    }
+
+    const foodNames = await getOrganolepticFoodTemplateNames(dateStr);
+    return NextResponse.json({ menuDate: dateStr, foodNames });
   } catch (e) {
     console.error("[organoleptic/food-template GET]", e);
     return serverError("Gagal memuat template nama makanan");
@@ -27,10 +38,19 @@ export async function PUT(request: Request) {
 
   try {
     const body = (await request.json().catch(() => null)) as {
+      menuDate?: unknown;
       foodNames?: unknown;
     } | null;
     if (!body || !Array.isArray(body.foodNames)) {
       return badRequest("foodNames harus berupa array string");
+    }
+
+    const menuDate =
+      typeof body.menuDate === "string"
+        ? body.menuDate.trim()
+        : formatInspectionDateInput(new Date());
+    if (!parseInspectionDate(menuDate)) {
+      return badRequest("menuDate tidak valid (YYYY-MM-DD)");
     }
 
     const foodNames = normalizeFoodTemplateNames(body.foodNames);
@@ -44,11 +64,12 @@ export async function PUT(request: Request) {
       );
     }
 
-    const saved = await saveOrganolepticFoodTemplateNames(foodNames);
+    const saved = await saveOrganolepticFoodTemplateNames(menuDate, foodNames);
     revalidatePublicContent({ organoleptic: true });
-    return NextResponse.json({ ok: true, foodNames: saved });
+    return NextResponse.json({ ok: true, ...saved });
   } catch (e) {
     console.error("[organoleptic/food-template PUT]", e);
-    return serverError("Gagal menyimpan template nama makanan");
+    const msg = e instanceof Error ? e.message : "Gagal menyimpan template nama makanan";
+    return serverError(msg);
   }
 }

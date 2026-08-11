@@ -8,11 +8,13 @@ import {
   ORGANOLEPTIC_ITEMS_PER_PACKAGE,
   ORGANOLEPTIC_OPTIONAL_ITEM_HINT,
   ORGANOLEPTIC_REQUIRED_ITEMS,
+  formatInspectionDateInput,
   isOptionalOrganolepticRow,
 } from "@/lib/organoleptic-meta";
 import { ORGANOLEPTIK_ADMIN_BASE } from "@/lib/roles";
 
 interface Props {
+  initialMenuDate: string;
   initialFoodNames: string[];
 }
 
@@ -22,10 +24,17 @@ function padNames(names: string[]): string[] {
   return next.slice(0, ORGANOLEPTIC_ITEMS_PER_PACKAGE);
 }
 
-export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
+export function OrganolepticFoodTemplateForm({
+  initialMenuDate,
+  initialFoodNames,
+}: Props) {
   const router = useRouter();
+  const [menuDate, setMenuDate] = useState(
+    () => initialMenuDate || formatInspectionDateInput(new Date())
+  );
   const [names, setNames] = useState(() => padNames(initialFoodNames));
   const [loading, setLoading] = useState(false);
+  const [loadingDate, setLoadingDate] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function updateName(index: number, value: string) {
@@ -36,6 +45,30 @@ export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
     });
   }
 
+  async function loadForDate(nextDate: string) {
+    setMenuDate(nextDate);
+    setLoadingDate(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/organoleptic/food-template?date=${encodeURIComponent(nextDate)}`
+      );
+      const data = (await res.json()) as {
+        error?: string;
+        foodNames?: string[];
+      };
+      if (!res.ok) {
+        setError(data.error || "Gagal memuat template tanggal ini");
+        return;
+      }
+      setNames(padNames(data.foodNames ?? []));
+    } catch {
+      setError("Gagal menghubungi server");
+    } finally {
+      setLoadingDate(false);
+    }
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -44,7 +77,7 @@ export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
       const res = await fetch("/api/organoleptic/food-template", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ foodNames: names }),
+        body: JSON.stringify({ menuDate, foodNames: names }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -62,10 +95,30 @@ export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="space-y-1.5">
+        <label htmlFor="template-menu-date" className="text-sm font-medium">
+          Tanggal menu
+        </label>
+        <Input
+          id="template-menu-date"
+          type="date"
+          value={menuDate}
+          onChange={(e) => void loadForDate(e.target.value)}
+          required
+          className="max-w-xs"
+          disabled={loading || loadingDate}
+        />
+        <p className="text-xs text-muted-foreground">
+          Template ini dipakai otomatis di Input Checklist Baru bila tanggal
+          pemeriksaan sama.
+        </p>
+      </div>
+
       <p className="text-sm text-muted-foreground">
         Isi {ORGANOLEPTIC_REQUIRED_ITEMS} nama wajib (baris 1–
         {ORGANOLEPTIC_REQUIRED_ITEMS}); baris ke-{ORGANOLEPTIC_ITEMS_PER_PACKAGE}{" "}
-        opsional. Daftar ini otomatis terisi di form Input Checklist Baru.
+        opsional.
+        {loadingDate ? " Memuat template tanggal ini…" : ""}
       </p>
 
       <div className="space-y-3">
@@ -84,6 +137,7 @@ export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
               }
               maxLength={120}
               required={!isOptionalOrganolepticRow(index)}
+              disabled={loadingDate}
             />
           </div>
         ))}
@@ -95,7 +149,7 @@ export function OrganolepticFoodTemplateForm({ initialFoodNames }: Props) {
         </p>
       )}
 
-      <Button type="submit" disabled={loading}>
+      <Button type="submit" disabled={loading || loadingDate}>
         {loading ? "Menyimpan…" : "Simpan template"}
       </Button>
     </form>

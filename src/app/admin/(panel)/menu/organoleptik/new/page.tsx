@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { OrganolepticFormLoader } from "@/components/admin/organoleptic-form-loader";
 import { auth } from "@/auth";
 import { getOrganolepticFoodTemplateNames } from "@/lib/organoleptic-food-template";
+import { formatInspectionDateInput } from "@/lib/organoleptic-meta";
 import { inferOrganolepticPlaceType } from "@/lib/organoleptic-pic-accounts";
 import { isOrganolepticEntryRole } from "@/lib/roles";
 import { getUserProfileForOrganoleptic } from "@/lib/user-queries";
@@ -33,7 +34,8 @@ export default async function AdminOrganoleptikNewPage() {
     }
   }
 
-  const foodNameDefaults = await getOrganolepticFoodTemplateNames();
+  const today = formatInspectionDateInput(new Date());
+  const foodNameDefaults = await getOrganolepticFoodTemplateNames(today);
   const hasFoodTemplate = foodNameDefaults.some((n) => n.trim());
 
   return (
@@ -53,8 +55,8 @@ export default async function AdminOrganoleptikNewPage() {
             ? " Nama pemeriksa dan tempat diisi otomatis dari akun Anda."
             : ""}
           {hasFoodTemplate
-            ? " Nama makanan diisi otomatis dari template admin (bisa diubah)."
-            : ""}
+            ? " Nama makanan diisi otomatis dari template tanggal pemeriksaan."
+            : " Nama makanan mengikuti template admin sesuai tanggal pemeriksaan."}
         </p>
       </div>
 

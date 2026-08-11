@@ -1,9 +1,11 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { ORGANOLEPTIC_ITEMS_PER_PACKAGE } from "@/lib/organoleptic-meta";
-
-export const ORGANOLEPTIC_FOOD_TEMPLATE_ID = "default";
+import {
+  ORGANOLEPTIC_ITEMS_PER_PACKAGE,
+  formatInspectionDateInput,
+  parseInspectionDate,
+} from "@/lib/organoleptic-meta";
 
 export function normalizeFoodTemplateNames(raw: unknown): string[] {
   const list = Array.isArray(raw) ? raw : [];
@@ -18,10 +20,22 @@ export function normalizeFoodTemplateNames(raw: unknown): string[] {
   return names;
 }
 
-export async function getOrganolepticFoodTemplateNames(): Promise<string[]> {
+export function resolveTemplateMenuDate(dateStr?: string | null): Date | null {
+  if (dateStr?.trim()) {
+    return parseInspectionDate(dateStr.trim());
+  }
+  return parseInspectionDate(formatInspectionDateInput(new Date()));
+}
+
+export async function getOrganolepticFoodTemplateNames(
+  dateStr?: string | null
+): Promise<string[]> {
+  const menuDate = resolveTemplateMenuDate(dateStr);
+  if (!menuDate) return normalizeFoodTemplateNames([]);
+
   try {
     const row = await prisma.organolepticFoodTemplate.findUnique({
-      where: { id: ORGANOLEPTIC_FOOD_TEMPLATE_ID },
+      where: { menuDate },
       select: { foodNames: true },
     });
     return normalizeFoodTemplateNames(row?.foodNames ?? []);
@@ -32,16 +46,21 @@ export async function getOrganolepticFoodTemplateNames(): Promise<string[]> {
 }
 
 export async function saveOrganolepticFoodTemplateNames(
+  dateStr: string,
   foodNames: string[]
-): Promise<string[]> {
+): Promise<{ menuDate: string; foodNames: string[] }> {
+  const menuDate = parseInspectionDate(dateStr);
+  if (!menuDate) {
+    throw new Error("Tanggal template tidak valid (YYYY-MM-DD)");
+  }
+
   const normalized = normalizeFoodTemplateNames(foodNames);
-  // Simpan tanpa trailing kosong berlebih di DB, tapi API selalu pad ke 5 saat baca
   const toStore = normalized.map((n) => n.trim());
 
   await prisma.organolepticFoodTemplate.upsert({
-    where: { id: ORGANOLEPTIC_FOOD_TEMPLATE_ID },
+    where: { menuDate },
     create: {
-      id: ORGANOLEPTIC_FOOD_TEMPLATE_ID,
+      menuDate,
       foodNames: toStore,
     },
     update: {
@@ -49,5 +68,26 @@ export async function saveOrganolepticFoodTemplateNames(
     },
   });
 
-  return normalized;
+  return {
+    menuDate: formatInspectionDateInput(menuDate),
+    foodNames: normalized,
+  };
+}
+
+export async function listRecentOrganolepticFoodTemplates(limit = 14) {
+  try {
+    const rows = await prisma.organolepticFoodTemplate.findMany({
+      orderBy: { menuDate: "desc" },
+      take: limit,
+      select: { menuDate: true, foodNames: true, updatedAt: true },
+    });
+    return rows.map((row) => ({
+      menuDate: formatInspectionDateInput(row.menuDate),
+      foodNames: normalizeFoodTemplateNames(row.foodNames),
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  } catch (err) {
+    console.error("[organoleptic-food-template] list failed:", err);
+    return [];
+  }
 }

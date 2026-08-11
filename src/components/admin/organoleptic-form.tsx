@@ -73,7 +73,7 @@ export function OrganolepticForm({
         ? packageItemsFromFoodNames(foodNameDefaults)
         : emptyPackageItems()
   );
-  const lockFoodNames = fromFoodTemplate;
+  const [lockFoodNames, setLockFoodNames] = useState(fromFoodTemplate);
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,8 +81,34 @@ export function OrganolepticForm({
     () => nonNegIntOrZero(initial?.header.packagesReturned ?? "") > 0
   );
 
+  async function applyFoodTemplateForDate(dateStr: string) {
+    if (initialData || readOnly) return;
+    try {
+      const res = await fetch(
+        `/api/organoleptic/food-template?date=${encodeURIComponent(dateStr)}`
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { foodNames?: string[] };
+      const names = data.foodNames ?? [];
+      const has = names.some((n) => n.trim());
+      setItems(packageItemsFromFoodNames(names));
+      setLockFoodNames(has);
+    } catch {
+      // biarkan form tetap; user bisa isi manual
+    }
+  }
+
   function patchHeader(patch: Partial<HeaderForm>) {
-    setHeader((h) => ({ ...h, ...patch }));
+    setHeader((h) => {
+      const next = { ...h, ...patch };
+      if (
+        patch.inspectionDate &&
+        patch.inspectionDate !== h.inspectionDate
+      ) {
+        void applyFoodTemplateForDate(patch.inspectionDate);
+      }
+      return next;
+    });
   }
 
   function updatePackagesReceived(raw: string) {

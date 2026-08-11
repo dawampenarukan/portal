@@ -89,10 +89,42 @@ async function ensureOrganolepticFoodTemplateTable(): Promise<void> {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "OrganolepticFoodTemplate" (
       "id" TEXT NOT NULL,
+      "menuDate" DATE,
       "foodNames" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
       "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "OrganolepticFoodTemplate_pkey" PRIMARY KEY ("id")
     );
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticFoodTemplate"
+    ADD COLUMN IF NOT EXISTS "menuDate" DATE;
+  `);
+
+  // Migrasi baris lama id='default' (tanpa tanggal) → hari ini
+  await prisma.$executeRawUnsafe(`
+    UPDATE "OrganolepticFoodTemplate"
+    SET "menuDate" = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
+    WHERE "menuDate" IS NULL AND "id" = 'default';
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DELETE FROM "OrganolepticFoodTemplate" WHERE "menuDate" IS NULL;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "OrganolepticFoodTemplate"
+    ALTER COLUMN "menuDate" SET NOT NULL;
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE UNIQUE INDEX IF NOT EXISTS "OrganolepticFoodTemplate_menuDate_key"
+    ON "OrganolepticFoodTemplate"("menuDate");
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE INDEX IF NOT EXISTS "OrganolepticFoodTemplate_menuDate_idx"
+    ON "OrganolepticFoodTemplate"("menuDate");
   `);
 }
 
