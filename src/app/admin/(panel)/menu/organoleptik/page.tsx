@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Plus } from "lucide-react";
+import { Plus, UtensilsCrossed } from "lucide-react";
 import { auth } from "@/auth";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
 import {
@@ -13,7 +13,11 @@ import {
   formatInspectionDateInput,
   normalizeInspectionDateRange,
 } from "@/lib/organoleptic-meta";
-import { isFullAdminRole, isOrganolepticEntryRole } from "@/lib/roles";
+import {
+  isFullAdminRole,
+  isOrganolepticEntryRole,
+  ORGANOLEPTIK_FOOD_TEMPLATE_PATH,
+} from "@/lib/roles";
 
 export const metadata = { title: "Uji Organoleptik" };
 
@@ -65,12 +69,22 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
               Input dan arsip checklist harian — 1 lembar per sekolah/posyandu (1 paket = 5 item menu).
             </p>
           </div>
-          <Link href="/admin/menu/organoleptik/new">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Input Checklist
-            </Button>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            {showAllEntries && (
+              <Link href={ORGANOLEPTIK_FOOD_TEMPLATE_PATH}>
+                <Button type="button" variant="outline">
+                  <UtensilsCrossed className="mr-2 h-4 w-4" />
+                  Template Nama Makanan
+                </Button>
+              </Link>
+            )}
+            <Link href="/admin/menu/organoleptik/new">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Input Checklist
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 

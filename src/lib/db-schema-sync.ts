@@ -85,7 +85,20 @@ export async function getSchemaStatus(): Promise<SchemaStatus> {
   };
 }
 
+async function ensureOrganolepticFoodTemplateTable(): Promise<void> {
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "OrganolepticFoodTemplate" (
+      "id" TEXT NOT NULL,
+      "foodNames" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OrganolepticFoodTemplate_pkey" PRIMARY KEY ("id")
+    );
+  `);
+}
+
 async function addOrganolepticColumns(): Promise<void> {
+  await ensureOrganolepticFoodTemplateTable();
+
   await prisma.$executeRawUnsafe(`
     ALTER TABLE "OrganolepticChecklist"
     ADD COLUMN IF NOT EXISTS "createdById" TEXT;
@@ -201,6 +214,7 @@ export async function syncProductionSchema(): Promise<string[]> {
     applied.push("OrganolepticItem.safety_idx");
   }
   applied.push("OrganolepticChecklist.packageColumns");
+  applied.push("OrganolepticFoodTemplate");
 
   globalForSchema.organolepticSchemaEnsured = true;
   return applied;

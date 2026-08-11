@@ -10,10 +10,12 @@ import {
 } from "@/lib/organoleptic-meta";
 import { cn } from "@/lib/utils";
 import {
+  DEFAULT_ORGANOLEPTIC_SCORE,
   INACTIVE_FIELD_CLASS,
   SAFETY_SHORT_LABELS,
   TABLE_CONTROL_CLASS,
   TABLE_SCORE_CLASS,
+  TABLE_SCORE_DEFAULT_CLASS,
   isRowInactive,
   type ItemForm,
 } from "@/components/admin/organoleptic-form-types";
@@ -27,12 +29,15 @@ function rowPlaceholder(index: number): string {
 interface Props {
   items: ItemForm[];
   readOnly: boolean;
+  /** Nama dari template admin — tidak bisa diubah di form checklist. */
+  lockFoodNames?: boolean;
   onUpdateItem: (index: number, patch: Partial<ItemForm>) => void;
 }
 
 export function OrganolepticFormItemsSection({
   items,
   readOnly,
+  lockFoodNames = false,
   onUpdateItem,
 }: Props) {
   return (
@@ -42,6 +47,9 @@ export function OrganolepticFormItemsSection({
         <p className="text-xs text-muted-foreground">
           Minimal {ORGANOLEPTIC_REQUIRED_ITEMS} item · skor 1–2 → tidak aman
           otomatis · item ke-5 opsional
+          {lockFoodNames
+            ? " · nama dari template (tidak bisa diubah) · skor abu = default 5"
+            : ""}
         </p>
       </div>
 
@@ -80,14 +88,22 @@ export function OrganolepticFormItemsSection({
                       onChange={(e) =>
                         onUpdateItem(index, { foodName: e.target.value })
                       }
-                      disabled={readOnly}
+                      disabled={readOnly || lockFoodNames}
+                      readOnly={lockFoodNames && !readOnly}
                       placeholder={rowPlaceholder(index)}
                       title={
-                        isOptionalOrganolepticRow(index)
-                          ? ORGANOLEPTIC_OPTIONAL_ITEM_HINT
-                          : undefined
+                        lockFoodNames
+                          ? "Nama dari template admin"
+                          : isOptionalOrganolepticRow(index)
+                            ? ORGANOLEPTIC_OPTIONAL_ITEM_HINT
+                            : undefined
                       }
-                      className={cn(TABLE_CONTROL_CLASS, "min-w-[120px]")}
+                      className={cn(
+                        TABLE_CONTROL_CLASS,
+                        "min-w-[120px]",
+                        lockFoodNames &&
+                          "cursor-default bg-muted/40 text-muted-foreground"
+                      )}
                     />
                   </td>
                   {(
@@ -97,7 +113,9 @@ export function OrganolepticFormItemsSection({
                       "aromaScore",
                       "textureScore",
                     ] as const
-                  ).map((key) => (
+                  ).map((key) => {
+                    const isDefaultScore = item[key] === DEFAULT_ORGANOLEPTIC_SCORE;
+                    return (
                     <td key={key} className="px-0.5 py-1 text-center">
                       {rowInactive ? (
                         <div
@@ -117,8 +135,16 @@ export function OrganolepticFormItemsSection({
                             } as Partial<ItemForm>)
                           }
                           disabled={readOnly}
-                          className={TABLE_SCORE_CLASS}
+                          className={cn(
+                            TABLE_SCORE_CLASS,
+                            isDefaultScore && TABLE_SCORE_DEFAULT_CLASS
+                          )}
                           aria-label={`${key} baris ${index + 1}`}
+                          title={
+                            isDefaultScore
+                              ? "Default 5 — ubah jika perlu; tetap 5 saat simpan jika tidak diubah"
+                              : undefined
+                          }
                         >
                           {ORGANOLEPTIC_SCORE_OPTIONS.map((score) => (
                             <option key={score} value={score}>
@@ -128,7 +154,8 @@ export function OrganolepticFormItemsSection({
                         </Select>
                       )}
                     </td>
-                  ))}
+                    );
+                  })}
                   <td className="px-1.5 py-1">
                     {rowInactive ? (
                       <div

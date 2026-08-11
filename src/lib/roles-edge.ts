@@ -25,7 +25,16 @@ export function getDefaultAdminPath(role?: string | null): string {
   return "/admin";
 }
 
+/** Path template nama makanan — khusus full admin, bukan PIC entry. */
+export const ORGANOLEPTIK_FOOD_TEMPLATE_PATH = `${ORGANOLEPTIK_ADMIN_BASE}/template`;
+
 export function isOrganolepticEntryPath(pathname: string): boolean {
+  if (
+    pathname === ORGANOLEPTIK_FOOD_TEMPLATE_PATH ||
+    pathname.startsWith(`${ORGANOLEPTIK_FOOD_TEMPLATE_PATH}/`)
+  ) {
+    return false;
+  }
   return pathname.startsWith(ORGANOLEPTIK_ADMIN_BASE);
 }
 

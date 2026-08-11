@@ -32,12 +32,19 @@ export async function AdminOrganolepticSummary() {
             Checklist BGN — {formatDate(summary.date)}
           </p>
         </div>
-        <Link href="/admin/menu/organoleptik/new">
-          <Button size="sm">
-            <Plus className="mr-1 h-4 w-4" />
-            Input Baru
-          </Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/menu/organoleptik/template">
+            <Button size="sm" variant="outline">
+              Template Nama
+            </Button>
+          </Link>
+          <Link href="/admin/menu/organoleptik/new">
+            <Button size="sm">
+              <Plus className="mr-1 h-4 w-4" />
+              Input Baru
+            </Button>
+          </Link>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

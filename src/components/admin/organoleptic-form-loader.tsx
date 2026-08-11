@@ -30,6 +30,8 @@ interface Props {
   initialData?: OrganolepticChecklistView;
   readOnly?: boolean;
   profileDefaults?: OrganolepticProfileDefaults | null;
+  /** Template nama makanan (input baru saja). */
+  foodNameDefaults?: string[] | null;
 }
 
 /** Dynamic import form berat — kurangi JS awal halaman admin organoleptik. */

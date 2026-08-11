@@ -29,13 +29,15 @@ export interface HeaderForm {
   criticism: string;
 }
 
+export const DEFAULT_ORGANOLEPTIC_SCORE = 5;
+
 export function emptyItem(): ItemForm {
   return {
     foodName: "",
-    tasteScore: 5,
-    colorScore: 5,
-    aromaScore: 5,
-    textureScore: 5,
+    tasteScore: DEFAULT_ORGANOLEPTIC_SCORE,
+    colorScore: DEFAULT_ORGANOLEPTIC_SCORE,
+    aromaScore: DEFAULT_ORGANOLEPTIC_SCORE,
+    textureScore: DEFAULT_ORGANOLEPTIC_SCORE,
     safety: "AMAN",
     notes: "",
   };
@@ -45,6 +47,15 @@ export function emptyPackageItems(): ItemForm[] {
   return Array.from({ length: ORGANOLEPTIC_ITEMS_PER_PACKAGE }, () =>
     emptyItem()
   );
+}
+
+/** Prefill nama dari template admin; skor tetap default emptyItem. */
+export function packageItemsFromFoodNames(foodNames?: string[] | null): ItemForm[] {
+  const names = foodNames ?? [];
+  return Array.from({ length: ORGANOLEPTIC_ITEMS_PER_PACKAGE }, (_, i) => ({
+    ...emptyItem(),
+    foodName: typeof names[i] === "string" ? names[i].trim() : "",
+  }));
 }
 
 export function padItemsToPackage(items: ItemForm[]): ItemForm[] {
@@ -142,6 +153,9 @@ export const TABLE_CONTROL_CLASS = "h-8 rounded-lg border px-2 text-sm";
 /** Kompak untuk kolom skor — samakan tinggi dengan input baris (h-8), jangan pakai leading-none (terpotong di Windows). */
 export const TABLE_SCORE_CLASS =
   "mx-auto box-border block h-8 w-[3.25rem] min-w-0 max-w-[3.25rem] shrink-0 rounded-lg border border-input bg-background px-1 py-0 text-center text-sm leading-8";
+/** Skor default 5 — tampilan abu; tetap tersimpan sebagai 5 jika tidak diubah. */
+export const TABLE_SCORE_DEFAULT_CLASS =
+  "border-muted bg-muted/40 text-muted-foreground";
 
 export const SAFETY_SHORT_LABELS = {
   AMAN: "Aman",

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { OrganolepticFormLoader } from "@/components/admin/organoleptic-form-loader";
 import { auth } from "@/auth";
+import { getOrganolepticFoodTemplateNames } from "@/lib/organoleptic-food-template";
 import { inferOrganolepticPlaceType } from "@/lib/organoleptic-pic-accounts";
 import { isOrganolepticEntryRole } from "@/lib/roles";
 import { getUserProfileForOrganoleptic } from "@/lib/user-queries";
@@ -32,6 +33,9 @@ export default async function AdminOrganoleptikNewPage() {
     }
   }
 
+  const foodNameDefaults = await getOrganolepticFoodTemplateNames();
+  const hasFoodTemplate = foodNameDefaults.some((n) => n.trim());
+
   return (
     <div className="space-y-6">
       <div>
@@ -48,12 +52,18 @@ export default async function AdminOrganoleptikNewPage() {
           {profileDefaults?.lockFields
             ? " Nama pemeriksa dan tempat diisi otomatis dari akun Anda."
             : ""}
+          {hasFoodTemplate
+            ? " Nama makanan diisi otomatis dari template admin (bisa diubah)."
+            : ""}
         </p>
       </div>
 
       <Card>
         <CardContent className="p-6">
-          <OrganolepticFormLoader profileDefaults={profileDefaults} />
+          <OrganolepticFormLoader
+            profileDefaults={profileDefaults}
+            foodNameDefaults={foodNameDefaults}
+          />
         </CardContent>
       </Card>
     </div>

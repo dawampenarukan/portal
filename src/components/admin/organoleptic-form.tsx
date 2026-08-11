@@ -12,6 +12,7 @@ import {
   defaultHeader,
   emptyPackageItems,
   nonNegIntOrZero,
+  packageItemsFromFoodNames,
   padItemsToPackage,
   type HeaderForm,
   type ItemForm,
@@ -33,12 +34,15 @@ interface OrganolepticFormProps {
   readOnly?: boolean;
   /** Prefill + kunci field dari profil akun (mode input baru). */
   profileDefaults?: OrganolepticProfileDefaults | null;
+  /** Prefill Nama Makanan dari template admin (mode input baru). */
+  foodNameDefaults?: string[] | null;
 }
 
 export function OrganolepticForm({
   initialData,
   readOnly = false,
   profileDefaults = null,
+  foodNameDefaults = null,
 }: OrganolepticFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,11 +64,16 @@ export function OrganolepticForm({
   const [criticismImages, setCriticismImages] = useState<string[]>(
     initial?.criticismImages ?? []
   );
+  const fromFoodTemplate =
+    !initialData && Boolean(foodNameDefaults?.some((n) => n.trim()));
   const [items, setItems] = useState<ItemForm[]>(
     initial?.items.length
       ? padItemsToPackage(initial.items)
-      : emptyPackageItems()
+      : fromFoodTemplate
+        ? packageItemsFromFoodNames(foodNameDefaults)
+        : emptyPackageItems()
   );
+  const lockFoodNames = fromFoodTemplate;
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +178,11 @@ export function OrganolepticForm({
     setItems((prev) =>
       prev.map((item, i) => {
         if (i !== index) return item;
-        const next = { ...item, ...patch };
+        const safePatch =
+          lockFoodNames && "foodName" in patch
+            ? (({ foodName: _ignored, ...rest }) => rest)(patch)
+            : patch;
+        const next = { ...item, ...safePatch };
         next.safety = deriveOrganolepticSafety(next);
         return next;
       })
@@ -313,6 +326,7 @@ export function OrganolepticForm({
       <OrganolepticFormItemsSection
         items={items}
         readOnly={readOnly}
+        lockFoodNames={lockFoodNames}
         onUpdateItem={updateItem}
       />
 

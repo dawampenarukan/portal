@@ -315,3 +315,10 @@ model OrganolepticItem {
   @@index([checklistId, sortOrder])
   @@index([safety])
 }
+
+/** Template global nama makanan (maks. 5) — diisi admin, auto-load di form checklist baru. */
+model OrganolepticFoodTemplate {
+  id        String   @id @default("default")
+  foodNames String[] @default([])
+  updatedAt DateTime @updatedAt
+}
