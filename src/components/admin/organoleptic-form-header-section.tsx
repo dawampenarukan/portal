@@ -4,7 +4,11 @@ import {
   ORGANOLEPTIC_PLACE_LABELS,
   ORGANOLEPTIC_TIMING_LABELS,
 } from "@/lib/organoleptic-meta";
-import type { HeaderForm } from "@/components/admin/organoleptic-form-types";
+import {
+  READONLY_FIELD_CLASS,
+  type HeaderForm,
+} from "@/components/admin/organoleptic-form-types";
+import { cn } from "@/lib/utils";
 
 interface Props {
   header: HeaderForm;
@@ -23,6 +27,10 @@ export function OrganolepticFormHeaderSection({
   onChange,
 }: Props) {
   const profileLocked = readOnly || lockProfileFields;
+  const lockedReadable = cn(
+    "bg-muted/20 text-foreground opacity-100 disabled:opacity-100",
+    readOnly && READONLY_FIELD_CLASS
+  );
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -35,11 +43,11 @@ export function OrganolepticFormHeaderSection({
           disabled={readOnly}
           readOnly={lockProfileFields && !readOnly}
           placeholder="Nama asisten lapangan / pemeriksa"
-          className={
-            lockProfileFields
-              ? "bg-muted/20 text-foreground opacity-100 disabled:opacity-100"
-              : "text-foreground"
-          }
+          className={cn(
+            "text-foreground",
+            lockProfileFields && lockedReadable,
+            readOnly && READONLY_FIELD_CLASS
+          )}
         />
         {lockProfileFields && (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -58,7 +66,7 @@ export function OrganolepticFormHeaderSection({
             onChange({ placeType: e.target.value as HeaderForm["placeType"] })
           }
           disabled={profileLocked}
-          className="text-foreground"
+          className={cn("text-foreground", profileLocked && lockedReadable)}
         >
           {Object.entries(ORGANOLEPTIC_PLACE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -78,11 +86,11 @@ export function OrganolepticFormHeaderSection({
           disabled={readOnly}
           readOnly={lockProfileFields && !readOnly}
           placeholder="Nama sekolah / posyandu"
-          className={
-            lockProfileFields
-              ? "bg-muted/20 text-foreground opacity-100 disabled:opacity-100"
-              : "text-foreground"
-          }
+          className={cn(
+            "text-foreground",
+            lockProfileFields && lockedReadable,
+            readOnly && READONLY_FIELD_CLASS
+          )}
         />
         {lockProfileFields && (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -98,7 +106,7 @@ export function OrganolepticFormHeaderSection({
             onChange({ timing: e.target.value as HeaderForm["timing"] })
           }
           disabled={readOnly}
-          className="text-foreground"
+          className={cn("text-foreground", readOnly && READONLY_FIELD_CLASS)}
         >
           {Object.entries(ORGANOLEPTIC_TIMING_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -117,7 +125,7 @@ export function OrganolepticFormHeaderSection({
           onChange={(e) => onChange({ inspectionDate: e.target.value })}
           required
           disabled={readOnly}
-          className="text-foreground"
+          className={cn("text-foreground", readOnly && READONLY_FIELD_CLASS)}
         />
       </div>
       <div>
@@ -130,7 +138,7 @@ export function OrganolepticFormHeaderSection({
           onChange={(e) => onChange({ inspectionTime: e.target.value })}
           required
           disabled={readOnly}
-          className="text-foreground"
+          className={cn("text-foreground", readOnly && READONLY_FIELD_CLASS)}
         />
       </div>
     </div>

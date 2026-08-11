@@ -160,6 +160,12 @@ export const TABLE_SCORE_DEFAULT_CLASS =
 /** Nama dari template — terkunci tapi tetap terbaca hitam. */
 export const TABLE_FOOD_NAME_LOCKED_CLASS =
   "cursor-default bg-muted/20 text-foreground opacity-100 disabled:opacity-100";
+/**
+ * Mode lihat setelah simpan (disabled) — jangan pudar.
+ * Override `disabled:opacity-50` dari Input/Select/Textarea.
+ */
+export const READONLY_FIELD_CLASS =
+  "text-foreground opacity-100 disabled:cursor-default disabled:opacity-100 disabled:text-foreground";
 
 export const SAFETY_SHORT_LABELS = {
   AMAN: "Aman",

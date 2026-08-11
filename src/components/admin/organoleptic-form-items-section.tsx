@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import {
   DEFAULT_ORGANOLEPTIC_SCORE,
   INACTIVE_FIELD_CLASS,
+  READONLY_FIELD_CLASS,
   SAFETY_SHORT_LABELS,
   TABLE_CONTROL_CLASS,
   TABLE_FOOD_NAME_LOCKED_CLASS,
@@ -129,7 +130,8 @@ export function OrganolepticFormItemsSection({
                       className={cn(
                         TABLE_CONTROL_CLASS,
                         "min-w-[120px]",
-                        lockFoodNames && TABLE_FOOD_NAME_LOCKED_CLASS
+                        lockFoodNames && TABLE_FOOD_NAME_LOCKED_CLASS,
+                        readOnly && READONLY_FIELD_CLASS
                       )}
                     />
                   </td>
@@ -141,7 +143,9 @@ export function OrganolepticFormItemsSection({
                       "textureScore",
                     ] as const
                   ).map((key) => {
+                    // Abu hanya saat input baru & skor belum disentuh; setelah simpan (readOnly) selalu hitam
                     const untouchedDefault =
+                      !readOnly &&
                       !touchedScores.has(scoreTouchKey(index, key)) &&
                       item[key] === DEFAULT_ORGANOLEPTIC_SCORE;
                     return (
@@ -169,7 +173,8 @@ export function OrganolepticFormItemsSection({
                               TABLE_SCORE_CLASS,
                               untouchedDefault
                                 ? TABLE_SCORE_DEFAULT_CLASS
-                                : "text-foreground"
+                                : "text-foreground",
+                              readOnly && READONLY_FIELD_CLASS
                             )}
                             aria-label={`${key} baris ${index + 1}`}
                             title={
@@ -222,7 +227,8 @@ export function OrganolepticFormItemsSection({
                         placeholder="Ket"
                         className={cn(
                           TABLE_CONTROL_CLASS,
-                          "min-w-[90px] text-foreground"
+                          "min-w-[90px] text-foreground",
+                          readOnly && READONLY_FIELD_CLASS
                         )}
                       />
                     )}

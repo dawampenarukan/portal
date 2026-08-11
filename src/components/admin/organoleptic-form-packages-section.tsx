@@ -1,9 +1,11 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  READONLY_FIELD_CLASS,
   nonNegIntOrZero,
   type HeaderForm,
 } from "@/components/admin/organoleptic-form-types";
+import { cn } from "@/lib/utils";
 
 interface Props {
   header: HeaderForm;
@@ -25,6 +27,7 @@ export function OrganolepticFormPackagesSection({
   const receivedMax = header.packagesReceived.trim()
     ? nonNegIntOrZero(header.packagesReceived)
     : undefined;
+  const fieldClass = cn("h-10 text-foreground", readOnly && READONLY_FIELD_CLASS);
 
   return (
     <div className="space-y-3 rounded-xl border bg-muted/20 p-4">
@@ -47,7 +50,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onReceived(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10 text-foreground"
+            className={fieldClass}
           />
         </div>
         <div>
@@ -64,7 +67,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onConsumed(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10 text-foreground"
+            className={fieldClass}
           />
         </div>
         <div>
@@ -81,7 +84,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onReturned(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10 text-foreground"
+            className={fieldClass}
           />
         </div>
       </div>
@@ -97,7 +100,7 @@ export function OrganolepticFormPackagesSection({
             rows={2}
             required
             placeholder="Contoh: basi, kemasan rusak, dll"
-            className="text-foreground"
+            className={cn("text-foreground", readOnly && READONLY_FIELD_CLASS)}
           />
         </div>
       )}

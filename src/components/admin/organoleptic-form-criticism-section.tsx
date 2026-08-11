@@ -1,7 +1,9 @@
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { READONLY_FIELD_CLASS } from "@/components/admin/organoleptic-form-types";
 import { ORGANOLEPTIC_MAX_CRITICISM_IMAGES } from "@/lib/organoleptic-meta";
+import { cn } from "@/lib/utils";
 
 interface Props {
   criticism: string;
@@ -37,6 +39,7 @@ export function OrganolepticFormCriticismSection({
         disabled={readOnly}
         rows={3}
         placeholder="Kritik dan saran dari pemeriksa"
+        className={cn("text-foreground", readOnly && READONLY_FIELD_CLASS)}
       />
 
       <div className="space-y-2">
