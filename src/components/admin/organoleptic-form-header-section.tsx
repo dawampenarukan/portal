@@ -32,9 +32,14 @@ export function OrganolepticFormHeaderSection({
           value={header.inspectorName}
           onChange={(e) => onChange({ inspectorName: e.target.value })}
           required
-          disabled={profileLocked}
+          disabled={readOnly}
           readOnly={lockProfileFields && !readOnly}
           placeholder="Nama asisten lapangan / pemeriksa"
+          className={
+            lockProfileFields
+              ? "bg-muted/20 text-foreground opacity-100 disabled:opacity-100"
+              : "text-foreground"
+          }
         />
         {lockProfileFields && (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -53,6 +58,7 @@ export function OrganolepticFormHeaderSection({
             onChange({ placeType: e.target.value as HeaderForm["placeType"] })
           }
           disabled={profileLocked}
+          className="text-foreground"
         >
           {Object.entries(ORGANOLEPTIC_PLACE_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -69,9 +75,14 @@ export function OrganolepticFormHeaderSection({
           value={header.placeName}
           onChange={(e) => onChange({ placeName: e.target.value })}
           required
-          disabled={profileLocked}
+          disabled={readOnly}
           readOnly={lockProfileFields && !readOnly}
           placeholder="Nama sekolah / posyandu"
+          className={
+            lockProfileFields
+              ? "bg-muted/20 text-foreground opacity-100 disabled:opacity-100"
+              : "text-foreground"
+          }
         />
         {lockProfileFields && (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -87,6 +98,7 @@ export function OrganolepticFormHeaderSection({
             onChange({ timing: e.target.value as HeaderForm["timing"] })
           }
           disabled={readOnly}
+          className="text-foreground"
         >
           {Object.entries(ORGANOLEPTIC_TIMING_LABELS).map(([value, label]) => (
             <option key={value} value={value}>
@@ -105,6 +117,7 @@ export function OrganolepticFormHeaderSection({
           onChange={(e) => onChange({ inspectionDate: e.target.value })}
           required
           disabled={readOnly}
+          className="text-foreground"
         />
       </div>
       <div>
@@ -117,6 +130,7 @@ export function OrganolepticFormHeaderSection({
           onChange={(e) => onChange({ inspectionTime: e.target.value })}
           required
           disabled={readOnly}
+          className="text-foreground"
         />
       </div>
     </div>

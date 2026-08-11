@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
@@ -14,16 +17,23 @@ import {
   INACTIVE_FIELD_CLASS,
   SAFETY_SHORT_LABELS,
   TABLE_CONTROL_CLASS,
+  TABLE_FOOD_NAME_LOCKED_CLASS,
   TABLE_SCORE_CLASS,
   TABLE_SCORE_DEFAULT_CLASS,
   isRowInactive,
   type ItemForm,
 } from "@/components/admin/organoleptic-form-types";
 
+type ScoreKey = "tasteScore" | "colorScore" | "aromaScore" | "textureScore";
+
 function rowPlaceholder(index: number): string {
   return isOptionalOrganolepticRow(index)
     ? ORGANOLEPTIC_OPTIONAL_ITEM_HINT
     : `Item paket ke-${index + 1}`;
+}
+
+function scoreTouchKey(index: number, key: ScoreKey) {
+  return `${index}:${key}`;
 }
 
 interface Props {
@@ -40,6 +50,24 @@ export function OrganolepticFormItemsSection({
   lockFoodNames = false,
   onUpdateItem,
 }: Props) {
+  const [touchedScores, setTouchedScores] = useState(() => new Set<string>());
+
+  // Reset tanda "sudah diisi" saat daftar nama berubah (ganti tanggal / template)
+  const namesSignature = items.map((i) => i.foodName).join("\0");
+  useEffect(() => {
+    setTouchedScores(new Set());
+  }, [namesSignature]);
+
+  function markScoreTouched(index: number, key: ScoreKey) {
+    const id = scoreTouchKey(index, key);
+    setTouchedScores((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-2">
       <div>
@@ -48,7 +76,7 @@ export function OrganolepticFormItemsSection({
           Minimal {ORGANOLEPTIC_REQUIRED_ITEMS} item · skor 1–2 → tidak aman
           otomatis · item ke-5 opsional
           {lockFoodNames
-            ? " · nama dari template (tidak bisa diubah) · skor abu = default 5"
+            ? " · nama dari template (tidak bisa diubah) · skor abu = belum diisi (default 5)"
             : ""}
         </p>
       </div>
@@ -88,7 +116,7 @@ export function OrganolepticFormItemsSection({
                       onChange={(e) =>
                         onUpdateItem(index, { foodName: e.target.value })
                       }
-                      disabled={readOnly || lockFoodNames}
+                      disabled={readOnly}
                       readOnly={lockFoodNames && !readOnly}
                       placeholder={rowPlaceholder(index)}
                       title={
@@ -101,8 +129,7 @@ export function OrganolepticFormItemsSection({
                       className={cn(
                         TABLE_CONTROL_CLASS,
                         "min-w-[120px]",
-                        lockFoodNames &&
-                          "cursor-default bg-muted/40 text-muted-foreground"
+                        lockFoodNames && TABLE_FOOD_NAME_LOCKED_CLASS
                       )}
                     />
                   </td>
@@ -114,46 +141,51 @@ export function OrganolepticFormItemsSection({
                       "textureScore",
                     ] as const
                   ).map((key) => {
-                    const isDefaultScore = item[key] === DEFAULT_ORGANOLEPTIC_SCORE;
+                    const untouchedDefault =
+                      !touchedScores.has(scoreTouchKey(index, key)) &&
+                      item[key] === DEFAULT_ORGANOLEPTIC_SCORE;
                     return (
-                    <td key={key} className="px-0.5 py-1 text-center">
-                      {rowInactive ? (
-                        <div
-                          className={cn(
-                            INACTIVE_FIELD_CLASS,
-                            "mx-auto h-8 w-[3.25rem] text-xs"
-                          )}
-                        >
-                          —
-                        </div>
-                      ) : (
-                        <Select
-                          value={String(item[key])}
-                          onChange={(e) =>
-                            onUpdateItem(index, {
-                              [key]: Number(e.target.value),
-                            } as Partial<ItemForm>)
-                          }
-                          disabled={readOnly}
-                          className={cn(
-                            TABLE_SCORE_CLASS,
-                            isDefaultScore && TABLE_SCORE_DEFAULT_CLASS
-                          )}
-                          aria-label={`${key} baris ${index + 1}`}
-                          title={
-                            isDefaultScore
-                              ? "Default 5 — ubah jika perlu; tetap 5 saat simpan jika tidak diubah"
-                              : undefined
-                          }
-                        >
-                          {ORGANOLEPTIC_SCORE_OPTIONS.map((score) => (
-                            <option key={score} value={score}>
-                              {score}
-                            </option>
-                          ))}
-                        </Select>
-                      )}
-                    </td>
+                      <td key={key} className="px-0.5 py-1 text-center">
+                        {rowInactive ? (
+                          <div
+                            className={cn(
+                              INACTIVE_FIELD_CLASS,
+                              "mx-auto h-8 w-[3.25rem] text-xs"
+                            )}
+                          >
+                            —
+                          </div>
+                        ) : (
+                          <Select
+                            value={String(item[key])}
+                            onChange={(e) => {
+                              markScoreTouched(index, key);
+                              onUpdateItem(index, {
+                                [key]: Number(e.target.value),
+                              } as Partial<ItemForm>);
+                            }}
+                            disabled={readOnly}
+                            className={cn(
+                              TABLE_SCORE_CLASS,
+                              untouchedDefault
+                                ? TABLE_SCORE_DEFAULT_CLASS
+                                : "text-foreground"
+                            )}
+                            aria-label={`${key} baris ${index + 1}`}
+                            title={
+                              untouchedDefault
+                                ? "Belum diisi — default 5 (abu). Pilih skor agar menjadi hitam."
+                                : undefined
+                            }
+                          >
+                            {ORGANOLEPTIC_SCORE_OPTIONS.map((score) => (
+                              <option key={score} value={score}>
+                                {score}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      </td>
                     );
                   })}
                   <td className="px-1.5 py-1">
@@ -188,7 +220,10 @@ export function OrganolepticFormItemsSection({
                         }
                         disabled={readOnly}
                         placeholder="Ket"
-                        className={cn(TABLE_CONTROL_CLASS, "min-w-[90px]")}
+                        className={cn(
+                          TABLE_CONTROL_CLASS,
+                          "min-w-[90px] text-foreground"
+                        )}
                       />
                     )}
                   </td>

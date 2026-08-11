@@ -47,7 +47,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onReceived(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10"
+            className="h-10 text-foreground"
           />
         </div>
         <div>
@@ -64,7 +64,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onConsumed(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10"
+            className="h-10 text-foreground"
           />
         </div>
         <div>
@@ -81,7 +81,7 @@ export function OrganolepticFormPackagesSection({
             onChange={(e) => onReturned(e.target.value)}
             disabled={readOnly}
             placeholder="0"
-            className="h-10"
+            className="h-10 text-foreground"
           />
         </div>
       </div>
@@ -97,6 +97,7 @@ export function OrganolepticFormPackagesSection({
             rows={2}
             required
             placeholder="Contoh: basi, kemasan rusak, dll"
+            className="text-foreground"
           />
         </div>
       )}

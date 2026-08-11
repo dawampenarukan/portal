@@ -149,13 +149,17 @@ export function checklistToForm(checklist: OrganolepticChecklistView): {
 export const INACTIVE_FIELD_CLASS =
   "flex h-8 items-center justify-center rounded-lg border border-muted bg-muted/40 text-xs text-muted-foreground";
 
-export const TABLE_CONTROL_CLASS = "h-8 rounded-lg border px-2 text-sm";
+export const TABLE_CONTROL_CLASS =
+  "h-8 rounded-lg border px-2 text-sm text-foreground";
 /** Kompak untuk kolom skor — samakan tinggi dengan input baris (h-8), jangan pakai leading-none (terpotong di Windows). */
 export const TABLE_SCORE_CLASS =
-  "mx-auto box-border block h-8 w-[3.25rem] min-w-0 max-w-[3.25rem] shrink-0 rounded-lg border border-input bg-background px-1 py-0 text-center text-sm leading-8";
-/** Skor default 5 — tampilan abu; tetap tersimpan sebagai 5 jika tidak diubah. */
+  "mx-auto box-border block h-8 w-[3.25rem] min-w-0 max-w-[3.25rem] shrink-0 rounded-lg border border-input bg-background px-1 py-0 text-center text-sm leading-8 text-foreground";
+/** Skor default 5 belum diubah — abu; setelah diisi/diubah → hitam. */
 export const TABLE_SCORE_DEFAULT_CLASS =
-  "border-muted bg-muted/40 text-muted-foreground";
+  "border-muted bg-muted/30 text-muted-foreground";
+/** Nama dari template — terkunci tapi tetap terbaca hitam. */
+export const TABLE_FOOD_NAME_LOCKED_CLASS =
+  "cursor-default bg-muted/20 text-foreground opacity-100 disabled:opacity-100";
 
 export const SAFETY_SHORT_LABELS = {
   AMAN: "Aman",
