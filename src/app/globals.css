@@ -705,3 +705,12 @@ body {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.8) 0%, rgba(232, 248, 240, 0.35) 100%);
   border-color: rgba(46, 155, 106, 0.12);
 }
+
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: white !important; }
+  #organoleptic-print-list table { font-size: 9px !important; }
+  #organoleptic-print-list th,
+  #organoleptic-print-list td { padding: 2px 4px !important; border: 0.5px solid #ccc; }
+  #organoleptic-print-list thead { background: #f3f3f3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -22,11 +22,21 @@ import {
 export const metadata = { title: "Uji Organoleptik" };
 
 interface PageProps {
-  searchParams: Promise<{ date?: string; dateEnd?: string; focus?: string }>;
+  searchParams: Promise<{
+    date?: string;
+    dateEnd?: string;
+    focus?: string;
+    safety?: string;
+  }>;
 }
 
 function parseFocus(value?: string): "unsafe" | "returned" | null {
   if (value === "unsafe" || value === "returned") return value;
+  return null;
+}
+
+function parseSafety(value?: string): "aman" | "tidak-aman" | null {
+  if (value === "aman" || value === "tidak-aman") return value;
   return null;
 }
 
@@ -35,6 +45,7 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
   const params = await searchParams;
   const today = formatInspectionDateInput(new Date());
   const focus = parseFocus(params.focus);
+  const safety = parseSafety(params.safety);
 
   let range = normalizeInspectionDateRange(
     params.date ?? today,
@@ -56,7 +67,7 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="print:hidden">
         {!isEntryOnly && (
           <Link href="/admin/menu" prefetch={false} className="text-sm text-primary hover:underline">
             ← Kembali ke Kelola Menu
@@ -109,6 +120,7 @@ export default async function AdminOrganoleptikPage({ searchParams }: PageProps)
           dateFrom={range.from}
           dateTo={range.to}
           focus={focus}
+          safety={safety}
           createdById={createdById}
           currentUserId={session?.user?.id}
           userRole={session?.user?.role}

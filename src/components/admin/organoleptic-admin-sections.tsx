@@ -2,6 +2,7 @@ import { OrganolepticChecklistList } from "@/components/admin/organoleptic-check
 import {
   getOrganolepticChecklists,
   getOrganolepticDailySummary,
+  type OrganolepticSafetyListFilter,
 } from "@/lib/organoleptic-queries";
 import {
   formatOrganolepticPeriodLabel,
@@ -30,7 +31,7 @@ export async function OrganolepticAdminSummaryCards({
   );
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 print:hidden">
       <SummaryCard label="Periode" value={periodLabel} />
       <SummaryCard label="Lembar" value={String(summary.checklistCount)} />
       <SummaryCard label="Total item menu" value={String(summary.itemCount)} />
@@ -44,6 +45,7 @@ export async function OrganolepticAdminListSection({
   dateFrom,
   dateTo,
   focus,
+  safety,
   createdById,
   currentUserId,
   userRole,
@@ -52,6 +54,7 @@ export async function OrganolepticAdminListSection({
   dateFrom: string;
   dateTo: string;
   focus: FocusFilter;
+  safety: OrganolepticSafetyListFilter | null;
   createdById?: string;
   currentUserId?: string;
   userRole?: string | null;
@@ -62,6 +65,7 @@ export async function OrganolepticAdminListSection({
     dateEnd: dateTo,
     createdById,
     focus,
+    safety,
     limit: ORGANOLEPTIC_LIST_DEFAULT_LIMIT,
   });
 
@@ -71,6 +75,7 @@ export async function OrganolepticAdminListSection({
       initialDate={dateFrom}
       initialDateEnd={dateTo}
       initialFocus={focus}
+      initialSafety={safety}
       initialTruncated={truncated}
       listLimit={limit}
       currentUserId={currentUserId}

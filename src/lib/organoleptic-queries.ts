@@ -177,6 +177,8 @@ const checklistListSelect = {
 
 export type OrganolepticFocusFilter = "unsafe" | "returned";
 
+export type OrganolepticSafetyListFilter = "aman" | "tidak-aman";
+
 export type OrganolepticChecklistListResult = {
   checklists: OrganolepticChecklistView[];
   truncated: boolean;
@@ -199,12 +201,29 @@ function focusWhere(focus?: OrganolepticFocusFilter | null) {
   return {};
 }
 
+function safetyListWhere(safety?: OrganolepticSafetyListFilter | null) {
+  if (safety === "tidak-aman") {
+    return {
+      items: { some: { safety: OrganolepticSafety.TIDAK_AMAN } },
+    };
+  }
+  if (safety === "aman") {
+    return {
+      NOT: {
+        items: { some: { safety: OrganolepticSafety.TIDAK_AMAN } },
+      },
+    };
+  }
+  return {};
+}
+
 export async function getOrganolepticChecklists(options?: {
   date?: string;
   dateEnd?: string;
   limit?: number;
   createdById?: string;
   focus?: OrganolepticFocusFilter | null;
+  safety?: OrganolepticSafetyListFilter | null;
 }): Promise<OrganolepticChecklistListResult> {
   const requested =
     options?.limit && options.limit > 0
@@ -218,6 +237,7 @@ export async function getOrganolepticChecklists(options?: {
       ...inspectionDateFilter(options?.date, options?.dateEnd),
       ...(options?.createdById ? { createdById: options.createdById } : {}),
       ...focusWhere(options?.focus),
+      ...safetyListWhere(options?.safety),
     },
     select: checklistListSelect,
     orderBy: [{ inspectionDate: "desc" }, { createdAt: "desc" }],

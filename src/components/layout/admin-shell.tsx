@@ -82,7 +82,7 @@ export function AdminShell({
         aria-label={isMobile ? "Navigasi admin" : undefined}
         aria-hidden={drawerClosedOnMobile ? true : undefined}
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-primary transition-transform duration-200 ease-out lg:static lg:z-auto lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-primary transition-transform duration-200 ease-out print:hidden lg:static lg:z-auto lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           drawerClosedOnMobile && "pointer-events-none"
         )}
@@ -103,7 +103,7 @@ export function AdminShell({
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-start gap-3 border-b bg-white px-4 py-4 sm:px-6">
+        <header className="flex items-start gap-3 border-b bg-white px-4 py-4 print:hidden sm:px-6">
           <button
             type="button"
             aria-label="Buka menu navigasi"

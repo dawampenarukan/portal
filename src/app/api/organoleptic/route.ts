@@ -29,6 +29,9 @@ export async function GET(request: Request) {
   const focusParam = searchParams.get("focus");
   const focus =
     focusParam === "unsafe" || focusParam === "returned" ? focusParam : null;
+  const safetyParam = searchParams.get("safety");
+  const safety =
+    safetyParam === "aman" || safetyParam === "tidak-aman" ? safetyParam : null;
   const createdById = getOrganolepticOwnerFilter(session!.user.role, session!.user.id);
 
   try {
@@ -47,6 +50,7 @@ export async function GET(request: Request) {
       limit: limit && limit > 0 ? limit : undefined,
       createdById,
       focus,
+      safety,
     });
     return NextResponse.json(result);
   } catch {
