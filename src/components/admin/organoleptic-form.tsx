@@ -265,6 +265,16 @@ export function OrganolepticForm({
       return;
     }
 
+    const missingNotes = filledItems.find(
+      (item) => item.safety === "TIDAK_AMAN" && !item.notes.trim()
+    );
+    if (missingNotes) {
+      setError(
+        `Keterangan wajib diisi untuk item tidak aman: ${missingNotes.foodName}`
+      );
+      return;
+    }
+
     const itemsToSave = filledItems.slice(0, ORGANOLEPTIC_ITEMS_PER_PACKAGE);
 
     let savedReceived = nonNegIntOrZero(header.packagesReceived);

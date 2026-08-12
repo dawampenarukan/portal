@@ -36,6 +36,18 @@ function parseItem(raw: unknown, index: number): OrganolepticItemInput | string 
   const colorScore = Number(item.colorScore);
   const aromaScore = Number(item.aromaScore);
   const textureScore = Number(item.textureScore);
+  const safety = deriveOrganolepticSafety({
+    tasteScore,
+    colorScore,
+    aromaScore,
+    textureScore,
+  });
+  const notes =
+    typeof item.notes === "string" ? item.notes.trim() || null : null;
+
+  if (safety === "TIDAK_AMAN" && !notes) {
+    return `Baris ${index + 1} (${foodName}): keterangan wajib diisi karena temuan tidak aman`;
+  }
 
   return {
     foodName,
@@ -43,13 +55,8 @@ function parseItem(raw: unknown, index: number): OrganolepticItemInput | string 
     colorScore,
     aromaScore,
     textureScore,
-    safety: deriveOrganolepticSafety({
-      tasteScore,
-      colorScore,
-      aromaScore,
-      textureScore,
-    }),
-    notes: typeof item.notes === "string" ? item.notes : null,
+    safety,
+    notes,
   };
 }
 

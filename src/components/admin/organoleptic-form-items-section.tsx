@@ -75,7 +75,7 @@ export function OrganolepticFormItemsSection({
         <h3 className="font-semibold">Hasil Pemeriksaan (skor 1–5)</h3>
         <p className="text-xs text-muted-foreground">
           Minimal {ORGANOLEPTIC_REQUIRED_ITEMS} item · skor 1–2 → tidak aman
-          otomatis · item ke-5 opsional
+          otomatis · item ke-5 opsional · tidak aman → keterangan wajib
           {lockFoodNames
             ? " · nama dari template (tidak bisa diubah) · skor abu = belum diisi (default 5)"
             : ""}
@@ -224,11 +224,26 @@ export function OrganolepticFormItemsSection({
                           onUpdateItem(index, { notes: e.target.value })
                         }
                         disabled={readOnly}
-                        placeholder="Ket"
+                        required={item.safety === "TIDAK_AMAN"}
+                        aria-required={item.safety === "TIDAK_AMAN"}
+                        placeholder={
+                          item.safety === "TIDAK_AMAN"
+                            ? "Ket wajib*"
+                            : "Ket"
+                        }
+                        title={
+                          item.safety === "TIDAK_AMAN"
+                            ? "Wajib diisi karena temuan tidak aman"
+                            : undefined
+                        }
                         className={cn(
                           TABLE_CONTROL_CLASS,
                           "min-w-[90px] text-foreground",
-                          readOnly && READONLY_FIELD_CLASS
+                          readOnly && READONLY_FIELD_CLASS,
+                          item.safety === "TIDAK_AMAN" &&
+                            !item.notes.trim() &&
+                            !readOnly &&
+                            "border-destructive/60 focus-visible:ring-destructive"
                         )}
                       />
                     )}
