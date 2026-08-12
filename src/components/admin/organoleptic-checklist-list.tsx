@@ -79,10 +79,24 @@ function applyListFilters(
   return applySafetyFilter(applyFocusFilter(rows, focus), safety);
 }
 
-function safetyFilterLabel(safety: SafetyFilter) {
+function safetyFilterLabel(safety: SafetyFilter, focus: FocusFilter) {
+  if (focus === "unsafe") return "Belum dievaluasi";
+  if (focus === "returned") return "Paket dikembalikan";
   if (safety === "aman") return "Aman";
   if (safety === "tidak-aman") return "Tidak aman";
   return "Semua";
+}
+
+type ChecklistUiFilter = "all" | "aman" | "tidak-aman" | "belum-evaluasi";
+
+function resolveChecklistUiFilter(
+  safety: SafetyFilter,
+  focus: FocusFilter
+): ChecklistUiFilter {
+  if (focus === "unsafe") return "belum-evaluasi";
+  if (safety === "aman") return "aman";
+  if (safety === "tidak-aman") return "tidak-aman";
+  return "all";
 }
 
 export function OrganolepticChecklistList({
@@ -203,11 +217,33 @@ export function OrganolepticChecklistList({
 
   const today = formatInspectionDateInput(new Date());
   const periodLabel = formatOrganolepticPeriodLabel(dateFrom, dateTo);
-  const safetyOptions: { value: SafetyFilter; label: string }[] = [
-    { value: null, label: "All" },
+  const activeChecklistFilter = resolveChecklistUiFilter(safety, focus);
+  const checklistFilterOptions: {
+    value: ChecklistUiFilter;
+    label: string;
+  }[] = [
+    { value: "all", label: "All" },
     { value: "aman", label: "Aman" },
     { value: "tidak-aman", label: "Tidak aman" },
+    { value: "belum-evaluasi", label: "Belum dievaluasi" },
   ];
+
+  function applyChecklistUiFilter(next: ChecklistUiFilter) {
+    if (next === "all") {
+      void loadRange(dateFrom, dateTo, null, null);
+      return;
+    }
+    if (next === "aman") {
+      void loadRange(dateFrom, dateTo, null, "aman");
+      return;
+    }
+    if (next === "tidak-aman") {
+      void loadRange(dateFrom, dateTo, null, "tidak-aman");
+      return;
+    }
+    // Temuan tidak aman yang belum dievaluasi
+    void loadRange(dateFrom, dateTo, "unsafe", null);
+  }
 
   return (
     <div className="space-y-4">
@@ -241,7 +277,7 @@ export function OrganolepticChecklistList({
         >
           Hari ini
         </Button>
-        {focus && (
+        {focus === "returned" && (
           <Button
             type="button"
             variant="ghost"
@@ -249,8 +285,7 @@ export function OrganolepticChecklistList({
             onClick={() => loadRange(dateFrom, dateTo, null, safety)}
             disabled={loading}
           >
-            Hapus filter{" "}
-            {focus === "unsafe" ? "tidak aman (notice)" : "dikembalikan"}
+            Hapus filter dikembalikan
           </Button>
         )}
         <Button
@@ -272,14 +307,19 @@ export function OrganolepticChecklistList({
         <span className="text-sm font-medium text-muted-foreground">
           Filter checklist:
         </span>
-        {safetyOptions.map((opt) => (
+        {checklistFilterOptions.map((opt) => (
           <Button
-            key={opt.label}
+            key={opt.value}
             type="button"
             size="sm"
-            variant={safety === opt.value ? "default" : "outline"}
+            variant={activeChecklistFilter === opt.value ? "default" : "outline"}
             disabled={loading}
-            onClick={() => loadRange(dateFrom, dateTo, null, opt.value)}
+            onClick={() => applyChecklistUiFilter(opt.value)}
+            title={
+              opt.value === "belum-evaluasi"
+                ? "Temuan tidak aman yang belum dievaluasi"
+                : undefined
+            }
           >
             {opt.label}
           </Button>
@@ -288,18 +328,25 @@ export function OrganolepticChecklistList({
 
       <div className="hidden print:mb-2 print:block">
         <h1 className="text-sm font-bold leading-tight">
-          Checklist Uji Organoleptik — {periodLabel} · {safetyFilterLabel(safety)} ·{" "}
-          {checklists.length} lembar
+          Checklist Uji Organoleptik — {periodLabel} ·{" "}
+          {safetyFilterLabel(safety, focus)} · {checklists.length} lembar
         </h1>
       </div>
 
-      {focus && (
+      {focus === "unsafe" && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden">
           Menampilkan checklist dengan{" "}
           <span className="font-semibold">
-            {focus === "unsafe" ? "temuan tidak aman (belum dievaluasi)" : "paket dikembalikan"}
+            temuan tidak aman yang belum dievaluasi
           </span>{" "}
           pada rentang tanggal di atas.
+        </p>
+      )}
+      {focus === "returned" && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 print:hidden">
+          Menampilkan checklist dengan{" "}
+          <span className="font-semibold">paket dikembalikan</span> pada rentang
+          tanggal di atas.
         </p>
       )}
 
