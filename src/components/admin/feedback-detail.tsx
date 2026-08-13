@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { ImageZoom } from "@/components/ui/image-zoom";
+import { Textarea } from "@/components/ui/textarea";
 
 const statusOptions = ["NEW", "IN_PROGRESS", "RESOLVED", "REJECTED"] as const;
 const statusLabel: Record<string, string> = {
@@ -98,19 +98,13 @@ export function FeedbackDetail({ feedbackId }: FeedbackDetailProps) {
 
                 {feedback.images.length > 0 && (
                   <div className="mt-4 grid grid-cols-2 gap-2">
-                    {feedback.images.map((img) => (
-                      <div
-                        key={img}
-                        className="relative aspect-video overflow-hidden rounded-lg border"
-                      >
-                        <Image
-                          src={img}
-                          alt="Lampiran"
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 50vw, 240px"
-                        />
-                      </div>
+                    {feedback.images.map((img, index) => (
+                      <ImageZoom
+                        key={`${img}-${index}`}
+                        src={img}
+                        alt={`Lampiran ${index + 1}`}
+                        thumbClassName="aspect-video w-full rounded-lg"
+                      />
                     ))}
                   </div>
                 )}
