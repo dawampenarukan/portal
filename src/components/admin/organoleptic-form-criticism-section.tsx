@@ -1,5 +1,6 @@
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ImageZoom } from "@/components/ui/image-zoom";
 import { Textarea } from "@/components/ui/textarea";
 import { READONLY_FIELD_CLASS } from "@/components/admin/organoleptic-form-types";
 import { ORGANOLEPTIC_MAX_CRITICISM_IMAGES } from "@/lib/organoleptic-meta";
@@ -50,21 +51,19 @@ export function OrganolepticFormCriticismSection({
         {criticismImages.length > 0 && (
           <div className="flex flex-wrap gap-3">
             {criticismImages.map((url, index) => (
-              <div
-                key={`${url}-${index}`}
-                className="relative h-24 w-24 overflow-hidden rounded-xl border bg-muted/30"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+              <div key={`${url}-${index}`} className="relative">
+                <ImageZoom
                   src={url}
                   alt={`Lampiran ${index + 1}`}
-                  className="h-full w-full object-cover"
                 />
                 {!readOnly && (
                   <button
                     type="button"
-                    onClick={() => onRemoveImage(index)}
-                    className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveImage(index);
+                    }}
+                    className="absolute right-1 top-1 z-20 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
                     aria-label={`Hapus gambar ${index + 1}`}
                   >
                     <X className="h-3 w-3" />

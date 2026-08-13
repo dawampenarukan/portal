@@ -38,6 +38,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [schoolLocation, setSchoolLocation] = useState('');
   const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -85,6 +86,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
       name,
       email,
       phone,
+      schoolLocation,
       category,
       title,
       description,
@@ -119,6 +121,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
           name,
           email,
           phone,
+          schoolLocation,
           category,
           title,
           description,
@@ -145,6 +148,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
     setName('');
     setEmail('');
     setPhone('');
+    setSchoolLocation('');
     setCategory('');
     setTitle('');
     setDescription('');
@@ -244,26 +248,45 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
                 </div>
                 <div>
                   <label className='mb-1.5 block text-sm font-medium'>
-                    Kategori *
+                    Nama Sekolah/Posyandu *
                   </label>
-                  <Select
+                  <Input
                     required
-                    value={category}
+                    placeholder='Contoh: Posyandu Melati 1 / SD Negeri 1'
+                    value={schoolLocation}
                     onChange={(e) => {
-                      setCategory(e.target.value);
-                      clearFieldError('category');
+                      setSchoolLocation(e.target.value);
+                      clearFieldError('schoolLocation');
                     }}
-                    className={cn(fieldErrors.category && 'border-destructive')}
-                  >
-                    <option value=''>Pilih kategori</option>
-                    {FEEDBACK_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </Select>
-                  <FieldError message={fieldErrors.category} />
+                    className={cn(
+                      fieldErrors.schoolLocation && 'border-destructive'
+                    )}
+                  />
+                  <FieldError message={fieldErrors.schoolLocation} />
                 </div>
+              </div>
+
+              <div>
+                <label className='mb-1.5 block text-sm font-medium'>
+                  Kategori *
+                </label>
+                <Select
+                  required
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    clearFieldError('category');
+                  }}
+                  className={cn(fieldErrors.category && 'border-destructive')}
+                >
+                  <option value=''>Pilih kategori</option>
+                  {FEEDBACK_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </Select>
+                <FieldError message={fieldErrors.category} />
               </div>
 
               <div>

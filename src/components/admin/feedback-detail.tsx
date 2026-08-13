@@ -22,10 +22,12 @@ interface FeedbackDetailData {
   name: string;
   email: string | null;
   phone: string | null;
+  schoolLocation: string | null;
   description: string;
   status: (typeof statusOptions)[number];
   adminNotes: string | null;
   images: string[];
+  createdAt?: string;
 }
 
 interface FeedbackDetailProps {
@@ -89,7 +91,8 @@ export function FeedbackDetail({ feedbackId }: FeedbackDetailProps) {
                   <Badge>{statusLabel[feedback.status]}</Badge>
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {feedback.name} · {feedback.email ?? "-"} · {feedback.phone ?? "-"}
+                  {feedback.name} · {feedback.schoolLocation?.trim() || "—"} ·{" "}
+                  {feedback.email ?? "-"} · {feedback.phone ?? "-"}
                 </p>
                 <p className="mt-4 text-sm">{feedback.description}</p>
 

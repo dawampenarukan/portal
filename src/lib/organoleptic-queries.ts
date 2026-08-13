@@ -407,6 +407,34 @@ export interface OrganolepticChecklistInput {
   items: OrganolepticItemInput[];
 }
 
+/** Satu akun = maksimal satu lembar per tanggal inspeksi. */
+export async function getOrganolepticIdForUserDate(
+  createdById: string,
+  dateStr: string
+): Promise<string | null> {
+  const inspectionDate = parseInspectionDate(dateStr);
+  if (!inspectionDate) return null;
+
+  const row = await prisma.organolepticChecklist.findFirst({
+    where: { createdById, inspectionDate },
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return row?.id ?? null;
+}
+
+export class OrganolepticDuplicateEntryError extends Error {
+  readonly existingId: string;
+
+  constructor(existingId: string) {
+    super(
+      "Akun ini sudah mengirim checklist uji organoleptik untuk tanggal tersebut. Satu akun hanya boleh 1 entri per hari."
+    );
+    this.name = "OrganolepticDuplicateEntryError";
+    this.existingId = existingId;
+  }
+}
+
 export async function createOrganolepticChecklist(
   data: OrganolepticChecklistInput,
   createdById: string
@@ -414,38 +442,61 @@ export async function createOrganolepticChecklist(
   const inspectionDate = parseInspectionDate(data.inspectionDate);
   if (!inspectionDate) throw new Error("Tanggal tidak valid");
 
-  const row = await prisma.organolepticChecklist.create({
-    data: {
-      inspectorName: data.inspectorName.trim(),
-      placeType: data.placeType,
-      placeName: data.placeName.trim(),
-      inspectionDate,
-      inspectionTime: data.inspectionTime.trim(),
-      timing: data.timing,
-      packagesReceived: data.packagesReceived ?? null,
-      packagesConsumed: data.packagesConsumed ?? null,
-      packagesReturned: data.packagesReturned ?? null,
-      returnReason: data.returnReason?.trim() || null,
-      criticism: data.criticism?.trim() || null,
-      criticismImages: data.criticismImages ?? [],
-      createdById,
-      items: {
-        create: data.items.map((item, index) => ({
-          sortOrder: index,
-          foodName: item.foodName.trim(),
-          tasteScore: item.tasteScore,
-          colorScore: item.colorScore,
-          aromaScore: item.aromaScore,
-          textureScore: item.textureScore,
-          safety: item.safety,
-          notes: item.notes?.trim() || null,
-        })),
-      },
-    },
-    select: checklistDetailSelect,
-  });
+  const existingId = await getOrganolepticIdForUserDate(
+    createdById,
+    data.inspectionDate
+  );
+  if (existingId) {
+    throw new OrganolepticDuplicateEntryError(existingId);
+  }
 
-  return mapChecklist(row);
+  try {
+    const row = await prisma.organolepticChecklist.create({
+      data: {
+        inspectorName: data.inspectorName.trim(),
+        placeType: data.placeType,
+        placeName: data.placeName.trim(),
+        inspectionDate,
+        inspectionTime: data.inspectionTime.trim(),
+        timing: data.timing,
+        packagesReceived: data.packagesReceived ?? null,
+        packagesConsumed: data.packagesConsumed ?? null,
+        packagesReturned: data.packagesReturned ?? null,
+        returnReason: data.returnReason?.trim() || null,
+        criticism: data.criticism?.trim() || null,
+        criticismImages: data.criticismImages ?? [],
+        createdById,
+        items: {
+          create: data.items.map((item, index) => ({
+            sortOrder: index,
+            foodName: item.foodName.trim(),
+            tasteScore: item.tasteScore,
+            colorScore: item.colorScore,
+            aromaScore: item.aromaScore,
+            textureScore: item.textureScore,
+            safety: item.safety,
+            notes: item.notes?.trim() || null,
+          })),
+        },
+      },
+      select: checklistDetailSelect,
+    });
+
+    return mapChecklist(row);
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: unknown }).code)
+        : "";
+    if (code === "P2002") {
+      const again = await getOrganolepticIdForUserDate(
+        createdById,
+        data.inspectionDate
+      );
+      throw new OrganolepticDuplicateEntryError(again ?? "");
+    }
+    throw err;
+  }
 }
 
 export async function deleteOrganolepticChecklist(id: string) {

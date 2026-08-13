@@ -1,8 +1,10 @@
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FeedbackDeleteButton } from "@/components/admin/feedback-delete-button";
 import { PaginationNav } from "@/components/admin/pagination-nav";
 import { getAdminFeedbacksList } from "@/lib/queries";
+import { formatDate } from "@/lib/utils";
 
 const FeedbackDetail = dynamic(
   () => import("@/components/admin/feedback-detail").then((m) => m.FeedbackDetail),
@@ -34,7 +36,10 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   <p className="font-medium leading-snug">{fb.title}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{fb.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {fb.category ?? "-"}
+                    {fb.schoolLocation?.trim() || "—"} · {fb.category ?? "-"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatDate(fb.createdAt)}
                   </p>
                 </div>
                 <Badge
@@ -44,8 +49,9 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   {statusLabel[fb.status] ?? fb.status}
                 </Badge>
               </div>
-              <div className="mt-3">
+              <div className="mt-3 flex items-center gap-1">
                 <FeedbackDetail feedbackId={fb.id} />
+                <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
               </div>
             </div>
           ))}
@@ -62,6 +68,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
                 <th className="pb-3 pr-4 font-medium">Pengirim</th>
                 <th className="pb-3 pr-4 font-medium">Judul</th>
                 <th className="pb-3 pr-4 font-medium">Kategori</th>
+                <th className="pb-3 pr-4 font-medium">Tanggal</th>
                 <th className="pb-3 pr-4 font-medium">Status</th>
                 <th className="pb-3 font-medium">Aksi</th>
               </tr>
@@ -69,18 +76,31 @@ export async function AdminMasukanList({ page }: { page: number }) {
             <tbody>
               {feedbacks.map((fb) => (
                 <tr key={fb.id} className="border-b last:border-0">
-                  <td className="py-3 pr-4">{fb.name}</td>
+                  <td className="py-3 pr-4">
+                    <p>{fb.name}</p>
+                    {fb.schoolLocation?.trim() ? (
+                      <p className="text-xs text-muted-foreground">
+                        {fb.schoolLocation}
+                      </p>
+                    ) : null}
+                  </td>
                   <td className="max-w-xs truncate py-3 pr-4 font-medium">
                     {fb.title}
                   </td>
                   <td className="py-3 pr-4">{fb.category ?? "-"}</td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-muted-foreground">
+                    {formatDate(fb.createdAt)}
+                  </td>
                   <td className="py-3 pr-4">
                     <Badge variant={fb.status === "NEW" ? "popular" : "secondary"}>
                       {statusLabel[fb.status] ?? fb.status}
                     </Badge>
                   </td>
                   <td className="py-3">
-                    <FeedbackDetail feedbackId={fb.id} />
+                    <div className="flex items-center gap-1">
+                      <FeedbackDetail feedbackId={fb.id} />
+                      <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
+                    </div>
                   </td>
                 </tr>
               ))}

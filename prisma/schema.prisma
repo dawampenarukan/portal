@@ -133,18 +133,20 @@ model Publication {
 }
 
 model Feedback {
-  id          String         @id @default(cuid())
-  name        String
-  email       String?
-  phone       String?
-  title       String
-  description String         @db.Text
-  category    String?
-  images      String[]
-  status      FeedbackStatus @default(NEW)
-  adminNotes  String?        @db.Text
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id             String         @id @default(cuid())
+  name           String
+  email          String?
+  phone          String?
+  /// Nama sekolah / posyandu pengirim masukan
+  schoolLocation String?
+  title          String
+  description    String         @db.Text
+  category       String?
+  images         String[]
+  status         FeedbackStatus @default(NEW)
+  adminNotes     String?        @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([status, createdAt])
 }
@@ -293,6 +295,7 @@ model OrganolepticChecklist {
   updatedAt         DateTime              @updatedAt
   items             OrganolepticItem[]
 
+  @@unique([createdById, inspectionDate], map: "OrganolepticChecklist_createdById_inspectionDate_key")
   @@index([inspectionDate])
   @@index([placeName, inspectionDate])
   @@index([createdById])

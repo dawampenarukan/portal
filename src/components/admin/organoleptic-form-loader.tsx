@@ -32,6 +32,7 @@ interface Props {
   profileDefaults?: OrganolepticProfileDefaults | null;
   /** Template nama makanan (input baru saja). */
   foodNameDefaults?: string[] | null;
+  existingForDateId?: string | null;
 }
 
 /** Dynamic import form berat — kurangi JS awal halaman admin organoleptik. */

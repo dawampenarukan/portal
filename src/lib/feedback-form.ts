@@ -45,6 +45,7 @@ export interface FeedbackFormInput {
   name: string;
   email: string;
   phone: string;
+  schoolLocation: string;
   category: string;
   title: string;
   description: string;
@@ -54,6 +55,9 @@ export function validateFeedbackForm(data: FeedbackFormInput): Record<string, st
   const errors: Record<string, string> = {};
 
   if (!data.name.trim()) errors.name = "Nama wajib diisi";
+  if (!data.schoolLocation.trim()) {
+    errors.schoolLocation = "Nama sekolah/posyandu wajib diisi";
+  }
   if (!data.title.trim()) errors.title = "Judul wajib diisi";
   if (!data.description.trim()) errors.description = "Deskripsi wajib diisi";
 

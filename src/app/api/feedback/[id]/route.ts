@@ -46,3 +46,21 @@ export async function PATCH(request: Request, { params }: Params) {
     return serverError("Gagal memperbarui masukan");
   }
 }
+
+export async function DELETE(_request: Request, { params }: Params) {
+  const { error } = await requireAdmin();
+  if (error) return error;
+
+  const { id } = await params;
+
+  try {
+    const existing = await prisma.feedback.findUnique({ where: { id } });
+    if (!existing) return notFound("Masukan tidak ditemukan");
+
+    await prisma.feedback.delete({ where: { id } });
+    revalidateAdminFeedback();
+    return NextResponse.json({ ok: true });
+  } catch {
+    return serverError("Gagal menghapus masukan");
+  }
+}

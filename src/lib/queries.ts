@@ -1034,9 +1034,11 @@ export async function getAdminFeedbacksList(page = 1) {
       select: {
         id: true,
         name: true,
+        schoolLocation: true,
         title: true,
         category: true,
         status: true,
+        createdAt: true,
       },
       orderBy: { createdAt: "desc" },
       skip,

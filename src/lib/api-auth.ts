@@ -93,6 +93,10 @@ export function badRequest(message: string) {
   return NextResponse.json({ error: message }, { status: 400 });
 }
 
+export function conflict(message: string, extra?: Record<string, unknown>) {
+  return NextResponse.json({ error: message, ...extra }, { status: 409 });
+}
+
 export function notFound(message = "Tidak ditemukan") {
   return NextResponse.json({ error: message }, { status: 404 });
 }

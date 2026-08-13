@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { OrganolepticFormCriticismSection } from "@/components/admin/organoleptic-form-criticism-section";
@@ -36,6 +36,8 @@ interface OrganolepticFormProps {
   profileDefaults?: OrganolepticProfileDefaults | null;
   /** Prefill Nama Makanan dari template admin (mode input baru). */
   foodNameDefaults?: string[] | null;
+  /** ID lembar yang sudah ada untuk tanggal default (mode input baru). */
+  existingForDateId?: string | null;
 }
 
 export function OrganolepticForm({
@@ -43,6 +45,7 @@ export function OrganolepticForm({
   readOnly = false,
   profileDefaults = null,
   foodNameDefaults = null,
+  existingForDateId = null,
 }: OrganolepticFormProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +80,10 @@ export function OrganolepticForm({
   const [loading, setLoading] = useState(false);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingId, setExistingId] = useState<string | null>(
+    !initialData ? existingForDateId : null
+  );
+  const [checkingExisting, setCheckingExisting] = useState(false);
   const [returnedManual, setReturnedManual] = useState(
     () => nonNegIntOrZero(initial?.header.packagesReturned ?? "") > 0
   );
@@ -97,6 +104,33 @@ export function OrganolepticForm({
       // biarkan form tetap; user bisa isi manual
     }
   }
+
+  async function checkExistingForDate(dateStr: string) {
+    if (initialData || readOnly || !dateStr) {
+      setExistingId(null);
+      return;
+    }
+    setCheckingExisting(true);
+    try {
+      const res = await fetch(
+        `/api/organoleptic?mineForDate=${encodeURIComponent(dateStr)}`
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { existingId?: string | null };
+      setExistingId(data.existingId ?? null);
+    } catch {
+      // biarkan submit API yang menolak jika duplikat
+    } finally {
+      setCheckingExisting(false);
+    }
+  }
+
+  useEffect(() => {
+    if (initialData || readOnly) return;
+    void checkExistingForDate(header.inspectionDate);
+    // Hanya re-check saat tanggal inspeksi berubah
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+  }, [header.inspectionDate, initialData, readOnly]);
 
   function patchHeader(patch: Partial<HeaderForm>) {
     setHeader((h) => {
@@ -259,6 +293,13 @@ export function OrganolepticForm({
     e.preventDefault();
     if (readOnly) return;
 
+    if (existingId) {
+      setError(
+        "Akun ini sudah mengirim checklist untuk tanggal tersebut. Satu akun hanya boleh 1 entri per hari."
+      );
+      return;
+    }
+
     const filledItems = items.filter((item) => item.foodName.trim());
     if (filledItems.length < ORGANOLEPTIC_REQUIRED_ITEMS) {
       setError(`Minimal ${ORGANOLEPTIC_REQUIRED_ITEMS} item menu wajib diisi`);
@@ -325,7 +366,9 @@ export function OrganolepticForm({
     if (!res.ok) {
       const data = (await res.json().catch(() => null)) as {
         error?: string;
+        existingId?: string;
       } | null;
+      if (data?.existingId) setExistingId(data.existingId);
       setError(data?.error ?? "Gagal menyimpan checklist");
       return;
     }
@@ -347,9 +390,36 @@ export function OrganolepticForm({
         <p className="mt-2 text-xs text-muted-foreground">
           1 lembar = 1 sekolah/posyandu = 1 paket makanan (min.{" "}
           {ORGANOLEPTIC_REQUIRED_ITEMS}, maks. {ORGANOLEPTIC_ITEMS_PER_PACKAGE}{" "}
-          item)
+          item). Satu akun hanya boleh 1 entri per tanggal inspeksi.
         </p>
       </div>
+
+      {!readOnly && existingId ? (
+        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-medium">
+            Checklist untuk tanggal ini sudah dikirim dari akun Anda.
+          </p>
+          <p className="mt-1 text-amber-900/80">
+            Satu akun hanya boleh 1 entri per hari. Buka lembar yang sudah ada,
+            atau ganti tanggal inspeksi bila ingin mengisi hari lain.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href={`/admin/menu/organoleptik/${existingId}`}
+              prefetch={false}
+            >
+              <Button type="button" size="sm">
+                Lihat Checklist
+              </Button>
+            </Link>
+            <Link href="/admin/menu/organoleptik" prefetch={false}>
+              <Button type="button" size="sm" variant="outline">
+                Kembali ke daftar
+              </Button>
+            </Link>
+          </div>
+        </div>
+      ) : null}
 
       <OrganolepticFormHeaderSection
         header={header}
@@ -359,40 +429,47 @@ export function OrganolepticForm({
         onChange={patchHeader}
       />
 
-      <OrganolepticFormItemsSection
-        items={items}
-        readOnly={readOnly}
-        lockFoodNames={lockFoodNames}
-        onUpdateItem={updateItem}
-      />
+      {!existingId ? (
+        <>
+          <OrganolepticFormItemsSection
+            items={items}
+            readOnly={readOnly}
+            lockFoodNames={lockFoodNames}
+            onUpdateItem={updateItem}
+          />
 
-      <OrganolepticFormPackagesSection
-        header={header}
-        readOnly={readOnly}
-        onReceived={updatePackagesReceived}
-        onConsumed={updatePackagesConsumed}
-        onReturned={updatePackagesReturned}
-        onReturnReason={(value) => patchHeader({ returnReason: value })}
-      />
+          <OrganolepticFormPackagesSection
+            header={header}
+            readOnly={readOnly}
+            onReceived={updatePackagesReceived}
+            onConsumed={updatePackagesConsumed}
+            onReturned={updatePackagesReturned}
+            onReturnReason={(value) => patchHeader({ returnReason: value })}
+          />
 
-      <OrganolepticFormCriticismSection
-        criticism={header.criticism}
-        criticismImages={criticismImages}
-        readOnly={readOnly}
-        uploadingImages={uploadingImages}
-        loading={loading}
-        fileInputRef={fileInputRef}
-        onCriticismChange={(value) => patchHeader({ criticism: value })}
-        onRemoveImage={removeCriticismImage}
-        onImageUpload={handleImageUpload}
-        onPickImages={() => fileInputRef.current?.click()}
-      />
+          <OrganolepticFormCriticismSection
+            criticism={header.criticism}
+            criticismImages={criticismImages}
+            readOnly={readOnly}
+            uploadingImages={uploadingImages}
+            loading={loading}
+            fileInputRef={fileInputRef}
+            onCriticismChange={(value) => patchHeader({ criticism: value })}
+            onRemoveImage={removeCriticismImage}
+            onImageUpload={handleImageUpload}
+            onPickImages={() => fileInputRef.current?.click()}
+          />
+        </>
+      ) : null}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      {!readOnly && (
+      {!readOnly && !existingId && (
         <div className="flex gap-3">
-          <Button type="submit" disabled={loading || uploadingImages}>
+          <Button
+            type="submit"
+            disabled={loading || uploadingImages || checkingExisting}
+          >
             {loading ? "Menyimpan..." : "Simpan Checklist"}
           </Button>
           <Link href="/admin/menu/organoleptik" prefetch={false}>

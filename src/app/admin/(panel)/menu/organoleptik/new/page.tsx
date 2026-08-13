@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getOrganolepticFoodTemplateNames } from "@/lib/organoleptic-food-template";
 import { formatInspectionDateInput } from "@/lib/organoleptic-meta";
 import { inferOrganolepticPlaceType } from "@/lib/organoleptic-pic-accounts";
+import { getOrganolepticIdForUserDate } from "@/lib/organoleptic-queries";
 import { isOrganolepticEntryRole } from "@/lib/roles";
 import { getUserProfileForOrganoleptic } from "@/lib/user-queries";
 import type { OrganolepticProfileDefaults } from "@/lib/types";
@@ -35,7 +36,12 @@ export default async function AdminOrganoleptikNewPage() {
   }
 
   const today = formatInspectionDateInput(new Date());
-  const foodNameDefaults = await getOrganolepticFoodTemplateNames(today);
+  const [foodNameDefaults, existingForDateId] = await Promise.all([
+    getOrganolepticFoodTemplateNames(today),
+    session?.user?.id
+      ? getOrganolepticIdForUserDate(session.user.id, today)
+      : Promise.resolve(null),
+  ]);
   const hasFoodTemplate = foodNameDefaults.some((n) => n.trim());
 
   return (
@@ -51,6 +57,7 @@ export default async function AdminOrganoleptikNewPage() {
         <h2 className="mt-2 text-2xl font-bold">Input Checklist Baru</h2>
         <p className="text-muted-foreground">
           Isi sesuai formulir BGN — satu lembar per lokasi, berisi 5 item menu dalam satu paket MBG.
+          Satu akun hanya boleh 1 entri per tanggal inspeksi.
           {profileDefaults?.lockFields
             ? " Nama pemeriksa dan tempat diisi otomatis dari akun Anda."
             : ""}
@@ -65,6 +72,7 @@ export default async function AdminOrganoleptikNewPage() {
           <OrganolepticFormLoader
             profileDefaults={profileDefaults}
             foodNameDefaults={foodNameDefaults}
+            existingForDateId={existingForDateId}
           />
         </CardContent>
       </Card>

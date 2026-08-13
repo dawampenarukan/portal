@@ -190,6 +190,36 @@ async function addOrganolepticColumns(): Promise<void> {
     CREATE INDEX IF NOT EXISTS "OrganolepticItem_safety_idx"
     ON "OrganolepticItem"("safety");
   `);
+
+  // Hapus duplikat (keep entri tertua) sebelum unique 1 akun / 1 tanggal.
+  await prisma.$executeRawUnsafe(`
+    DELETE FROM "OrganolepticChecklist" AS d
+    WHERE d.id IN (
+      SELECT id FROM (
+        SELECT id,
+          ROW_NUMBER() OVER (
+            PARTITION BY "createdById", "inspectionDate"
+            ORDER BY "createdAt" ASC, id ASC
+          ) AS rn
+        FROM "OrganolepticChecklist"
+        WHERE "createdById" IS NOT NULL
+      ) t
+      WHERE t.rn > 1
+    );
+  `);
+
+  await prisma.$executeRawUnsafe(`
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'OrganolepticChecklist_createdById_inspectionDate_key'
+      ) THEN
+        ALTER TABLE "OrganolepticChecklist"
+        ADD CONSTRAINT "OrganolepticChecklist_createdById_inspectionDate_key"
+        UNIQUE ("createdById", "inspectionDate");
+      END IF;
+    END $$;
+  `);
 }
 
 /**
@@ -246,6 +276,7 @@ export async function syncProductionSchema(): Promise<string[]> {
     applied.push("OrganolepticItem.safety_idx");
   }
   applied.push("OrganolepticChecklist.packageColumns");
+  applied.push("OrganolepticChecklist.createdById_inspectionDate_unique");
   applied.push("OrganolepticFoodTemplate");
 
   globalForSchema.organolepticSchemaEnsured = true;

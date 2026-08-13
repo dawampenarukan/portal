@@ -3,6 +3,7 @@ import {
   requireOrganolepticAccess,
   requireExistingUser,
   badRequest,
+  conflict,
   forbidden,
   serverError,
 } from "@/lib/api-auth";
@@ -11,6 +12,8 @@ import {
   createOrganolepticChecklist,
   getOrganolepticChecklists,
   getOrganolepticDailySummary,
+  getOrganolepticIdForUserDate,
+  OrganolepticDuplicateEntryError,
 } from "@/lib/organoleptic-queries";
 import { getOrganolepticOwnerFilter } from "@/lib/organoleptic-scope";
 import { parseOrganolepticPayload } from "@/lib/organoleptic-validation";
@@ -33,8 +36,17 @@ export async function GET(request: Request) {
   const safety =
     safetyParam === "aman" || safetyParam === "tidak-aman" ? safetyParam : null;
   const createdById = getOrganolepticOwnerFilter(session!.user.role, session!.user.id);
+  const mineForDate = searchParams.get("mineForDate");
 
   try {
+    if (mineForDate) {
+      const existingId = await getOrganolepticIdForUserDate(
+        session!.user.id,
+        mineForDate
+      );
+      return NextResponse.json({ existingId });
+    }
+
     if (summary) {
       const data = await getOrganolepticDailySummary(
         date ?? undefined,
@@ -75,6 +87,11 @@ export async function POST(request: Request) {
     revalidatePublicContent({ organoleptic: true, menu: true });
     return NextResponse.json(checklist, { status: 201 });
   } catch (err) {
+    if (err instanceof OrganolepticDuplicateEntryError) {
+      return conflict(err.message, {
+        existingId: err.existingId || undefined,
+      });
+    }
     console.error("[organoleptic] POST error:", err);
     return serverError("Gagal menyimpan checklist organoleptik");
   }
