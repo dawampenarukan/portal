@@ -107,7 +107,7 @@ export function OrganolepticWidget({ data: initialData }: OrganolepticWidgetProp
 
   const safetyData = [
     { name: "Aman", value: summary.safeCount, color: CHART_GREEN },
-    { name: "Tidak aman", value: summary.unsafeCount, color: CHART_CORAL },
+    { name: "Perlu diperhatikan", value: summary.unsafeCount, color: CHART_CORAL },
   ].filter((d) => d.value > 0);
 
   const safetyTotal = summary.safeCount + summary.unsafeCount;
