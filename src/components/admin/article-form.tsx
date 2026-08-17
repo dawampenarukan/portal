@@ -262,8 +262,9 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
         </p>
         {coverImage.startsWith("/uploads/") ? (
           <p className="mt-1 text-xs text-destructive">
-            Cover ini tersimpan lokal (`/uploads/...`) — tidak akan tampil di
-            Vercel. Set token Blob, lalu upload ulang cover.
+            Cover ini tersimpan lokal (`/uploads/...`) — tidak ikut deploy ke
+            Vercel. Upload ulang cover (untuk MP4 perlu BLOB_READ_WRITE_TOKEN),
+            atau simpan file ke `public/media/` lalu set URL `/media/...`.
           </p>
         ) : null}
         {uploadingCover && (
