@@ -1,9 +1,23 @@
 import { NextResponse } from "next/server";
 import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
+import { validateBackgroundMusicFields } from "@/lib/article-background-music";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
+
+function optionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim();
+  return t || null;
+}
+
+function optionalNonNegInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
 
 /** List admin — tanpa content penuh (detail lewat GET /api/articles/[id]). */
 export async function GET() {
@@ -42,6 +56,11 @@ export async function POST(request: Request) {
       excerpt,
       content,
       coverImage,
+      backgroundAudio,
+      backgroundAudioTitle,
+      backgroundAudioCredit,
+      backgroundAudioStartSec,
+      backgroundAudioEndSec,
       categoryId,
       status,
       isPopular,
@@ -52,6 +71,16 @@ export async function POST(request: Request) {
     if (!title || !content || !categoryId) {
       return badRequest("Judul, konten, dan kategori wajib diisi");
     }
+
+    const audioUrl = optionalTrimmedString(backgroundAudio);
+    const startSec = optionalNonNegInt(backgroundAudioStartSec);
+    const endSec = optionalNonNegInt(backgroundAudioEndSec);
+    const musicError = validateBackgroundMusicFields({
+      url: audioUrl ?? "",
+      startSec,
+      endSec,
+    });
+    if (musicError) return badRequest(musicError);
 
     const articleSlug = (slug as string)?.trim() || slugify(title as string);
     const articleStatus = (status as ArticleStatus) ?? ArticleStatus.DRAFT;
@@ -64,6 +93,11 @@ export async function POST(request: Request) {
         excerpt: (excerpt as string)?.trim() || null,
         content: content as string,
         coverImage: (coverImage as string) || null,
+        backgroundAudio: audioUrl,
+        backgroundAudioTitle: optionalTrimmedString(backgroundAudioTitle),
+        backgroundAudioCredit: optionalTrimmedString(backgroundAudioCredit),
+        backgroundAudioStartSec: audioUrl ? startSec : null,
+        backgroundAudioEndSec: audioUrl ? endSec : null,
         status: articleStatus,
         isPopular: Boolean(isPopular),
         isHighlight: Boolean(isHighlight),
@@ -81,7 +115,15 @@ export async function POST(request: Request) {
     revalidateAdminStats();
 
     return NextResponse.json(article, { status: 201 });
-  } catch {
-    return serverError("Gagal membuat artikel");
+  } catch (err) {
+    console.error("[articles] POST error:", err);
+    const message =
+      err &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: string }).code === "P2003"
+        ? "Sesi tidak valid. Silakan logout lalu login ulang."
+        : "Gagal membuat artikel";
+    return serverError(message);
   }
 }

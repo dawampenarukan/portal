@@ -9,6 +9,12 @@ export interface ArticleView {
   author: string;
   publishedAt: string;
   coverImage: string | null;
+  /** URL sumber musik/video — hanya diisi di detail; list biasanya null. */
+  backgroundAudio: string | null;
+  backgroundAudioTitle: string | null;
+  backgroundAudioCredit: string | null;
+  backgroundAudioStartSec: number | null;
+  backgroundAudioEndSec: number | null;
   isPopular: boolean;
   isHighlight: boolean;
   status?: string;

@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
+import { validateBackgroundMusicFields } from "@/lib/article-background-music";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
 
 type Params = { params: Promise<{ id: string }> };
+
+function optionalTrimmedString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const t = value.trim();
+  return t || null;
+}
+
+function optionalNonNegInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
 
 export async function GET(_request: Request, { params }: Params) {
   const { error } = await requireAdmin();
@@ -34,6 +48,26 @@ export async function PATCH(request: Request, { params }: Params) {
     const status = body.status as ArticleStatus | undefined;
     const isPublished = status === ArticleStatus.PUBLISHED;
 
+    const nextAudio =
+      body.backgroundAudio !== undefined
+        ? optionalTrimmedString(body.backgroundAudio)
+        : existing.backgroundAudio;
+    const nextStart =
+      body.backgroundAudioStartSec !== undefined
+        ? optionalNonNegInt(body.backgroundAudioStartSec)
+        : existing.backgroundAudioStartSec;
+    const nextEnd =
+      body.backgroundAudioEndSec !== undefined
+        ? optionalNonNegInt(body.backgroundAudioEndSec)
+        : existing.backgroundAudioEndSec;
+
+    const musicError = validateBackgroundMusicFields({
+      url: nextAudio ?? "",
+      startSec: nextAudio ? nextStart : null,
+      endSec: nextAudio ? nextEnd : null,
+    });
+    if (musicError) return badRequest(musicError);
+
     const article = await prisma.article.update({
       where: { id },
       data: {
@@ -42,6 +76,17 @@ export async function PATCH(request: Request, { params }: Params) {
         excerpt: body.excerpt !== undefined ? body.excerpt?.trim() || null : existing.excerpt,
         content: body.content ?? existing.content,
         coverImage: body.coverImage !== undefined ? body.coverImage || null : existing.coverImage,
+        backgroundAudio: nextAudio,
+        backgroundAudioTitle:
+          body.backgroundAudioTitle !== undefined
+            ? optionalTrimmedString(body.backgroundAudioTitle)
+            : existing.backgroundAudioTitle,
+        backgroundAudioCredit:
+          body.backgroundAudioCredit !== undefined
+            ? optionalTrimmedString(body.backgroundAudioCredit)
+            : existing.backgroundAudioCredit,
+        backgroundAudioStartSec: nextAudio ? nextStart : null,
+        backgroundAudioEndSec: nextAudio ? nextEnd : null,
         categoryId: body.categoryId ?? existing.categoryId,
         status: status ?? existing.status,
         isPopular: body.isPopular !== undefined ? Boolean(body.isPopular) : existing.isPopular,

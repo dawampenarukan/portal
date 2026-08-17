@@ -68,6 +68,16 @@ model Article {
   excerpt     String?
   content     String        @db.Text
   coverImage  String?
+  /// URL sumber musik/video (YouTube atau link web lain) — bukan file upload lokal
+  backgroundAudio String?
+  /// Judul lagu / karya untuk kredit
+  backgroundAudioTitle String?
+  /// Nama sumber / channel (rujukan)
+  backgroundAudioCredit String?
+  /// Detik mulai cuplikan (YouTube embed start)
+  backgroundAudioStartSec Int?
+  /// Detik akhir cuplikan (YouTube embed end)
+  backgroundAudioEndSec Int?
   status      ArticleStatus @default(DRAFT)
   isPopular   Boolean       @default(false)
   isHighlight Boolean       @default(false)

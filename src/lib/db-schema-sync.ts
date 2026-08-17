@@ -262,6 +262,29 @@ export async function syncProductionSchema(): Promise<string[]> {
   // Table sudah dicek — langsung DDL kolom (tanpa getSchemaStatus ekstra)
   await addOrganolepticColumns();
 
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Article"
+    ADD COLUMN IF NOT EXISTS "backgroundAudio" TEXT;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Article"
+    ADD COLUMN IF NOT EXISTS "backgroundAudioTitle" TEXT;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Article"
+    ADD COLUMN IF NOT EXISTS "backgroundAudioCredit" TEXT;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Article"
+    ADD COLUMN IF NOT EXISTS "backgroundAudioStartSec" INTEGER;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "Article"
+    ADD COLUMN IF NOT EXISTS "backgroundAudioEndSec" INTEGER;
+  `);
+  applied.push("Article.backgroundAudio");
+  applied.push("Article.backgroundAudioMeta");
+
   const after = await getSchemaStatus();
   if (!before.createdByIdColumn && after.createdByIdColumn) {
     applied.push("OrganolepticChecklist.createdById");

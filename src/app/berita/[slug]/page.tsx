@@ -5,6 +5,7 @@ import {
   AtmPageShell,
 } from '@/components/layout/atm-page-shell';
 import { Badge } from '@/components/ui/badge';
+import { ArticleBackgroundMusic } from '@/components/news/article-background-music';
 import { ArticleCoverImage } from '@/components/news/article-cover-image';
 import { ArticleCommentsSection } from '@/components/news/article-comments-section';
 import { ListSkeleton } from '@/components/ui/route-skeletons';
@@ -59,6 +60,16 @@ export default async function BeritaDetailPage({ params }: PageProps) {
                 sizes='(max-width: 768px) 100vw, 720px'
               />
             </div>
+
+            {article.backgroundAudio ? (
+              <ArticleBackgroundMusic
+                url={article.backgroundAudio}
+                title={article.backgroundAudioTitle}
+                credit={article.backgroundAudioCredit}
+                startSec={article.backgroundAudioStartSec}
+                endSec={article.backgroundAudioEndSec}
+              />
+            ) : null}
 
             <div className='prose prose-slate max-w-none whitespace-pre-line'>
               <p className='text-lg leading-relaxed text-muted-foreground'>

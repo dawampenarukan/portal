@@ -52,6 +52,11 @@ type ArticleRecord = {
   excerpt: string | null;
   content: string;
   coverImage: string | null;
+  backgroundAudio?: string | null;
+  backgroundAudioTitle?: string | null;
+  backgroundAudioCredit?: string | null;
+  backgroundAudioStartSec?: number | null;
+  backgroundAudioEndSec?: number | null;
   isPopular: boolean;
   isHighlight: boolean;
   status?: ArticleStatus;
@@ -71,6 +76,11 @@ function mapArticle(article: ArticleRecord): ArticleView {
     author: article.author.name,
     publishedAt: (article.publishedAt ?? new Date()).toISOString(),
     coverImage: article.coverImage,
+    backgroundAudio: article.backgroundAudio ?? null,
+    backgroundAudioTitle: article.backgroundAudioTitle ?? null,
+    backgroundAudioCredit: article.backgroundAudioCredit ?? null,
+    backgroundAudioStartSec: article.backgroundAudioStartSec ?? null,
+    backgroundAudioEndSec: article.backgroundAudioEndSec ?? null,
     isPopular: article.isPopular,
     isHighlight: article.isHighlight,
   };
@@ -203,6 +213,11 @@ function mapPublishedArticleListItem(article: {
     author: article.author.name,
     publishedAt: (article.publishedAt ?? new Date()).toISOString(),
     coverImage: article.coverImage,
+    backgroundAudio: null,
+    backgroundAudioTitle: null,
+    backgroundAudioCredit: null,
+    backgroundAudioStartSec: null,
+    backgroundAudioEndSec: null,
     isPopular: article.isPopular,
     isHighlight: article.isHighlight,
   };
@@ -284,6 +299,11 @@ export async function getAllArticles(): Promise<ArticleView[]> {
     author: article.author.name,
     publishedAt: article.publishedAt?.toISOString() ?? article.updatedAt.toISOString(),
     coverImage: article.coverImage,
+    backgroundAudio: null,
+    backgroundAudioTitle: null,
+    backgroundAudioCredit: null,
+    backgroundAudioStartSec: null,
+    backgroundAudioEndSec: null,
     isPopular: article.isPopular,
     isHighlight: article.isHighlight,
     status: article.status,

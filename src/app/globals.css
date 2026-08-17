@@ -709,8 +709,12 @@ body {
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body { background: white !important; }
-  #organoleptic-print-list table { font-size: 9px !important; }
+  #organoleptic-print-list table,
+  #masukan-print-list table { font-size: 9px !important; }
   #organoleptic-print-list th,
-  #organoleptic-print-list td { padding: 2px 4px !important; border: 0.5px solid #ccc; }
-  #organoleptic-print-list thead { background: #f3f3f3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #organoleptic-print-list td,
+  #masukan-print-list th,
+  #masukan-print-list td { padding: 2px 4px !important; border: 0.5px solid #ccc; }
+  #organoleptic-print-list thead,
+  #masukan-print-list thead { background: #f3f3f3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

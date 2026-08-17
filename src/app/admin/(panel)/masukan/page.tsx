@@ -13,7 +13,7 @@ export default async function AdminMasukanPage({ searchParams }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="print:hidden">
         <h2 className="text-2xl font-bold">Inbox Masukan</h2>
         <p className="text-muted-foreground">
           Kelola masukan, kritik, dan laporan temuan dari masyarakat.

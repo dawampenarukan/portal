@@ -15,6 +15,22 @@ interface ArticleCoverImageProps {
   priority?: boolean;
 }
 
+function mediaPath(src: string): string {
+  try {
+    return new URL(src, "http://local").pathname.toLowerCase();
+  } catch {
+    return src.toLowerCase();
+  }
+}
+
+function isAnimatedGifUrl(src: string): boolean {
+  return mediaPath(src).endsWith(".gif") || /\.gif($|\?)/i.test(src);
+}
+
+function isMp4CoverUrl(src: string): boolean {
+  return mediaPath(src).endsWith(".mp4") || /\.mp4($|\?)/i.test(src);
+}
+
 export function ArticleCoverImage({
   src,
   alt,
@@ -25,6 +41,36 @@ export function ArticleCoverImage({
   priority = false,
 }: ArticleCoverImageProps) {
   if (src) {
+    const fillClass = fill ? "absolute inset-0 h-full w-full" : "h-full w-full";
+
+    if (isMp4CoverUrl(src)) {
+      return (
+        <video
+          src={src}
+          className={cn("object-cover", fillClass, className)}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload={priority ? "auto" : "metadata"}
+          aria-label={alt}
+        />
+      );
+    }
+
+    if (isAnimatedGifUrl(src)) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element -- next/image membekukan GIF
+        <img
+          src={src}
+          alt={alt}
+          className={cn("object-cover", fillClass, className)}
+          loading={priority ? "eager" : "lazy"}
+          decoding="async"
+        />
+      );
+    }
+
     if (fill) {
       return (
         <Image
@@ -54,7 +100,7 @@ export function ArticleCoverImage({
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary/60 via-accent to-sky/40 text-5xl",
+        "flex h-full w-full items-center justify-center bg-linear-to-br from-secondary/60 via-accent to-sky/40 text-5xl",
         className
       )}
       aria-hidden

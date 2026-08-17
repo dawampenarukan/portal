@@ -3,19 +3,71 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { put } from "@vercel/blob";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 15 * 1024 * 1024;
+
+const ALLOWED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+
+const ALLOWED_AUDIO_TYPES = [
+  "audio/mpeg",
+  "audio/mp3",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-wav",
+  "audio/wave",
+];
+
+const ALLOWED_VIDEO_TYPES = ["video/mp4"];
 
 /** Official Vercel Blob RW token prefix (`vercel_blob_rw_<storeId>_<secret>`). */
 const BLOB_TOKEN_PREFIX = "vercel_blob_rw_";
 
+function isAudioType(type: string): boolean {
+  return ALLOWED_AUDIO_TYPES.includes(type) || type.startsWith("audio/");
+}
+
+function isAllowedAudioType(type: string): boolean {
+  if (ALLOWED_AUDIO_TYPES.includes(type)) return true;
+  // Beberapa browser mengirim audio/mp4 untuk m4a — tolak; hanya daftar di atas
+  return false;
+}
+
 function validateFile(file: File) {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    throw new Error("Format gambar tidak didukung (JPEG, PNG, WebP, GIF)");
+  if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    if (file.size > MAX_IMAGE_SIZE) {
+      throw new Error("Ukuran gambar maksimal 5MB");
+    }
+    return;
   }
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error("Ukuran gambar maksimal 5MB");
+
+  if (ALLOWED_VIDEO_TYPES.includes(file.type)) {
+    if (file.size > MAX_VIDEO_SIZE) {
+      throw new Error("Ukuran video MP4 maksimal 15MB");
+    }
+    return;
   }
+
+  if (isAllowedAudioType(file.type)) {
+    if (file.size > MAX_AUDIO_SIZE) {
+      throw new Error("Ukuran audio maksimal 8MB");
+    }
+    return;
+  }
+
+  if (isAudioType(file.type)) {
+    throw new Error("Format audio tidak didukung (MP3, OGG, WAV, WEBM)");
+  }
+
+  throw new Error(
+    "Format tidak didukung. Gambar: JPEG, PNG, WebP, GIF. Video: MP4. Audio: MP3, OGG, WAV, WEBM."
+  );
 }
 
 export function isValidBlobToken(token: string | undefined | null): boolean {
@@ -104,7 +156,7 @@ export function getBlobTokenStatus(): BlobTokenStatus {
 }
 
 async function saveToBlob(file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
   const filename = `uploads/${randomUUID()}.${ext}`;
   const token = getBlobToken();
 
@@ -124,7 +176,7 @@ async function saveToLocal(file: File): Promise<string> {
   const uploadDir = path.join(process.cwd(), "public", "uploads");
   await mkdir(uploadDir, { recursive: true });
 
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "bin";
   const filename = `${randomUUID()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
   await writeFile(path.join(uploadDir, filename), buffer);
@@ -139,7 +191,7 @@ const BLOB_SETUP_HINT =
 
 export async function saveUploadedFiles(files: File[]): Promise<string[]> {
   if (files.length === 0) return [];
-  if (files.length > 5) throw new Error("Maksimal 5 gambar");
+  if (files.length > 5) throw new Error("Maksimal 5 file per unggahan");
 
   if (process.env.VERCEL) {
     if (!hasBlobStorage()) {

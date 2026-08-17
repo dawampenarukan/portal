@@ -44,7 +44,7 @@ export async function requireExistingUser() {
 }
 
 export async function requireAdmin() {
-  const { session, error } = await requireAuth();
+  const { session, error } = await requireExistingUser();
   if (error) return { session: null, error };
 
   if (!isFullAdminRole(session!.user.role)) {
@@ -58,7 +58,7 @@ export async function requireAdmin() {
 }
 
 export async function requireOrganolepticAccess() {
-  const { session, error } = await requireAuth();
+  const { session, error } = await requireExistingUser();
   if (error) return { session: null, error };
 
   if (!canAccessOrganoleptic(session!.user.role)) {
@@ -72,7 +72,7 @@ export async function requireOrganolepticAccess() {
 }
 
 export async function requireSuperAdmin() {
-  const { session, error } = await requireAuth();
+  const { session, error } = await requireExistingUser();
   if (error) return { session: null, error };
 
   if (session!.user.role !== USER_ROLE_SUPER_ADMIN) {
