@@ -248,7 +248,9 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
         </div>
       </div>
       <div>
-        <label className="mb-1.5 block text-sm font-medium">Cover Image</label>
+        <label className="mb-1.5 block text-sm font-medium">
+          Cover (gambar atau video MP4)
+        </label>
         <Input
           type="file"
           accept="image/jpeg,image/png,image/webp,image/gif,video/mp4"
@@ -256,16 +258,19 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
           disabled={uploadingCover}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          JPEG, PNG, WebP, GIF (maks. 5MB) atau MP4 (maks. 15MB). GIF/MP4
-          bergerak di publik — usahakan file ringan. Video MP4 wajib Vercel
-          Blob (BLOB_READ_WRITE_TOKEN di .env) agar tampil di production.
+          JPEG, PNG, WebP, GIF (maks. 5MB) atau MP4 (maks. 15MB). Cukup pilih
+          file di sini — video akan tampil di website publik otomatis setelah
+          tersimpan. Usahakan file ringan.
         </p>
         {coverImage.startsWith("/uploads/") ? (
-          <p className="mt-1 text-xs text-destructive">
-            Cover ini tersimpan lokal (`/uploads/...`) — tidak ikut deploy ke
-            Vercel. Upload ulang cover (untuk MP4 perlu BLOB_READ_WRITE_TOKEN),
-            atau simpan file ke `public/media/` lalu set URL `/media/...`.
-          </p>
+          <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            <p className="font-medium">Cover lama hanya ada di laptop ini.</p>
+            <p className="mt-1 text-amber-900/80">
+              Upload ulang file yang sama sekali saja (tombol di atas) agar
+              tampil di website publik. Atau unggah langsung dari admin di
+              website live.
+            </p>
+          </div>
         ) : null}
         {uploadingCover && (
           <p className="mt-1 text-xs text-muted-foreground">Mengunggah cover…</p>

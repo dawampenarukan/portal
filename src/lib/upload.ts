@@ -39,6 +39,10 @@ function isAllowedAudioType(type: string): boolean {
   return false;
 }
 
+const VIDEO_CLOUD_SETUP_HINT =
+  "Upload cloud belum siap untuk video. Minta teknis menjalankan sekali: npm run env:blob — lalu restart npm run dev. " +
+  "Atau upload cover langsung dari admin di website live (production sudah terhubung cloud).";
+
 function validateFile(file: File) {
   if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
     if (file.size > MAX_IMAGE_SIZE) {
@@ -52,10 +56,7 @@ function validateFile(file: File) {
       throw new Error("Ukuran video MP4 maksimal 15MB");
     }
     if (!hasBlobStorage()) {
-      throw new Error(
-        "Cover video MP4 membutuhkan Vercel Blob agar tampil di production. " +
-          "Vercel → Storage → Blob → salin BLOB_READ_WRITE_TOKEN ke .env (bukan [SENSITIVE]), restart dev, lalu upload ulang."
-      );
+      throw new Error(VIDEO_CLOUD_SETUP_HINT);
     }
     return;
   }
@@ -192,20 +193,26 @@ async function saveToLocal(file: File): Promise<string> {
 }
 
 const BLOB_SETUP_HINT =
-  "Blob Store belum terhubung. " +
-  "Vercel → Storage → buat/pilih Blob Store → Connect Project → pilih project ini → Redeploy. " +
-  "Token harus diawali vercel_blob_rw_ (bukan public key).";
+  "Upload cloud belum siap. Minta teknis menjalankan: npm run env:blob lalu restart npm run dev. " +
+  "Di website live, pastikan Blob Store terhubung ke project Vercel.";
 
 export async function saveUploadedFiles(files: File[]): Promise<string[]> {
   if (files.length === 0) return [];
   if (files.length > 5) throw new Error("Maksimal 5 file per unggahan");
 
-  if (process.env.VERCEL) {
+  const hasVideo = files.some((f) => ALLOWED_VIDEO_TYPES.includes(f.type));
+
+  if (process.env.VERCEL || hasVideo) {
     if (!hasBlobStorage()) {
-      throw new Error(getBlobTokenMisconfigHint() ?? BLOB_SETUP_HINT);
+      throw new Error(
+        hasVideo
+          ? VIDEO_CLOUD_SETUP_HINT
+          : getBlobTokenMisconfigHint() ?? BLOB_SETUP_HINT
+      );
     }
   }
 
+  // Token ada → selalu cloud (lokal & production sama). Tanpa token → hanya gambar ke lokal.
   const urls: string[] = [];
   const save = hasBlobStorage() ? saveToBlob : saveToLocal;
 

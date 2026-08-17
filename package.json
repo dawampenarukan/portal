@@ -24,6 +24,7 @@
     "db:setup": "bash scripts/setup-db.sh",
     "db:studio": "prisma studio",
     "env:pull": "bash scripts/pull-vercel-env.sh",
+    "env:blob": "bash scripts/pull-blob-token.sh",
     "env:local": "bash scripts/use-local-db.sh"
   },
   "dependencies": {
