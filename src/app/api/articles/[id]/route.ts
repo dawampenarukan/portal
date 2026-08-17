@@ -72,7 +72,16 @@ export async function PATCH(request: Request, { params }: Params) {
       where: { id },
       data: {
         title: body.title?.trim() ?? existing.title,
-        slug: body.slug?.trim() || (body.title ? slugify(body.title) : existing.slug),
+        slug: (() => {
+          const raw =
+            body.slug !== undefined
+              ? String(body.slug || "")
+              : body.title
+                ? String(body.title)
+                : existing.slug;
+          const normalized = slugify(raw.trim() || existing.slug);
+          return normalized || existing.slug;
+        })(),
         excerpt: body.excerpt !== undefined ? body.excerpt?.trim() || null : existing.excerpt,
         content: body.content ?? existing.content,
         coverImage: body.coverImage !== undefined ? body.coverImage || null : existing.coverImage,

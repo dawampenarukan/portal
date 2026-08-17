@@ -17,6 +17,7 @@ import {
   getPublishedPublicationsCached,
 } from "@/lib/cached-queries";
 import { filterUpcomingEvents } from "@/lib/event-utils";
+import { articlePublicPath } from "@/lib/slug";
 import { safeQuery } from "@/lib/safe-db";
 
 const emptyOrganoleptic = {
@@ -62,7 +63,7 @@ export async function HomeHighlightsSection() {
             {popular.map((article, i) => (
               <Link
                 key={article.id}
-                href={`/berita/${article.slug}`}
+                href={articlePublicPath(article.slug)}
                 className="flex gap-3 p-4 transition hover:bg-accent/50"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-extrabold text-secondary-foreground">

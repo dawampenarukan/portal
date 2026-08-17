@@ -51,6 +51,12 @@ function validateFile(file: File) {
     if (file.size > MAX_VIDEO_SIZE) {
       throw new Error("Ukuran video MP4 maksimal 15MB");
     }
+    if (!hasBlobStorage()) {
+      throw new Error(
+        "Cover video MP4 membutuhkan Vercel Blob agar tampil di production. " +
+          "Vercel → Storage → Blob → salin BLOB_READ_WRITE_TOKEN ke .env (bukan [SENSITIVE]), restart dev, lalu upload ulang."
+      );
+    }
     return;
   }
 
@@ -167,6 +173,7 @@ async function saveToBlob(file: File): Promise<string> {
   const blob = await put(filename, file, {
     access: "public",
     token,
+    contentType: file.type || undefined,
   });
 
   return blob.url;

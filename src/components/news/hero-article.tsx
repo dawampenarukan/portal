@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ArticleCoverImage } from "@/components/news/article-cover-image";
+import { articlePublicPath } from "@/lib/slug";
 import { formatRelativeTime } from "@/lib/utils";
 
 interface HeroArticleProps {
@@ -22,6 +23,8 @@ export function HeroArticle({
   publishedAt,
   coverImage,
 }: HeroArticleProps) {
+  const href = articlePublicPath(slug);
+
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-coral via-primary to-sky text-white shadow-xl">
       <div className="pointer-events-none absolute -left-10 top-10 h-40 w-40 rounded-full bg-white/10" />
@@ -32,17 +35,19 @@ export function HeroArticle({
           <Badge className="mb-4 w-fit border-0 bg-white/25 text-white hover:bg-white/25">
             🔥 {category}
           </Badge>
-          <Link href={`/berita/${slug}`}>
+          <Link href={href}>
             <h1 className="text-2xl font-extrabold leading-tight transition hover:underline md:text-4xl">
               {title}
             </h1>
           </Link>
-          <p className="mt-4 text-sm leading-relaxed text-white/90 md:text-base">{excerpt}</p>
+          <p className="mt-4 text-sm leading-relaxed text-white/90 md:text-base">
+            {excerpt}
+          </p>
           <p className="mt-4 text-xs font-medium text-white/75">
             ✍️ {author} · {formatRelativeTime(publishedAt)}
           </p>
           <Link
-            href={`/berita/${slug}`}
+            href={href}
             className="mt-6 inline-flex w-fit rounded-full bg-white px-6 py-2.5 text-sm font-bold text-primary shadow-md transition hover:scale-105"
           >
             Baca selengkapnya →
@@ -58,7 +63,6 @@ export function HeroArticle({
             className="rounded-2xl"
             sizes="(max-width: 768px) 100vw, 50vw"
           />
-
         </div>
       </div>
     </section>

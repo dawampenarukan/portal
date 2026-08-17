@@ -13,6 +13,7 @@ import {
   type ArticleFilterCategory,
 } from "@/lib/article-categories";
 import { PUBLISHED_ARTICLES_LIST_TAKE } from "@/lib/queries";
+import { articlePublicPath } from "@/lib/slug";
 import { safeQuery } from "@/lib/safe-db";
 
 const POPULAR_TAKE = 8;
@@ -88,7 +89,7 @@ export async function BeritaPopularAside() {
               popular.map((article, i) => (
                 <Link
                   key={article.id}
-                  href={`/berita/${article.slug}`}
+                  href={articlePublicPath(article.slug)}
                   className="flex gap-3 text-sm"
                 >
                   <span className="font-bold text-primary">{i + 1}.</span>

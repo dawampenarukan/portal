@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ArticleCoverImage } from "@/components/news/article-cover-image";
+import { articlePublicPath } from "@/lib/slug";
 import { formatRelativeTime } from "@/lib/utils";
 
 interface NewsListItemProps {
@@ -41,7 +42,7 @@ export function NewsListItem({
             {formatRelativeTime(publishedAt)}
           </span>
         </div>
-        <Link href={`/berita/${slug}`}>
+        <Link href={articlePublicPath(slug)}>
           <h3 className="line-clamp-2 text-base font-bold transition hover:text-primary">
             {title}
           </h3>

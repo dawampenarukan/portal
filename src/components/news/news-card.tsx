@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArticleCoverImage } from "@/components/news/article-cover-image";
+import { articlePublicPath } from "@/lib/slug";
 import { formatRelativeTime } from "@/lib/utils";
 
 const categoryEmoji: Record<string, string> = {
@@ -51,7 +52,7 @@ export function NewsCard({
           {isPopular && <Badge variant="popular">🔥 Hits</Badge>}
           {isHighlight && <Badge variant="highlight">✨ Sorotan</Badge>}
         </div>
-        <Link href={`/berita/${slug}`}>
+        <Link href={articlePublicPath(slug)}>
           <h3 className="line-clamp-2 text-base font-extrabold leading-snug transition group-hover:text-primary">
             {title}
           </h3>

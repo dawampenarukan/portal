@@ -82,7 +82,12 @@ export async function POST(request: Request) {
     });
     if (musicError) return badRequest(musicError);
 
-    const articleSlug = (slug as string)?.trim() || slugify(title as string);
+    const articleSlug = slugify(
+      ((slug as string)?.trim() || (title as string) || "").toString()
+    );
+    if (!articleSlug) {
+      return badRequest("Slug tidak valid");
+    }
     const articleStatus = (status as ArticleStatus) ?? ArticleStatus.DRAFT;
     const isPublished = articleStatus === ArticleStatus.PUBLISHED;
 

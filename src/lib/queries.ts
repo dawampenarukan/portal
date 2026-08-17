@@ -10,7 +10,7 @@ import {
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { filterMenuNameSuggestions } from "@/lib/menu-request-suggestions";
-import { slugify } from "@/lib/slug";
+import { articlePublicPath, slugify } from "@/lib/slug";
 import { compareWeeklyEntries, formatWeeklyMenuHeading } from "@/lib/week-days";
 import { findWeeklyMenuEntries } from "@/lib/weekly-menu-db";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
@@ -347,8 +347,21 @@ export async function getArticleById(id: string): Promise<ArticleView | null> {
 }
 
 export async function getArticleBySlug(slug: string): Promise<ArticleView | null> {
+  let decoded = slug;
+  try {
+    decoded = decodeURIComponent(slug);
+  } catch {
+    decoded = slug;
+  }
+
+  const normalized = slugify(decoded);
+  const candidates = [...new Set([decoded, slug, normalized].filter(Boolean))];
+
   const article = await prisma.article.findFirst({
-    where: { slug, status: ArticleStatus.PUBLISHED },
+    where: {
+      status: ArticleStatus.PUBLISHED,
+      OR: candidates.map((s) => ({ slug: s })),
+    },
     include: { author: true, category: true },
   });
   return article ? mapArticle(article) : null;
@@ -1327,6 +1340,6 @@ export async function getTrendingTopics(): Promise<TrendingTopicView[]> {
   return articles.map((a) => ({
     id: a.id,
     title: a.title,
-    href: `/berita/${a.slug}`,
+    href: articlePublicPath(a.slug),
   }));
 }

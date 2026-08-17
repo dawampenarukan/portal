@@ -12,6 +12,7 @@ import {
   parseTimestampToSeconds,
   validateBackgroundMusicFields,
 } from "@/lib/article-background-music";
+import { slugify } from "@/lib/slug";
 import type { ArticleView } from "@/lib/types";
 
 interface Category {
@@ -194,7 +195,11 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
         <Input
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
-          placeholder="auto dari judul"
+          placeholder="auto dari judul (tanpa spasi)"
+          onBlur={() => {
+            if (slug.trim()) setSlug(slugify(slug));
+            else if (title.trim()) setSlug(slugify(title));
+          }}
         />
       </div>
       <div>
@@ -252,8 +257,15 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
         />
         <p className="mt-1 text-xs text-muted-foreground">
           JPEG, PNG, WebP, GIF (maks. 5MB) atau MP4 (maks. 15MB). GIF/MP4
-          bergerak di publik — usahakan file ringan.
+          bergerak di publik — usahakan file ringan. Video MP4 wajib Vercel
+          Blob (BLOB_READ_WRITE_TOKEN di .env) agar tampil di production.
         </p>
+        {coverImage.startsWith("/uploads/") ? (
+          <p className="mt-1 text-xs text-destructive">
+            Cover ini tersimpan lokal (`/uploads/...`) — tidak akan tampil di
+            Vercel. Set token Blob, lalu upload ulang cover.
+          </p>
+        ) : null}
         {uploadingCover && (
           <p className="mt-1 text-xs text-muted-foreground">Mengunggah cover…</p>
         )}
