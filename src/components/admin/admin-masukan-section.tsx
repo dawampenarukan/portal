@@ -5,7 +5,7 @@ import { FeedbackDeleteButton } from "@/components/admin/feedback-delete-button"
 import { FeedbackPrintButton } from "@/components/admin/feedback-print-button";
 import { PaginationNav } from "@/components/admin/pagination-nav";
 import { getAdminFeedbacksList } from "@/lib/queries";
-import { formatDate } from "@/lib/utils";
+import { formatDateShort } from "@/lib/utils";
 
 const FeedbackDetail = dynamic(
   () => import("@/components/admin/feedback-detail").then((m) => m.FeedbackDetail),
@@ -36,10 +36,15 @@ export async function AdminMasukanList({ page }: { page: number }) {
           </h1>
         </div>
 
-        {/* Mobile: cards */}
+        {/* Mobile: cards (klik kartu untuk lihat detail) */}
         <div className="space-y-3 md:hidden print:hidden">
           {feedbacks.map((fb) => (
-            <div key={fb.id} className="rounded-xl border p-4">
+            <FeedbackDetail
+              key={fb.id}
+              feedbackId={fb.id}
+              as="div"
+              className="rounded-xl border p-4 transition hover:border-primary/40 hover:bg-muted/30"
+            >
               <div className="flex items-start justify-between gap-3">
                 <p className="min-w-0 font-medium leading-snug">{fb.title}</p>
                 <Badge
@@ -58,31 +63,28 @@ export async function AdminMasukanList({ page }: { page: number }) {
               </p>
               <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
                 <span className="text-xs text-muted-foreground">
-                  {fb.category ?? "-"} · {formatDate(fb.createdAt)}
+                  {fb.category ?? "-"} · {formatDateShort(fb.createdAt)}
                 </span>
-                <div className="flex items-center gap-1">
-                  <FeedbackDetail feedbackId={fb.id} />
-                  <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
-                </div>
+                <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
               </div>
-            </div>
+            </FeedbackDetail>
           ))}
           {feedbacks.length === 0 && (
             <p className="text-sm text-muted-foreground">Belum ada masukan.</p>
           )}
         </div>
 
-        {/* Desktop: table (layar) */}
+        {/* Desktop: table (layar, klik baris untuk lihat detail) */}
         <div className="hidden overflow-x-auto md:block print:hidden">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col className="w-[14%]" />
-              <col className="w-[14%]" />
-              <col className="w-[28%]" />
+              <col className="w-[15%]" />
+              <col className="w-[15%]" />
+              <col className="w-[32%]" />
               <col className="w-[10%]" />
               <col className="w-[12%]" />
               <col className="w-[10%]" />
-              <col className="w-[12%]" />
+              <col className="w-[6%]" />
             </colgroup>
             <thead>
               <tr className="border-b text-left text-muted-foreground">
@@ -97,7 +99,12 @@ export async function AdminMasukanList({ page }: { page: number }) {
             </thead>
             <tbody>
               {feedbacks.map((fb) => (
-                <tr key={fb.id} className="border-b last:border-0">
+                <FeedbackDetail
+                  key={fb.id}
+                  feedbackId={fb.id}
+                  as="tr"
+                  className="border-b transition last:border-0 hover:bg-muted/40"
+                >
                   <td className="py-3 pr-4">
                     <p className="truncate">{fb.name}</p>
                     {fb.schoolLocation?.trim() ? (
@@ -115,7 +122,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   </td>
                   <td className="py-3 pr-4">{fb.category ?? "-"}</td>
                   <td className="whitespace-nowrap py-3 pr-4 text-muted-foreground">
-                    {formatDate(fb.createdAt)}
+                    {formatDateShort(fb.createdAt)}
                   </td>
                   <td className="py-3 pr-4">
                     <Badge variant={fb.status === "NEW" ? "popular" : "secondary"}>
@@ -123,12 +130,9 @@ export async function AdminMasukanList({ page }: { page: number }) {
                     </Badge>
                   </td>
                   <td className="py-3">
-                    <div className="flex items-center gap-1">
-                      <FeedbackDetail feedbackId={fb.id} />
-                      <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
-                    </div>
+                    <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
                   </td>
-                </tr>
+                </FeedbackDetail>
               ))}
             </tbody>
           </table>
@@ -164,7 +168,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   <tr key={fb.id} className="border-b border-border/80">
                     <td className="whitespace-nowrap px-1 py-0.5">{index + 1}</td>
                     <td className="whitespace-nowrap px-1 py-0.5">
-                      {formatDate(fb.createdAt)}
+                      {formatDateShort(fb.createdAt)}
                     </td>
                     <td className="px-1 py-0.5 font-medium">{fb.name}</td>
                     <td className="px-1 py-0.5">

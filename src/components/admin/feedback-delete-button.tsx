@@ -49,7 +49,10 @@ export function FeedbackDeleteButton({
       type="button"
       variant="ghost"
       size="sm"
-      onClick={() => void handleDelete()}
+      onClick={(e) => {
+        e.stopPropagation();
+        void handleDelete();
+      }}
       disabled={loading}
       aria-label={`Hapus masukan ${title}`}
       title="Hapus"

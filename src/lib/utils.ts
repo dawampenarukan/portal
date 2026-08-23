@@ -13,6 +13,15 @@ export function formatDate(date: Date | string) {
   }).format(new Date(date));
 }
 
+/** Format tanggal singkat dd/mm/yyyy, untuk tabel/daftar yang padat. */
+export function formatDateShort(date: Date | string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(date));
+}
+
 export function formatRelativeTime(date: Date | string) {
   const now = new Date();
   const target = new Date(date);
