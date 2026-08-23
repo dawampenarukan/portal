@@ -41,16 +41,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
           {feedbacks.map((fb) => (
             <div key={fb.id} className="rounded-xl border p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="font-medium leading-snug">{fb.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{fb.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {fb.schoolLocation?.trim() || "—"} · {fb.category ?? "-"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {formatDate(fb.createdAt)}
-                  </p>
-                </div>
+                <p className="min-w-0 font-medium leading-snug">{fb.title}</p>
                 <Badge
                   variant={fb.status === "NEW" ? "popular" : "secondary"}
                   className="shrink-0"
@@ -58,9 +49,21 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   {statusLabel[fb.status] ?? fb.status}
                 </Badge>
               </div>
-              <div className="mt-3 flex items-center gap-1">
-                <FeedbackDetail feedbackId={fb.id} />
-                <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
+              <p className="mt-1 text-sm text-muted-foreground">
+                {fb.name}
+                {fb.schoolLocation?.trim() ? ` · ${fb.schoolLocation}` : ""}
+              </p>
+              <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
+                {fb.description}
+              </p>
+              <div className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
+                <span className="text-xs text-muted-foreground">
+                  {fb.category ?? "-"} · {formatDate(fb.createdAt)}
+                </span>
+                <div className="flex items-center gap-1">
+                  <FeedbackDetail feedbackId={fb.id} />
+                  <FeedbackDeleteButton feedbackId={fb.id} title={fb.title} />
+                </div>
               </div>
             </div>
           ))}
@@ -71,11 +74,21 @@ export async function AdminMasukanList({ page }: { page: number }) {
 
         {/* Desktop: table (layar) */}
         <div className="hidden overflow-x-auto md:block print:hidden">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-[14%]" />
+              <col className="w-[14%]" />
+              <col className="w-[28%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+              <col className="w-[10%]" />
+              <col className="w-[12%]" />
+            </colgroup>
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="pb-3 pr-4 font-medium">Pengirim</th>
                 <th className="pb-3 pr-4 font-medium">Judul</th>
+                <th className="pb-3 pr-4 font-medium">Deskripsi</th>
                 <th className="pb-3 pr-4 font-medium">Kategori</th>
                 <th className="pb-3 pr-4 font-medium">Tanggal</th>
                 <th className="pb-3 pr-4 font-medium">Status</th>
@@ -86,15 +99,19 @@ export async function AdminMasukanList({ page }: { page: number }) {
               {feedbacks.map((fb) => (
                 <tr key={fb.id} className="border-b last:border-0">
                   <td className="py-3 pr-4">
-                    <p>{fb.name}</p>
+                    <p className="truncate">{fb.name}</p>
                     {fb.schoolLocation?.trim() ? (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-xs text-muted-foreground">
                         {fb.schoolLocation}
                       </p>
                     ) : null}
                   </td>
-                  <td className="max-w-xs truncate py-3 pr-4 font-medium">
-                    {fb.title}
+                  <td className="truncate py-3 pr-4 font-medium">{fb.title}</td>
+                  <td
+                    className="truncate py-3 pr-4 text-muted-foreground"
+                    title={fb.description}
+                  >
+                    {fb.description}
                   </td>
                   <td className="py-3 pr-4">{fb.category ?? "-"}</td>
                   <td className="whitespace-nowrap py-3 pr-4 text-muted-foreground">
@@ -133,6 +150,7 @@ export async function AdminMasukanList({ page }: { page: number }) {
                   <th className="px-1 py-0.5 font-semibold">Pengirim</th>
                   <th className="px-1 py-0.5 font-semibold">Sekolah/Posyandu</th>
                   <th className="px-1 py-0.5 font-semibold">Judul</th>
+                  <th className="px-1 py-0.5 font-semibold">Deskripsi</th>
                   <th className="whitespace-nowrap px-1 py-0.5 font-semibold">
                     Kategori
                   </th>
@@ -153,6 +171,9 @@ export async function AdminMasukanList({ page }: { page: number }) {
                       {fb.schoolLocation?.trim() || "—"}
                     </td>
                     <td className="px-1 py-0.5">{fb.title}</td>
+                    <td className="whitespace-pre-line px-1 py-0.5">
+                      {fb.description}
+                    </td>
                     <td className="whitespace-nowrap px-1 py-0.5">
                       {fb.category ?? "—"}
                     </td>

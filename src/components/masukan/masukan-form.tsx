@@ -17,6 +17,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import {
   FEEDBACK_CATEGORIES,
+  FEEDBACK_DESCRIPTION_MAX_LENGTH,
   validateFeedbackEmail,
   validateFeedbackForm,
   validateFeedbackPhone,
@@ -313,6 +314,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
                 <Textarea
                   required
                   rows={5}
+                  maxLength={FEEDBACK_DESCRIPTION_MAX_LENGTH}
                   placeholder='Jelaskan masukan atau temuan Anda secara detail...'
                   value={description}
                   onChange={(e) => {
@@ -321,6 +323,22 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
                   }}
                   className={cn(fieldErrors.description && 'border-destructive')}
                 />
+                <div className='mt-1 flex items-center justify-between gap-2'>
+                  <p className='text-xs text-muted-foreground'>
+                    Maks. {FEEDBACK_DESCRIPTION_MAX_LENGTH} karakter. Jika masukan Anda
+                    lebih panjang, silakan kirim sebagai masukan baru dengan topik
+                    terpisah.
+                  </p>
+                  <p
+                    className={cn(
+                      'shrink-0 text-xs text-muted-foreground',
+                      description.length > FEEDBACK_DESCRIPTION_MAX_LENGTH &&
+                        'text-destructive'
+                    )}
+                  >
+                    {description.length}/{FEEDBACK_DESCRIPTION_MAX_LENGTH}
+                  </p>
+                </div>
                 <FieldError message={fieldErrors.description} />
               </div>
 

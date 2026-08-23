@@ -41,6 +41,16 @@ export function validateFeedbackCategory(category: string): string | null {
   return null;
 }
 
+export const FEEDBACK_DESCRIPTION_MAX_LENGTH = 1000;
+
+export function validateFeedbackDescription(description: string): string | null {
+  if (!description.trim()) return "Deskripsi wajib diisi";
+  if (description.length > FEEDBACK_DESCRIPTION_MAX_LENGTH) {
+    return `Deskripsi maksimal ${FEEDBACK_DESCRIPTION_MAX_LENGTH} karakter. Jika lebih panjang, silakan kirim masukan baru dengan topik terpisah.`;
+  }
+  return null;
+}
+
 export interface FeedbackFormInput {
   name: string;
   email: string;
@@ -59,7 +69,9 @@ export function validateFeedbackForm(data: FeedbackFormInput): Record<string, st
     errors.schoolLocation = "Nama sekolah/posyandu wajib diisi";
   }
   if (!data.title.trim()) errors.title = "Judul wajib diisi";
-  if (!data.description.trim()) errors.description = "Deskripsi wajib diisi";
+
+  const descriptionError = validateFeedbackDescription(data.description);
+  if (descriptionError) errors.description = descriptionError;
 
   const emailError = validateFeedbackEmail(data.email);
   if (emailError) errors.email = emailError;

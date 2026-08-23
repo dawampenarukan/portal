@@ -1069,6 +1069,7 @@ export async function getAdminFeedbacksList(page = 1) {
         name: true,
         schoolLocation: true,
         title: true,
+        description: true,
         category: true,
         status: true,
         createdAt: true,
