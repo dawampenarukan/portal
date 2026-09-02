@@ -6,7 +6,7 @@ import {
 } from '@/components/layout/atm-page-shell';
 import { Badge } from '@/components/ui/badge';
 import { ArticleBackgroundMusic } from '@/components/news/article-background-music';
-import { ArticleCoverImage } from '@/components/news/article-cover-image';
+import { ArticleDetailCover } from '@/components/news/article-detail-cover';
 import { ArticleCommentsSection } from '@/components/news/article-comments-section';
 import { ListSkeleton } from '@/components/ui/route-skeletons';
 import { formatDate } from '@/lib/utils';
@@ -50,16 +50,11 @@ export default async function BeritaDetailPage({ params }: PageProps) {
               Oleh {article.author} · {formatDate(article.publishedAt)} · 3 menit baca
             </p>
 
-            <div className='relative my-6 aspect-video overflow-hidden rounded-xl ring-2 ring-white/60'>
-              <ArticleCoverImage
-                src={article.coverImage}
-                alt={article.title}
-                fill
-                priority
-                fallbackEmoji='📰'
-                sizes='(max-width: 768px) 100vw, 720px'
-              />
-            </div>
+            <ArticleDetailCover
+              coverImage={article.coverImage}
+              title={article.title}
+              content={article.content}
+            />
 
             {article.backgroundAudio ? (
               <ArticleBackgroundMusic

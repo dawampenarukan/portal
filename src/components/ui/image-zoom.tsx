@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,12 @@ export function ImageZoom({
   thumbClassName,
 }: ImageZoomProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const titleId = useId();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -65,34 +71,37 @@ export function ImageZoom({
         </span>
       </button>
 
-      {open ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          className="fixed inset-0 z-100 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
-        >
-          <p id={titleId} className="sr-only">
-            {alt}
-          </p>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
-            aria-label="Tutup preview gambar"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={alt}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] max-w-[min(96vw,56rem)] rounded-lg object-contain shadow-2xl"
-          />
-        </div>
-      ) : null}
+      {open && mounted
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              className="fixed inset-0 z-200 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+              onClick={() => setOpen(false)}
+            >
+              <p id={titleId} className="sr-only">
+                {alt}
+              </p>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="absolute right-4 top-4 rounded-full bg-black/60 p-2 text-white hover:bg-black/80"
+                aria-label="Tutup preview gambar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={src}
+                alt={alt}
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[90vh] max-w-[min(96vw,56rem)] rounded-lg object-contain shadow-2xl"
+              />
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
