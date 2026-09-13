@@ -1,6 +1,6 @@
 import "server-only";
 
-import { addDays, format, startOfWeek } from "date-fns";
+import { addDays, format, getDay, startOfWeek } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import type { MenuCategoryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -25,7 +25,22 @@ const INV_KATEGORI_TO_PORTAL: Record<string, MenuCategoryTypeId> = {
 };
 
 /** Hanya rencana yang sudah “terkunci” operasional untuk publik. */
-const SYNCABLE_PLAN_STATUS = new Set(["APPROVED", "PROCESSING", "COMPLETED"]);
+const SYNCABLE_PLAN_STATUS = new Set([
+  "APPROVED",
+  "PROCESSING",
+  "COMPLETED",
+  // Label UI Inventory (jika API mengirim teks tampilan)
+  "DISETUJUI",
+  "DIPROSES",
+  "SELESAI",
+]);
+
+function normalizePlanStatus(status: string | undefined): string {
+  return String(status || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+}
 
 type InvPlanLine = {
   recipeId?: string;
@@ -75,10 +90,21 @@ function requireInventoryConfig() {
   return { base, apiKey };
 }
 
-/** Senin–Jumat minggu berjalan (Asia/Jakarta) — “Menu Minggu Ini”. */
+/**
+ * Senin–Jumat minggu sync (Asia/Jakarta), sesuai aturan produk:
+ * - Senin–Jumat → Senin–Jumat minggu yang sama
+ * - Sabtu–Minggu → Senin–Jumat minggu depan
+ *
+ * Contoh Kamis 11 Sep → 7–11 Sep.
+ * Contoh Minggu 13 Sep → 14–18 Sep.
+ */
 export function currentWeekRange(ref = new Date()): { from: string; to: string } {
   const jakartaDate = formatInJakarta(ref);
-  const monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
+  const dow = getDay(jakartaDate); // 0=Min … 6=Sab
+  let monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
+  if (dow === 0 || dow === 6) {
+    monday = addDays(monday, 7);
+  }
   const friday = addDays(monday, 4);
   return {
     from: format(monday, "yyyy-MM-dd"),
@@ -86,10 +112,7 @@ export function currentWeekRange(ref = new Date()): { from: string; to: string }
   };
 }
 
-/**
- * Default sync = minggu berjalan Senin–Jumat.
- * Contoh: hari ini Kamis 23 Jul → Senin 20 Jul – Jumat 24 Jul.
- */
+/** Default sync = currentWeekRange (Sen–Jum minggu ini; Sab–Min minggu depan). */
 export function defaultSyncRange(ref = new Date()): { from: string; to: string } {
   return currentWeekRange(ref);
 }
@@ -198,8 +221,8 @@ async function pruneOrphanMenuItems(
 }
 
 /**
- * Timpa WeeklyMenuEntry untuk satu kategori dari Rencana Produksi
- * (default: minggu berjalan Senin–Jumat).
+ * Timpa WeeklyMenuEntry untuk satu kategori dari Rencana Produksi.
+ * Rentang default: Senin–Jumat minggu sync (lihat currentWeekRange).
  * Hari tanpa data inventory → entri kategori dihapus (jadwal bersih).
  */
 export async function syncWeeklyMenuFromInventory(
@@ -215,6 +238,7 @@ export async function syncWeeklyMenuFromInventory(
   const category = toMenuCategoryType(categoryId);
 
   const plans = await fetchProductionPlans(range.from, range.to);
+
   let skippedStatus = 0;
   let plansUsed = 0;
 
@@ -223,7 +247,7 @@ export async function syncWeeklyMenuFromInventory(
   const syncedNames = new Set<string>();
 
   for (const plan of plans) {
-    const status = String(plan.status || "").toUpperCase();
+    const status = normalizePlanStatus(plan.status);
     if (!SYNCABLE_PLAN_STATUS.has(status)) {
       skippedStatus += 1;
       continue;

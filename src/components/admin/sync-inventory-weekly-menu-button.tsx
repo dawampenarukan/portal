@@ -25,7 +25,7 @@ export function SyncInventoryWeeklyMenuButton() {
   async function run() {
     if (
       !confirm(
-        "Muat Menu Minggu Ini untuk SEMUA kategori dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai untuk minggu berjalan (Senin–Jumat). Favorit lama di luar sync akan disembunyikan."
+        "Muat Menu Minggu Ini untuk SEMUA kategori dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai.\n• Senin–Jumat: minggu yang sama\n• Sabtu–Minggu: minggu depan\nFavorit lama di luar sync akan disembunyikan."
       )
     ) {
       return;

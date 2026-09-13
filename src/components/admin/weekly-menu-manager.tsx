@@ -137,7 +137,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   async function syncFromInventory() {
     if (
       !confirm(
-        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai untuk minggu berjalan (Senin–Jumat). Favorit lama yang tidak ada di sync akan disembunyikan."
+        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai.\n• Senin–Jumat: minggu yang sama\n• Sabtu–Minggu: minggu depan\nFavorit lama yang tidak ada di sync akan disembunyikan."
       )
     ) {
       return;

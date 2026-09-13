@@ -124,7 +124,7 @@ INVENTORY_API_KEY="sk_..."
 
 3. Admin → **Kelola Menu** → **Sync semua dari Inventory**, atau per kategori → **Dari Inventory**.
 
-- Rentang default: **minggu berjalan Senin–Jumat** (Asia/Jakarta). Contoh Kamis 23 Jul → Senin 20 – Jumat 24 Jul.
+- Rentang default (Asia/Jakarta): **Senin–Jumat** → Senin–Jumat minggu yang sama; **Sabtu–Minggu** → Senin–Jumat minggu depan. Contoh Minggu 13 Sep → Senin 14 – Jumat 18 Sep.
 - Status yang di-sync: `APPROVED` / `PROCESSING` / `COMPLETED` (Draft, Diajukan, Dibatalkan dilewati).
 - Mapping: `PORSI_BESAR`/`PORSI_KECIL` sama; `POSYANDU_BUMIL_BUSUI` → Porsi Besar Posyandu (`IBU_HAMIL`); `POSYANDU_BALITA` → Porsi Kecil Posyandu (`BALITA`). Label/audiens di `menu-meta.ts` (bukan dari sync).
 - Setelah sync: `MenuItem` yang tidak ada di hasil sync dinonaktifkan (favorit seed/mock hilang dari UI).
