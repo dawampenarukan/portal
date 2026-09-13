@@ -1,6 +1,6 @@
 import "server-only";
 
-import { addDays, format, getDay, startOfWeek } from "date-fns";
+import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import type { MenuCategoryType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -12,9 +12,13 @@ import {
 } from "@/lib/menu-meta";
 import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
-import { sortOrderForDay, WEEK_DAYS } from "@/lib/week-days";
+import {
+  operationalWeekRange,
+  sortOrderForDay,
+  WEEK_DAYS,
+} from "@/lib/week-days";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
-import { createWeeklyMenuEntrySafe } from "@/lib/weekly-menu-db";
+import { createWeeklyMenuEntrySafe, findWeeklyMenuEntries, updateWeeklyMenuEntrySafe } from "@/lib/weekly-menu-db";
 
 /** Inventory Food Production kategori → portal MenuCategoryType. */
 const INV_KATEGORI_TO_PORTAL: Record<string, MenuCategoryTypeId> = {
@@ -77,14 +81,32 @@ export type SyncWeeklyMenuResult = {
 };
 
 function requireInventoryConfig() {
-  const base = (process.env.INVENTORY_APP_URL || process.env.INVENTORY_API_URL || "").replace(
-    /\/$/,
+  const base = (
+    process.env.INVENTORY_APP_URL ||
+    process.env.INVENTORY_API_URL ||
+    process.env.PORTAL_INVENTORY_APP_URL ||
     ""
-  );
-  const apiKey = process.env.INVENTORY_API_KEY || "";
-  if (!base || !apiKey) {
+  )
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\/$/, "");
+  const apiKey = (
+    process.env.INVENTORY_API_KEY ||
+    process.env.PORTAL_INVENTORY_API_KEY ||
+    ""
+  )
+    .trim()
+    .replace(/^["']|["']$/g, "");
+
+  const isPlaceholder = (v: string) =>
+    !v || v === "[SENSITIVE]" || /^sk_\.\.\./i.test(v);
+
+  if (isPlaceholder(base) || isPlaceholder(apiKey)) {
     throw new Error(
-      "INVENTORY_APP_URL dan INVENTORY_API_KEY belum di-set di environment portal"
+      "Sync Inventory tidak jalan di npm run dev lokal (INVENTORY_APP_URL / INVENTORY_API_KEY kosong). " +
+        "Tanpa buat key baru: (1) sync dari admin website live — env Vercel sudah terpasang di production; " +
+        "atau (2) jalankan npm run env:inventory; " +
+        "atau (3) tempel key yang sama ke .env.local lalu restart npm run dev."
     );
   }
   return { base, apiKey };
@@ -99,17 +121,7 @@ function requireInventoryConfig() {
  * Contoh Minggu 13 Sep → 14–18 Sep.
  */
 export function currentWeekRange(ref = new Date()): { from: string; to: string } {
-  const jakartaDate = formatInJakarta(ref);
-  const dow = getDay(jakartaDate); // 0=Min … 6=Sab
-  let monday = startOfWeek(jakartaDate, { weekStartsOn: 1 });
-  if (dow === 0 || dow === 6) {
-    monday = addDays(monday, 7);
-  }
-  const friday = addDays(monday, 4);
-  return {
-    from: format(monday, "yyyy-MM-dd"),
-    to: format(friday, "yyyy-MM-dd"),
-  };
+  return operationalWeekRange(ref);
 }
 
 /** Default sync = currentWeekRange (Sen–Jum minggu ini; Sab–Min minggu depan). */
@@ -117,15 +129,13 @@ export function defaultSyncRange(ref = new Date()): { from: string; to: string }
   return currentWeekRange(ref);
 }
 
-/** Ambil Y-M-D “hari ini” di Jakarta lalu parse ke Date lokal noon. */
-function formatInJakarta(ref: Date): Date {
-  const ymd = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Jakarta",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(ref);
-  return new Date(`${ymd}T12:00:00`);
+/** Normalisasi tanggal Inventory ke YYYY-MM-DD. */
+function normalizePlanTanggal(tanggal: string): string | null {
+  const raw = tanggal.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const prefix = raw.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(prefix)) return prefix;
+  return null;
 }
 
 function dayLabelFromTanggal(tanggal: string): string | null {
@@ -193,6 +203,37 @@ async function fetchProductionPlans(from: string, to: string): Promise<InvPlan[]
 }
 
 /**
+ * Nama menu gabungan dari Rencana Produksi Inventory untuk 1 tanggal + kategori.
+ * Dipakai Reset Menu Hari Ini (kebalikan Simpan admin).
+ */
+export async function getInventoryMenuTextForDate(
+  categoryId: MenuCategoryId,
+  ymd: string
+): Promise<string | null> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+  const portalType = MENU_CATEGORY_ID_TO_TYPE[categoryId];
+  const plans = await fetchProductionPlans(ymd, ymd);
+  const menus: string[] = [];
+
+  for (const plan of plans) {
+    const status = normalizePlanStatus(plan.status);
+    if (!SYNCABLE_PLAN_STATUS.has(status)) continue;
+    const menuDate = plan.tanggal ? normalizePlanTanggal(plan.tanggal) : null;
+    if (menuDate !== ymd) continue;
+    for (const line of plan.lines || []) {
+      if (!lineMatchesCategory(line, plan, portalType)) continue;
+      const nama = resolveLineName(line);
+      if (!nama) continue;
+      if (!menus.some((x) => x.toLowerCase() === nama.toLowerCase())) {
+        menus.push(nama);
+      }
+    }
+  }
+
+  return menus.length ? menus.join(" · ") : null;
+}
+
+/**
  * Nonaktifkan MenuItem kategori yang tidak muncul di sync terbaru
  * (membersihkan sisa seed/mock agar favorit tidak menipu).
  */
@@ -254,7 +295,12 @@ export async function syncWeeklyMenuFromInventory(
     }
     if (!plan.tanggal) continue;
 
-    const dayLabel = dayLabelFromTanggal(plan.tanggal);
+    const menuDate = normalizePlanTanggal(plan.tanggal);
+    if (!menuDate) continue;
+    // Jangan tulis tanggal di luar rentang sync (hindari Senin 7 nyempil di minggu 14–18).
+    if (menuDate < range.from || menuDate > range.to) continue;
+
+    const dayLabel = dayLabelFromTanggal(menuDate);
     if (!dayLabel) continue;
 
     const resolvedNames: string[] = [];
@@ -266,37 +312,129 @@ export async function syncWeeklyMenuFromInventory(
     if (!resolvedNames.length) continue;
 
     plansUsed += 1;
-    const existing = byDate.get(plan.tanggal) || { dayLabel, menus: [] };
+    const existing = byDate.get(menuDate) || { dayLabel, menus: [] };
     for (const n of resolvedNames) {
       if (!existing.menus.some((x) => x.toLowerCase() === n.toLowerCase())) {
         existing.menus.push(n);
       }
       syncedNames.add(n.toLowerCase());
     }
-    byDate.set(plan.tanggal, existing);
+    byDate.set(menuDate, existing);
   }
 
-  await prisma.weeklyMenuEntry.deleteMany({ where: { category } });
-
-  let daysWritten = 0;
-  let menusTouched = 0;
+  // Pertahankan deskripsi + foto (+ emoji kustom) yang sudah diedit admin.
+  const previousRows = await findWeeklyMenuEntries({ category });
+  type PreservedMedia = {
+    description: string | null;
+    imageUrl: string | null;
+    emoji: string | null;
+  };
+  const mediaByDate = new Map<string, PreservedMedia>();
+  const mediaByDayLabel = new Map<string, PreservedMedia>();
+  for (const row of previousRows) {
+    const hasMedia = Boolean(row.description || row.imageUrl);
+    const customEmoji = Boolean(
+      row.emoji && row.emoji !== DEFAULT_MENU_ICON
+    );
+    if (!hasMedia && !customEmoji) continue;
+    const preserved: PreservedMedia = {
+      description: row.description,
+      imageUrl: row.imageUrl,
+      emoji: row.emoji,
+    };
+    if (row.menuDate) mediaByDate.set(row.menuDate, preserved);
+    mediaByDayLabel.set(row.dayLabel.trim().toLowerCase(), preserved);
+  }
 
   const datedEntries = Array.from(byDate.entries()).sort(([a], [b]) =>
     a.localeCompare(b)
   );
 
+  // Sync kosong / semua status dilewati → jangan hapus jadwal & foto lokal.
+  if (datedEntries.length === 0) {
+    revalidatePublicContent({ menu: true });
+    const detail = `${range.from} – ${range.to}; ${plansUsed}/${plans.length} rencana dipakai`;
+    return {
+      categoryId,
+      from: range.from,
+      to: range.to,
+      daysWritten: 0,
+      menusTouched: 0,
+      menusPruned: 0,
+      plansSeen: plans.length,
+      plansUsed,
+      skippedStatus,
+      message: `Tidak ada rencana Disetujui/Diproses/Selesai untuk kategori ini (${detail}). Jadwal lokal tidak diubah.`,
+    };
+  }
+
+  const syncedDates = new Set(datedEntries.map(([menuDate]) => menuDate));
+
+  // Hapus hanya jadwal di luar minggu sync (minggu lama), BUKAN hari dalam
+  // minggu operasional yang belum ada di Inventory (hindari sync parsial
+  // menghapus Selasa–Jumat lokal bila Inventory baru kirim Senin).
+  const staleIds = previousRows
+    .filter((row) => {
+      if (row.menuDate && syncedDates.has(row.menuDate)) return false;
+      if (row.menuDate && row.menuDate >= range.from && row.menuDate <= range.to) {
+        // Dalam rentang tapi tidak dihasil sync → biarkan (merge).
+        return false;
+      }
+      if (row.menuDate && (row.menuDate < range.from || row.menuDate > range.to)) {
+        return true; // minggu lama
+      }
+      // Tanpa menuDate: anggap stale kecuali dayLabel akan di-upsert dari sync
+      const label = row.dayLabel.trim().toLowerCase();
+      return !datedEntries.some(([, v]) => v.dayLabel.trim().toLowerCase() === label);
+    })
+    .map((row) => row.id);
+
+  if (staleIds.length > 0) {
+    await prisma.weeklyMenuEntry.deleteMany({
+      where: { id: { in: staleIds } },
+    });
+  }
+
+  let daysWritten = 0;
+  let menusTouched = 0;
+
   for (const [menuDate, { dayLabel, menus }] of datedEntries) {
     if (!menus.length) continue;
     const menuText = menus.join(" · ");
-    await createWeeklyMenuEntrySafe({
-      category: category as MenuCategoryType,
-      dayLabel,
-      menuDate,
-      menuText,
-      emoji: DEFAULT_MENU_ICON,
-      sortOrder: sortOrderForDay(dayLabel),
-      isActive: true,
-    });
+    const preserved =
+      mediaByDate.get(menuDate) ??
+      mediaByDayLabel.get(dayLabel.trim().toLowerCase());
+
+    const existingRow =
+      previousRows.find((r) => r.menuDate === menuDate) ??
+      previousRows.find(
+        (r) => r.dayLabel.trim().toLowerCase() === dayLabel.trim().toLowerCase()
+      );
+
+    if (existingRow && !staleIds.includes(existingRow.id)) {
+      await updateWeeklyMenuEntrySafe(existingRow.id, {
+        dayLabel,
+        menuDate,
+        menuText,
+        description: preserved?.description ?? existingRow.description,
+        imageUrl: preserved?.imageUrl ?? existingRow.imageUrl,
+        emoji: preserved?.emoji || existingRow.emoji || DEFAULT_MENU_ICON,
+        sortOrder: sortOrderForDay(dayLabel),
+        isActive: true,
+      });
+    } else {
+      await createWeeklyMenuEntrySafe({
+        category: category as MenuCategoryType,
+        dayLabel,
+        menuDate,
+        menuText,
+        description: preserved?.description ?? null,
+        imageUrl: preserved?.imageUrl ?? null,
+        emoji: preserved?.emoji || DEFAULT_MENU_ICON,
+        sortOrder: sortOrderForDay(dayLabel),
+        isActive: true,
+      });
+    }
     daysWritten += 1;
     for (const nama of menus) {
       await syncMenuItemFromWeekly(category as MenuCategoryType, nama, DEFAULT_MENU_ICON);

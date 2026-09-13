@@ -274,6 +274,10 @@ model WeeklyMenuEntry {
   /** Tanggal sajian YYYY-MM-DD (dari Rencana Produksi / kalender minggu). */
   menuDate  String?
   menuText  String
+  /** Deskripsi tambahan (editable admin; dipertahankan saat sync Inventory). */
+  description String?        @db.Text
+  /** Foto menu hari itu (URL Blob/upload; dipertahankan saat sync Inventory). */
+  imageUrl  String?
   emoji     String?          @default("🍽️")
   sortOrder Int              @default(0)
   isActive  Boolean          @default(true)

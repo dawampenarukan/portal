@@ -137,12 +137,16 @@ export interface WeeklyMenuPublicItem {
   /** Judul tampilan: "Senin - 27 Jul 2026" */
   heading: string;
   menuText: string;
+  description: string | null;
+  imageUrl: string | null;
   emoji: string;
 }
 
 export interface MenuCategoryBundle {
   favorites: FavoriteMenuView[];
   thisWeek: WeeklyMenuPublicItem[];
+  /** Entri aktif untuk hari ini (Asia/Jakarta), atau null jika tidak ada jadwal. */
+  today: WeeklyMenuPublicItem | null;
   topRequests: TopMenuRequestView[];
 }
 
@@ -161,9 +165,45 @@ export interface WeeklyMenuEntryView {
   /** YYYY-MM-DD bila dari sync Inventory / kalender. */
   menuDate: string | null;
   menuText: string;
+  description: string | null;
+  imageUrl: string | null;
   emoji: string | null;
   sortOrder: number;
   isActive: boolean;
+}
+
+/** Snapshot admin untuk form Menu Hari Ini di /admin/menu. */
+export interface TodayMenuCategorySnapshot {
+  categoryId: "porsi-kecil" | "porsi-besar" | "ibu-hamil" | "balita";
+  label: string;
+  emoji: string;
+  entry: {
+    id: string;
+    menuText: string;
+    description: string | null;
+    imageUrl: string | null;
+    emoji: string | null;
+    menuDate: string | null;
+    dayLabel: string;
+    isActive: boolean;
+  } | null;
+}
+
+export interface TodayMenuAdminSnapshot {
+  todayYmd: string;
+  dayLabel: string;
+  /** True bila Sab/Min → target = Senin depan (selaras Inventory). */
+  isWeekendFallback: boolean;
+  /** Prefill nama/deskripsi/foto dari jadwal sync Inventory. */
+  inventoryDefault: {
+    menuText: string;
+    description: string | null;
+    imageUrl: string | null;
+    menuDate: string | null;
+    dayLabel: string;
+    categoryId: "porsi-kecil" | "porsi-besar" | "ibu-hamil" | "balita";
+  } | null;
+  categories: TodayMenuCategorySnapshot[];
 }
 
 export interface MenuRequestView {

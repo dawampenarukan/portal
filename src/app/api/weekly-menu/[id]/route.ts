@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, notFound, serverError } from "@/lib/api-auth";
+import { requireAdmin, notFound, badRequest, serverError } from "@/lib/api-auth";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 import { prisma } from "@/lib/prisma";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
-import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
+import { isSchoolWeekDay, resolveOperationalMenuDate, sortOrderForDay } from "@/lib/week-days";
 import {
   findWeeklyMenuEntries,
   updateWeeklyMenuEntrySafe,
@@ -25,18 +25,42 @@ export async function PATCH(request: Request, { params }: Params) {
 
     const body = await request.json();
     const nextDayLabel = body.dayLabel?.trim() ?? existing.dayLabel;
+    if (!isSchoolWeekDay(nextDayLabel)) {
+      return badRequest("Hari harus Senin–Jumat (hari sekolah)");
+    }
+    const dayChanged =
+      body.dayLabel !== undefined &&
+      nextDayLabel.toLowerCase() !== existing.dayLabel.trim().toLowerCase();
     const nextMenuText = body.menuText?.trim() ?? existing.menuText;
     const nextEmoji =
       body.emoji !== undefined ? normalizeMenuIcon(body.emoji) : existing.emoji ?? normalizeMenuIcon(null);
+    const nextDescription =
+      body.description !== undefined
+        ? typeof body.description === "string"
+          ? body.description.trim() || null
+          : null
+        : existing.description;
+    const nextImageUrl =
+      body.imageUrl !== undefined
+        ? typeof body.imageUrl === "string"
+          ? body.imageUrl.trim() || null
+          : null
+        : existing.imageUrl;
+
+    // Pertahankan tanggal Inventory di minggu operasional; realign bila drift (mis. Senin 7).
+    const nextMenuDate = resolveOperationalMenuDate(
+      nextDayLabel,
+      dayChanged ? null : existing.menuDate
+    );
 
     const entry = await updateWeeklyMenuEntrySafe(id, {
       dayLabel: nextDayLabel,
-      menuDate: body.dayLabel
-        ? dateForDayLabelInCurrentWeek(nextDayLabel)
-        : existing.menuDate,
+      menuDate: nextMenuDate,
       menuText: nextMenuText,
+      description: nextDescription,
+      imageUrl: nextImageUrl,
       emoji: nextEmoji,
-      sortOrder: body.dayLabel ? sortOrderForDay(nextDayLabel) : existing.sortOrder,
+      sortOrder: dayChanged ? sortOrderForDay(nextDayLabel) : existing.sortOrder,
       isActive: body.isActive !== undefined ? Boolean(body.isActive) : existing.isActive,
     });
 

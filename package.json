@@ -25,6 +25,7 @@
     "db:studio": "prisma studio",
     "env:pull": "bash scripts/pull-vercel-env.sh",
     "env:blob": "bash scripts/pull-blob-token.sh",
+    "env:inventory": "bash scripts/pull-inventory-env.sh",
     "env:local": "bash scripts/use-local-db.sh"
   },
   "dependencies": {

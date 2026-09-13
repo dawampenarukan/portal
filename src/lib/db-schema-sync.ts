@@ -285,6 +285,17 @@ export async function syncProductionSchema(): Promise<string[]> {
   applied.push("Article.backgroundAudio");
   applied.push("Article.backgroundAudioMeta");
 
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "WeeklyMenuEntry"
+    ADD COLUMN IF NOT EXISTS "description" TEXT;
+  `);
+  await prisma.$executeRawUnsafe(`
+    ALTER TABLE "WeeklyMenuEntry"
+    ADD COLUMN IF NOT EXISTS "imageUrl" TEXT;
+  `);
+  applied.push("WeeklyMenuEntry.description");
+  applied.push("WeeklyMenuEntry.imageUrl");
+
   const after = await getSchemaStatus();
   if (!before.createdByIdColumn && after.createdByIdColumn) {
     applied.push("OrganolepticChecklist.createdById");

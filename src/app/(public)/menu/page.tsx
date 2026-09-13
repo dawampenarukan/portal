@@ -18,6 +18,7 @@ interface PageProps {
 function MenuBodyFallback() {
   return (
     <div className="mt-2 space-y-8 animate-pulse">
+      <div className="h-48 rounded-3xl bg-muted/60 md:h-55" />
       <div className="flex gap-2">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="h-10 w-28 shrink-0 rounded-full bg-muted" />

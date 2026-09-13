@@ -11,6 +11,7 @@ import type { MenuCategoryBundle } from "@/lib/types";
 const emptyBundle: MenuCategoryBundle = {
   favorites: [],
   thisWeek: [],
+  today: null,
   topRequests: [],
 };
 

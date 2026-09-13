@@ -11,8 +11,8 @@ import {
 import { prisma } from "@/lib/prisma";
 import { filterMenuNameSuggestions } from "@/lib/menu-request-suggestions";
 import { articlePublicPath, slugify } from "@/lib/slug";
-import { compareWeeklyEntries, formatWeeklyMenuHeading } from "@/lib/week-days";
-import { findWeeklyMenuEntries } from "@/lib/weekly-menu-db";
+import { compareWeeklyEntries, formatWeeklyMenuHeading, isMenuEntryToday, isWeeklyEntryInOperationalWeek } from "@/lib/week-days";
+import { findWeeklyMenuEntries, healWeeklyMenuDatesForCategory } from "@/lib/weekly-menu-db";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
 import {
   MENU_CATEGORY_TYPE_TO_ID,
@@ -786,6 +786,8 @@ function buildMenuBundle(
     dayLabel: string;
     menuDate?: string | null;
     menuText: string;
+    description?: string | null;
+    imageUrl?: string | null;
     emoji: string | null;
     sortOrder: number;
   }[],
@@ -805,19 +807,28 @@ function buildMenuBundle(
 
   const sortedWeekly = weekly
     .filter((entry) => entry.category === categoryType)
+    .filter((entry) => isWeeklyEntryInOperationalWeek(entry))
     .sort(compareWeeklyEntries);
 
   const categoryItems = items.filter((item) => item.category === categoryType);
 
+  const thisWeek = sortedWeekly.map((entry) => ({
+    dayLabel: entry.dayLabel,
+    menuDate: entry.menuDate ?? null,
+    heading: formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate),
+    menuText: entry.menuText,
+    description: entry.description ?? null,
+    imageUrl: entry.imageUrl ?? null,
+    emoji: entry.emoji ?? "🍽️",
+  }));
+
+  // Publik: hari kalender Jakarta. Sab/Min → kosong; Senin depan ada di Menu Minggu Ini.
+  const today = thisWeek.find((entry) => isMenuEntryToday(entry)) ?? null;
+
   return {
     favorites,
-    thisWeek: sortedWeekly.map((entry) => ({
-      dayLabel: entry.dayLabel,
-      menuDate: entry.menuDate ?? null,
-      heading: formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate),
-      menuText: entry.menuText,
-      emoji: entry.emoji ?? "🍽️",
-    })),
+    thisWeek,
+    today,
     topRequests: aggregateTopMenuRequests(requests, categoryItems, 2),
   };
 }
@@ -1286,13 +1297,16 @@ export async function getAdminMenuItems(categoryId: MenuCategoryId) {
 
 export async function getAdminWeeklyMenu(categoryId: MenuCategoryId) {
   const categoryType = toMenuCategoryType(categoryId);
-  const entries = await findWeeklyMenuEntries({ category: categoryType });
+  const entries = await healWeeklyMenuDatesForCategory(categoryType);
   return entries
+    .filter((e) => isWeeklyEntryInOperationalWeek(e))
     .map((e) => ({
       id: e.id,
       dayLabel: e.dayLabel,
       menuDate: e.menuDate,
       menuText: e.menuText,
+      description: e.description,
+      imageUrl: e.imageUrl,
       emoji: e.emoji,
       sortOrder: e.sortOrder,
       isActive: e.isActive,

@@ -2,10 +2,10 @@ import type { MenuCategoryId } from "@/lib/menu-meta";
 import type { MenuCategoryBundle } from "@/lib/types";
 
 export const EMPTY_MENU_DATA: Record<MenuCategoryId, MenuCategoryBundle> = {
-  "porsi-kecil": { favorites: [], thisWeek: [], topRequests: [] },
-  "porsi-besar": { favorites: [], thisWeek: [], topRequests: [] },
-  "ibu-hamil": { favorites: [], thisWeek: [], topRequests: [] },
-  balita: { favorites: [], thisWeek: [], topRequests: [] },
+  "porsi-kecil": { favorites: [], thisWeek: [], today: null, topRequests: [] },
+  "porsi-besar": { favorites: [], thisWeek: [], today: null, topRequests: [] },
+  "ibu-hamil": { favorites: [], thisWeek: [], today: null, topRequests: [] },
+  balita: { favorites: [], thisWeek: [], today: null, topRequests: [] },
 };
 
 export const EMPTY_MENU_REQUEST_COUNTS: Record<MenuCategoryId, number> = {

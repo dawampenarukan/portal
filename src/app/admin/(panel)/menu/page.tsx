@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminMenuOverview } from "@/components/admin/admin-menu-overview-section";
+import { AdminMenuTodaySection } from "@/components/admin/admin-menu-today-section";
 import { AdminOrganolepticSummary } from "@/components/admin/admin-organoleptic-summary";
 import { AdminCardSkeleton } from "@/components/admin/admin-card-skeleton";
 import { ResetMenuFavoritesButton } from "@/components/admin/reset-menu-favorites-button";
@@ -23,6 +24,10 @@ export default function AdminMenuPage() {
           <ResetMenuFavoritesButton />
         </div>
       </div>
+
+      <Suspense fallback={<AdminCardSkeleton rows={5} />}>
+        <AdminMenuTodaySection />
+      </Suspense>
 
       <Suspense fallback={<AdminCardSkeleton rows={4} />}>
         <AdminOrganolepticSummary />

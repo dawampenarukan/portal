@@ -5,10 +5,15 @@ import { MENU_CATEGORY_ID_TO_TYPE, type MenuCategoryId } from "@/lib/menu-meta";
 import { toMenuCategoryType } from "@/lib/menu-meta.server";
 import { syncMenuItemFromWeekly } from "@/lib/menu-sync";
 import { normalizeMenuIcon } from "@/lib/menu-icons";
-import { dateForDayLabelInCurrentWeek, sortOrderForDay } from "@/lib/week-days";
+import {
+  dateForDayLabelInOperationalWeek,
+  isSchoolWeekDay,
+  isWeeklyEntryInOperationalWeek,
+  sortOrderForDay,
+} from "@/lib/week-days";
 import {
   createWeeklyMenuEntrySafe,
-  findWeeklyMenuEntries,
+  healWeeklyMenuDatesForCategory,
 } from "@/lib/weekly-menu-db";
 
 const validCategoryIds = new Set<string>(Object.keys(MENU_CATEGORY_ID_TO_TYPE));
@@ -26,9 +31,9 @@ export async function GET(request: Request) {
   if (!categoryId) return badRequest("Parameter category wajib diisi");
 
   try {
-    const entries = await findWeeklyMenuEntries({
-      category: toMenuCategoryType(categoryId),
-    });
+    const categoryType = toMenuCategoryType(categoryId);
+    const healed = await healWeeklyMenuDatesForCategory(categoryType);
+    const entries = healed.filter((e) => isWeeklyEntryInOperationalWeek(e));
     return NextResponse.json(entries);
   } catch {
     return serverError("Gagal memuat jadwal menu");
@@ -41,12 +46,14 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { categoryId, dayLabel, menuText, emoji, isActive } = body as {
+    const { categoryId, dayLabel, menuText, emoji, isActive, description, imageUrl } = body as {
       categoryId?: string;
       dayLabel?: string;
       menuText?: string;
       emoji?: string;
       isActive?: boolean;
+      description?: string | null;
+      imageUrl?: string | null;
     };
 
     const catId = parseCategoryId(categoryId ?? null);
@@ -55,16 +62,25 @@ export async function POST(request: Request) {
     }
 
     const trimmedDay = dayLabel.trim();
+    if (!isSchoolWeekDay(trimmedDay)) {
+      return badRequest("Hari harus Senin–Jumat (hari sekolah)");
+    }
 
     const categoryType = toMenuCategoryType(catId);
     const trimmedMenu = menuText.trim();
     const menuEmoji = normalizeMenuIcon(emoji);
+    const trimmedDescription =
+      typeof description === "string" ? description.trim() || null : null;
+    const trimmedImageUrl =
+      typeof imageUrl === "string" ? imageUrl.trim() || null : imageUrl === null ? null : undefined;
 
     const entry = await createWeeklyMenuEntrySafe({
       category: categoryType,
       dayLabel: trimmedDay,
-      menuDate: dateForDayLabelInCurrentWeek(trimmedDay),
+      menuDate: dateForDayLabelInOperationalWeek(trimmedDay),
       menuText: trimmedMenu,
+      description: trimmedDescription,
+      imageUrl: trimmedImageUrl ?? null,
       emoji: menuEmoji,
       sortOrder: sortOrderForDay(trimmedDay),
       isActive: isActive !== false,

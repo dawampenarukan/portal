@@ -2,16 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, Pencil, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { MenuIconPicker } from "@/components/admin/menu-icon-picker";
 import { DEFAULT_MENU_ICON, normalizeMenuIcon, type MenuFoodIcon } from "@/lib/menu-icons";
 import {
-  WEEK_DAYS,
+  SCHOOL_WEEK_DAYS,
   compareWeeklyEntries,
   formatWeeklyMenuHeading,
+  isMenuEntrySchoolTarget,
   sortOrderForDay,
 } from "@/lib/week-days";
 import type { WeeklyMenuEntryView } from "@/lib/types";
@@ -30,16 +32,21 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   const router = useRouter();
   const [entries, setEntries] = useState(() => sortEntries(initialEntries));
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<{
     dayLabel: string;
     menuText: string;
+    description: string;
+    imageUrl: string;
     emoji: MenuFoodIcon;
   }>({
     dayLabel: "",
     menuText: "",
+    description: "",
+    imageUrl: "",
     emoji: DEFAULT_MENU_ICON,
   });
 
@@ -50,7 +57,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
 
   const availableDays = useMemo(
     () =>
-      WEEK_DAYS.filter(
+      SCHOOL_WEEK_DAYS.filter(
         (day) =>
           !usedDays.has(day.toLowerCase()) ||
           (editingId &&
@@ -69,7 +76,13 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   }
 
   function resetForm() {
-    setForm({ dayLabel: "", menuText: "", emoji: DEFAULT_MENU_ICON });
+    setForm({
+      dayLabel: "",
+      menuText: "",
+      description: "",
+      imageUrl: "",
+      emoji: DEFAULT_MENU_ICON,
+    });
     setShowForm(false);
     setEditingId(null);
   }
@@ -80,8 +93,32 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
     setForm({
       dayLabel: entry.dayLabel,
       menuText: entry.menuText,
+      description: entry.description ?? "",
+      imageUrl: entry.imageUrl ?? "",
       emoji: normalizeMenuIcon(entry.emoji),
     });
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("files", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = (await res.json()) as { urls?: string[]; error?: string };
+      if (!res.ok || !data.urls?.[0]) {
+        throw new Error(data.error ?? "Gagal upload gambar");
+      }
+      setForm((prev) => ({ ...prev, imageUrl: data.urls![0] }));
+    } catch (err) {
+      setSyncMsg(err instanceof Error ? err.message : "Gagal upload gambar");
+    } finally {
+      setUploadingImage(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -92,6 +129,8 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
     const payload = {
       dayLabel: form.dayLabel,
       menuText: form.menuText.trim(),
+      description: form.description.trim() || null,
+      imageUrl: form.imageUrl.trim() || null,
       emoji: form.emoji,
       sortOrder: sortOrderForDay(form.dayLabel),
     };
@@ -137,7 +176,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
   async function syncFromInventory() {
     if (
       !confirm(
-        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai.\n• Senin–Jumat: minggu yang sama\n• Sabtu–Minggu: minggu depan\nFavorit lama yang tidak ada di sync akan disembunyikan."
+        "Muat Menu Minggu Ini dari Rencana Produksi Inventory?\n\nJadwal diganti dari rencana Disetujui/Diproses/Selesai.\n• Senin–Jumat: minggu yang sama\n• Sabtu–Minggu: minggu depan\nDeskripsi & foto yang sudah diunggah tetap dipertahankan per tanggal.\nFavorit lama yang tidak ada di sync akan disembunyikan."
       )
     ) {
       return;
@@ -189,7 +228,9 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="font-semibold">Menu Minggu Ini</h3>
-          <p className="text-xs text-muted-foreground">{entries.length} hari terjadwal</p>
+          <p className="text-xs text-muted-foreground">
+            {entries.length} hari terjadwal · Edit nama ikut mengubah Menu Hari Ini & list publik
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -211,6 +252,8 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
               setForm({
                 dayLabel: availableDays[0] ?? "",
                 menuText: "",
+                description: "",
+                imageUrl: "",
                 emoji: DEFAULT_MENU_ICON,
               });
               setShowForm(true);
@@ -256,7 +299,7 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
                   Pilih hari
                 </option>
                 {(editingId
-                  ? WEEK_DAYS.filter(
+                  ? SCHOOL_WEEK_DAYS.filter(
                       (d) =>
                         availableDays.includes(d) ||
                         d.toLowerCase() === form.dayLabel.toLowerCase()
@@ -270,7 +313,9 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">Menu</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Nama menu
+              </label>
               <Input
                 placeholder="Contoh: Nasi Rendang Telur"
                 value={form.menuText}
@@ -279,12 +324,60 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
               />
             </div>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Deskripsi (opsional)
+            </label>
+            <Textarea
+              rows={3}
+              placeholder="Detail menu hari ini untuk ditampilkan di halaman publik"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-muted-foreground">
+              Foto menu (opsional)
+            </label>
+            <Input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              disabled={uploadingImage || loading}
+              onChange={(e) => void handleImageUpload(e)}
+            />
+            {uploadingImage ? (
+              <p className="text-xs text-muted-foreground">Mengunggah foto…</p>
+            ) : null}
+            {form.imageUrl ? (
+              <div className="relative mt-2 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={form.imageUrl}
+                  alt="Preview foto menu"
+                  className="h-28 w-40 rounded-lg border object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, imageUrl: "" })}
+                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white hover:bg-black/80"
+                  aria-label="Hapus foto"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <ImagePlus className="h-3.5 w-3.5" />
+                Belum ada foto — akan tampil di Menu Hari Ini
+              </p>
+            )}
+          </div>
           <MenuIconPicker
             value={form.emoji}
             onChange={(emoji: MenuFoodIcon) => setForm({ ...form, emoji })}
           />
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={loading}>
+            <Button type="submit" size="sm" disabled={loading || uploadingImage}>
               {editingId ? "Simpan Perubahan" : "Simpan"}
             </Button>
             <Button type="button" size="sm" variant="ghost" onClick={resetForm}>
@@ -301,22 +394,44 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
           {sortEntries(entries).map((entry) => (
             <li key={entry.id} className="px-3 py-3 sm:px-4">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1 space-y-1">
-                  <p className="text-xs font-medium text-primary">
-                    {formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate)}
-                  </p>
-                  <p className="text-sm leading-snug text-foreground">
-                    <span className="mr-1 opacity-70" aria-hidden>
-                      {normalizeMenuIcon(entry.emoji)}
-                    </span>
-                    {entry.menuText}
-                  </p>
-                  <Badge
-                    variant={entry.isActive ? "success" : "secondary"}
-                    className="text-[10px] font-normal"
-                  >
-                    {entry.isActive ? "Aktif" : "Disembunyikan"}
-                  </Badge>
+                <div className="flex min-w-0 flex-1 gap-3">
+                  {entry.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={entry.imageUrl}
+                      alt=""
+                      className="h-14 w-14 shrink-0 rounded-lg border object-cover"
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-medium text-primary">
+                        {formatWeeklyMenuHeading(entry.dayLabel, entry.menuDate)}
+                      </p>
+                      {isMenuEntrySchoolTarget(entry) ? (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Target hari ini
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-sm leading-snug text-foreground">
+                      <span className="mr-1 opacity-70" aria-hidden>
+                        {normalizeMenuIcon(entry.emoji)}
+                      </span>
+                      {entry.menuText}
+                    </p>
+                    {entry.description ? (
+                      <p className="line-clamp-2 text-xs text-muted-foreground">
+                        {entry.description}
+                      </p>
+                    ) : null}
+                    <Badge
+                      variant={entry.isActive ? "success" : "secondary"}
+                      className="text-[10px] font-normal"
+                    >
+                      {entry.isActive ? "Aktif" : "Disembunyikan"}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5 opacity-60 hover:opacity-100">
                   <Button
