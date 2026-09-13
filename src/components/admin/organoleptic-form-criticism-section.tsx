@@ -100,7 +100,7 @@ export function OrganolepticFormCriticismSection({
                 {uploadingImages ? "Mengupload..." : "Upload Gambar"}
               </Button>
               <p className="text-xs text-muted-foreground">
-                JPEG, PNG, WebP, atau GIF. Maks. 5MB per gambar.
+                JPEG, PNG, WebP, atau GIF. Maks. 4MB per gambar.
               </p>
             </>
           )}

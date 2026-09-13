@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { uploadImageFile } from "@/lib/client-image-upload";
 
 export interface EventFormValues {
   id?: string;
@@ -59,15 +60,8 @@ export function EventForm({ initial }: EventFormProps) {
     setError("");
 
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Gagal upload gambar");
-      }
-      const data = (await res.json()) as { urls: string[] };
-      setCoverImage(data.urls[0] ?? null);
+      const url = await uploadImageFile(file);
+      setCoverImage(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal upload gambar");
     } finally {
@@ -261,7 +255,7 @@ export function EventForm({ initial }: EventFormProps) {
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              JPEG, PNG, WebP, atau GIF. Maks. 5MB.
+              JPEG, PNG, WebP, atau GIF. Maks. 4MB.
             </p>
           </CardContent>
         </Card>

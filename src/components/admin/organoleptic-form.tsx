@@ -24,6 +24,7 @@ import {
   ORGANOLEPTIC_REQUIRED_ITEMS,
   deriveOrganolepticSafety,
 } from "@/lib/organoleptic-meta";
+import { uploadImageFiles } from "@/lib/client-image-upload";
 import type {
   OrganolepticChecklistView,
   OrganolepticProfileDefaults,
@@ -270,18 +271,8 @@ export function OrganolepticForm({
     setError(null);
 
     try {
-      const formData = new FormData();
-      toUpload.forEach((file) => formData.append("files", file));
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        urls?: string[];
-        error?: string;
-      };
-      if (!res.ok) throw new Error(data.error ?? "Gagal upload gambar");
-      setCriticismImages((prev) => [...prev, ...(data.urls ?? [])]);
+      const urls = await uploadImageFiles(toUpload);
+      setCriticismImages((prev) => [...prev, ...urls]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal upload gambar");
     } finally {

@@ -3,7 +3,8 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { put } from "@vercel/blob";
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+/** Keep under common platform body limits (~4.5MB on Vercel). */
+const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
 const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
 const MAX_VIDEO_SIZE = 15 * 1024 * 1024;
 
@@ -46,7 +47,7 @@ const VIDEO_CLOUD_SETUP_HINT =
 function validateFile(file: File) {
   if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
     if (file.size > MAX_IMAGE_SIZE) {
-      throw new Error("Ukuran gambar maksimal 5MB");
+      throw new Error("Ukuran gambar maksimal 4MB");
     }
     return;
   }

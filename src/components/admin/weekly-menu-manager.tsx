@@ -18,6 +18,7 @@ import {
 } from "@/lib/week-days";
 import type { WeeklyMenuEntryView } from "@/lib/types";
 import type { MenuCategoryId } from "@/lib/menu-meta";
+import { uploadImageFile } from "@/lib/client-image-upload";
 
 interface WeeklyMenuManagerProps {
   categoryId: MenuCategoryId;
@@ -106,14 +107,8 @@ export function WeeklyMenuManager({ categoryId, initialEntries }: WeeklyMenuMana
 
     setUploadingImage(true);
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = (await res.json()) as { urls?: string[]; error?: string };
-      if (!res.ok || !data.urls?.[0]) {
-        throw new Error(data.error ?? "Gagal upload gambar");
-      }
-      setForm((prev) => ({ ...prev, imageUrl: data.urls![0] }));
+      const url = await uploadImageFile(file);
+      setForm((prev) => ({ ...prev, imageUrl: url }));
     } catch (err) {
       setSyncMsg(err instanceof Error ? err.message : "Gagal upload gambar");
     } finally {

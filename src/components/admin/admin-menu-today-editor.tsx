@@ -12,6 +12,7 @@ import { formatWeeklyMenuHeading } from "@/lib/week-days";
 import type { MenuCategoryId } from "@/lib/menu-meta";
 import type { TodayMenuAdminSnapshot } from "@/lib/types";
 import { snapshotSyncKey } from "@/lib/menu-today-snapshot-key";
+import { uploadImageFile } from "@/lib/client-image-upload";
 import { cn } from "@/lib/utils";
 
 interface AdminMenuTodayEditorProps {
@@ -119,7 +120,7 @@ export function AdminMenuTodayEditor({ initialSnapshot }: AdminMenuTodayEditorPr
           categoryIds: Array.from(selected),
         }),
       });
-      const data = (await res.json()) as {
+      const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         snapshot?: TodayMenuAdminSnapshot;
       };
@@ -158,14 +159,8 @@ export function AdminMenuTodayEditor({ initialSnapshot }: AdminMenuTodayEditorPr
     setUploading(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = (await res.json()) as { urls?: string[]; error?: string };
-      if (!res.ok || !data.urls?.[0]) {
-        throw new Error(data.error ?? "Gagal upload gambar");
-      }
-      setImageUrl(data.urls[0]);
+      const url = await uploadImageFile(file);
+      setImageUrl(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal upload gambar");
     } finally {
@@ -198,7 +193,7 @@ export function AdminMenuTodayEditor({ initialSnapshot }: AdminMenuTodayEditorPr
           categoryIds: Array.from(selected),
         }),
       });
-      const data = (await res.json()) as {
+      const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         snapshot?: TodayMenuAdminSnapshot;
       };

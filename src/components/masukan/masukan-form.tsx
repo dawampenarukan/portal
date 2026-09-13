@@ -22,6 +22,7 @@ import {
   validateFeedbackForm,
   validateFeedbackPhone,
 } from '@/lib/feedback-form';
+import { uploadImageFiles } from '@/lib/client-image-upload';
 import { cn } from '@/lib/utils';
 
 function FieldError({ message }: { message?: string }) {
@@ -104,15 +105,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
       let images: string[] = [];
 
       if (imageFiles.length > 0) {
-        const formData = new FormData();
-        imageFiles.forEach((f) => formData.append('files', f));
-        const uploadRes = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        if (!uploadRes.ok) throw new Error('Gagal upload gambar');
-        const uploadData = await uploadRes.json();
-        images = uploadData.urls;
+        images = await uploadImageFiles(imageFiles);
       }
 
       const res = await fetch('/api/feedback', {
@@ -352,7 +345,7 @@ export function MasukanForm({ children }: { children?: React.ReactNode }) {
                 >
                   <ImagePlus className='mb-2 h-8 w-8 text-muted-foreground' />
                   <p className='text-sm text-muted-foreground'>
-                    Klik untuk pilih gambar (maks. 5 foto, 5MB per file)
+                    Klik untuk pilih gambar (maks. 5 foto, 4MB per file)
                   </p>
                   <input
                     ref={fileInputRef}

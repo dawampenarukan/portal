@@ -13,6 +13,7 @@ import {
   validateBackgroundMusicFields,
 } from "@/lib/article-background-music";
 import { slugify } from "@/lib/slug";
+import { uploadMediaFile } from "@/lib/client-image-upload";
 import type { ArticleView } from "@/lib/types";
 
 interface Category {
@@ -149,18 +150,12 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
   }
 
   async function uploadFile(file: File): Promise<string | null> {
-    const formData = new FormData();
-    formData.append("files", file);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(
-        (data as { error?: string }).error ?? "Gagal mengunggah file"
-      );
+    try {
+      return await uploadMediaFile(file);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengunggah file");
       return null;
     }
-    const data = (await res.json()) as { urls?: string[] };
-    return data.urls?.[0] ?? null;
   }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -258,7 +253,7 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
           disabled={uploadingCover}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          JPEG, PNG, WebP, GIF (maks. 5MB) atau MP4 (maks. 15MB). Cukup pilih
+          JPEG, PNG, WebP, GIF (maks. 4MB) atau MP4 (maks. 15MB). Cukup pilih
           file di sini — video akan tampil di website publik otomatis setelah
           tersimpan. Usahakan file ringan.
         </p>
