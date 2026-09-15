@@ -706,6 +706,37 @@ body {
   border-color: rgba(46, 155, 106, 0.12);
 }
 
+@keyframes consume-deadline-flash {
+  0%,
+  100% {
+    background-color: #15803d;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.35);
+    transform: scale(1);
+  }
+  50% {
+    background-color: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 22px 6px rgba(220, 38, 38, 0.75);
+    transform: scale(1.12);
+  }
+}
+
+.consume-deadline-flash {
+  animation: consume-deadline-flash 1.05s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consume-deadline-flash {
+    animation: none;
+    background-color: #dc2626;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35);
+    transform: none;
+  }
+}
+
 @media print {
   @page { size: A4 landscape; margin: 10mm; }
   body { background: white !important; }
