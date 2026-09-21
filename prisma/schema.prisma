@@ -186,12 +186,14 @@ model SurveyQuestion {
 }
 
 model SurveyResponse {
-  id          String         @id @default(cuid())
-  surveyId    String
-  survey      Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
-  respondentName String?
-  createdAt   DateTime       @default(now())
-  answers     SurveyAnswer[]
+  id                     String         @id @default(cuid())
+  surveyId               String
+  survey                 Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  respondentName         String?
+  respondentAge          Int?
+  respondentSchool       String?
+  createdAt              DateTime       @default(now())
+  answers                SurveyAnswer[]
 }
 
 model SurveyAnswer {

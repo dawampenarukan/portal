@@ -26,10 +26,26 @@ export async function POST(request: Request, { params }: Params) {
       return badRequest("Body permintaan tidak valid");
     }
 
-    const { respondentName, answers } = body as {
+    const { respondentName, respondentAge, respondentSchool, answers } = body as {
       respondentName?: string;
+      respondentAge?: number;
+      respondentSchool?: string;
       answers?: { questionId: string; value: string }[];
     };
+
+    const name = respondentName?.trim() ?? "";
+    const schoolName = respondentSchool?.trim() ?? "";
+    const age =
+      typeof respondentAge === "number" ? respondentAge : parseInt(String(respondentAge ?? ""), 10);
+    if (!name || name.length > 120) {
+      return badRequest("Nama wajib diisi (maks. 120 karakter)");
+    }
+    if (!Number.isInteger(age) || age < 1 || age > 120) {
+      return badRequest("Umur wajib diisi (1–120)");
+    }
+    if (!schoolName || schoolName.length > 200) {
+      return badRequest("Nama sekolah/posyandu wajib diisi (maks. 200 karakter)");
+    }
 
     const questionsForValidation = survey.questions.map((q) => ({
       id: q.id,
@@ -45,7 +61,9 @@ export async function POST(request: Request, { params }: Params) {
       tx.surveyResponse.create({
         data: {
           surveyId: id,
-          respondentName: respondentName?.trim() || null,
+          respondentName: name,
+          respondentAge: age,
+          respondentSchool: schoolName,
           answers: {
             create: validated.answers.map((a) => ({
               questionId: a.questionId,

@@ -39,6 +39,8 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [name, setName] = useState("");
+  const [age, setAge] = useState("");
+  const [school, setSchool] = useState("");
   const [answers, setAnswers] = useState<AnswerState>({});
   const [otherTexts, setOtherTexts] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -153,6 +155,13 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
 
   function validateClient(): string | null {
     const nextErrors: Record<string, string> = {};
+    if (!name.trim()) nextErrors.respondentName = "Nama wajib diisi";
+    const ageNumber = Number(age);
+    if (!age.trim() || !Number.isInteger(ageNumber) || ageNumber < 1 || ageNumber > 120) {
+      nextErrors.respondentAge = "Umur wajib diisi (1–120)";
+    }
+    if (!school.trim()) nextErrors.respondentSchool = "Nama sekolah/posyandu wajib diisi";
+
     for (const q of questions) {
       if (!isSurveyQuestionType(q.type)) {
         nextErrors[q.id] = "Tipe pertanyaan tidak didukung";
@@ -191,11 +200,16 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
       }
     }
     setFieldErrors(nextErrors);
-    return Object.keys(nextErrors)[0] ?? null;
+    const first = Object.keys(nextErrors)[0] ?? null;
+    return first;
   }
 
   function scrollToQuestion(questionId: string) {
-    const el = formRef.current?.querySelector(`[data-question-id="${CSS.escape(questionId)}"]`);
+    const selector =
+      questionId.startsWith("respondent")
+        ? "#respondent-profile"
+        : `[data-question-id="${CSS.escape(questionId)}"]`;
+    const el = formRef.current?.querySelector(selector);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
@@ -204,7 +218,7 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
     setError("");
     const firstErrorId = validateClient();
     if (firstErrorId) {
-      setError("Lengkapi semua pertanyaan sebelum mengirim.");
+      setError("Lengkapi data responden dan semua pertanyaan sebelum mengirim.");
       scrollToQuestion(firstErrorId);
       return;
     }
@@ -221,7 +235,9 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          respondentName: name,
+          respondentName: name.trim(),
+          respondentAge: Number(age),
+          respondentSchool: school.trim(),
           answers: payloadAnswers,
         }),
       });
@@ -263,10 +279,77 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
         </p>
       ) : null}
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium">Nama (opsional)</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama Anda" />
-      </div>
+      <fieldset id="respondent-profile" className="space-y-4 rounded-lg border p-4">
+        <legend className="px-1 font-medium">Data responden</legend>
+        <div>
+          <label htmlFor="respondent-name" className="mb-1.5 block text-sm font-medium">
+            Nama
+            <span className="ml-1 text-destructive" aria-hidden>
+              *
+            </span>
+          </label>
+          <Input
+            id="respondent-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nama Anda"
+            autoComplete="name"
+            aria-invalid={Boolean(fieldErrors.respondentName)}
+            required
+          />
+          {fieldErrors.respondentName ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {fieldErrors.respondentName}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <label htmlFor="respondent-age" className="mb-1.5 block text-sm font-medium">
+            Umur
+            <span className="ml-1 text-destructive" aria-hidden>
+              *
+            </span>
+          </label>
+          <Input
+            id="respondent-age"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={120}
+            value={age}
+            onChange={(e) => setAge(e.target.value)}
+            placeholder="Umur (tahun)"
+            aria-invalid={Boolean(fieldErrors.respondentAge)}
+            required
+          />
+          {fieldErrors.respondentAge ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {fieldErrors.respondentAge}
+            </p>
+          ) : null}
+        </div>
+        <div>
+          <label htmlFor="respondent-school" className="mb-1.5 block text-sm font-medium">
+            Nama Sekolah/Posyandu
+            <span className="ml-1 text-destructive" aria-hidden>
+              *
+            </span>
+          </label>
+          <Input
+            id="respondent-school"
+            value={school}
+            onChange={(e) => setSchool(e.target.value)}
+            placeholder="Nama sekolah atau posyandu"
+            aria-invalid={Boolean(fieldErrors.respondentSchool)}
+            required
+          />
+          {fieldErrors.respondentSchool ? (
+            <p className="mt-1 text-xs text-destructive" role="alert">
+              {fieldErrors.respondentSchool}
+            </p>
+          ) : null}
+        </div>
+      </fieldset>
 
       {questions.map((q, i) => {
         const fixedOptions = choiceOptionsOnly(q.options);
