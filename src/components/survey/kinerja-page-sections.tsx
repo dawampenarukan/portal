@@ -27,7 +27,11 @@ export async function KinerjaSurveyResultsSection() {
   return (
     <KinerjaSurveyDashboardLoader
       publications={surveyPublications}
-      activeSurveys={[]}
+      activeSurveys={await safeQuery(
+        () => getActiveSurveySummariesCached(),
+        [],
+        "getActiveSurveySummaries"
+      )}
       defaultPublicationId={defaultPublicationId}
     />
   );

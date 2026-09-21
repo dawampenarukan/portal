@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import type { SurveyDataView } from "@/lib/types";
 
-import { DEFAULT_NPS_QUESTION, DEFAULT_RESPONDENT_TARGET } from "@/lib/survey-defaults";
+import { DEFAULT_NPS_QUESTION, DEFAULT_RESPONDENT_TARGET, normalizeOptionList, parseAnswerValues, SURVEY_CHOICE_TYPES } from "@/lib/survey-defaults";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
@@ -27,7 +27,7 @@ export function resolveSurveyIdFromPublicationSlug(
 
 export function parseStoredChartData(data: unknown): SurveyDataView | null {
   if (!data || typeof data !== "object") return null;
-  const chart = data as Partial<SurveyDataView>;
+  const chart = data as Partial<SurveyDataView> & Record<string, unknown>;
   if (
     typeof chart.satisfactionScore !== "number" ||
     typeof chart.npsScore !== "number" ||
@@ -35,29 +35,34 @@ export function parseStoredChartData(data: unknown): SurveyDataView | null {
   ) {
     return null;
   }
+
+  // Penting: bedakan "field tidak ada" vs "array kosong" supaya chart lama ikut di-repair.
+  const hasChoiceBreakdownField = Array.isArray(chart.choiceBreakdown);
+  const hasRespondentTargetField = typeof chart.respondentTarget === "number";
+
   return {
     satisfactionScore: chart.satisfactionScore,
     npsScore: chart.npsScore,
     respondents: chart.respondents,
     target: typeof chart.target === "number" ? chart.target : 0,
+    respondentTarget: hasRespondentTargetField ? chart.respondentTarget : undefined,
     aspects: Array.isArray(chart.aspects) ? chart.aspects : [],
     trend: Array.isArray(chart.trend) ? chart.trend : [],
+    choiceBreakdown: hasChoiceBreakdownField ? chart.choiceBreakdown : undefined,
   };
 }
 
-/** Ada data responden + struktur aspek (hasil aggregate/sync sungguhan). */
+/** Chart dianggap valid jika ada responden (rating opsional — survey bisa hanya pilihan/NPS). */
 export function isUsableSurveyChart(data: SurveyDataView | null | undefined): boolean {
-  return Boolean(data && data.respondents > 0 && data.aspects.length > 0);
+  return Boolean(data && data.respondents > 0);
 }
 
-/** chart belum lengkap — perlu hitung ulang dari jawaban survey. */
+/** Perlu rebuild jika kosong, atau chart lama tanpa field choiceBreakdown / respondentTarget. */
 export function needsChartRepair(data: SurveyDataView | null | undefined): boolean {
   if (!data || data.respondents <= 0) return true;
-  return data.aspects.length === 0;
-}
-
-function hasRatingSignal(data: SurveyDataView): boolean {
-  return data.satisfactionScore > 0 || data.aspects.some((a) => a.score > 0);
+  if (data.choiceBreakdown === undefined) return true;
+  if (typeof data.respondentTarget !== "number") return true;
+  return false;
 }
 
 async function persistRepairedChart(publicationId: string, chartData: SurveyDataView) {
@@ -77,17 +82,16 @@ async function resolvePublicationSurveyData(pub: {
 }): Promise<SurveyDataView | null> {
   const stored = parseStoredChartData(pub.chartData);
 
-  // Chart lengkap + skor rating sudah ada → pakai tersimpan (cepat untuk homepage)
-  if (stored && isUsableSurveyChart(stored) && hasRatingSignal(stored)) {
-    return stored;
-  }
-
-  // Chart lengkap tapi skor 0 (aggregate sudah jalan, jawaban memang kosong/invalid)
+  // Chart modern lengkap (ada choiceBreakdown + respondentTarget) → bisa pakai cache cepat
   if (stored && isUsableSurveyChart(stored) && !needsChartRepair(stored)) {
+    // Tetap refresh ringan jika surveyId ada dan metrik berubah
     if (!pub.surveyId) return stored;
-    // Satu kali coba live: jika jawaban baru sudah ada skor, perbarui
     const live = await aggregateSurveyResults(pub.surveyId);
-    if (hasRatingSignal(live) || live.respondents !== stored.respondents) {
+    if (
+      live.respondents !== stored.respondents ||
+      live.npsScore !== stored.npsScore ||
+      live.satisfactionScore !== stored.satisfactionScore
+    ) {
       try {
         await persistRepairedChart(pub.id, live);
       } catch (err) {
@@ -99,12 +103,12 @@ async function resolvePublicationSurveyData(pub: {
   }
 
   if (!pub.surveyId) {
-    return isUsableSurveyChart(stored) ? stored : null;
+    return isUsableSurveyChart(stored) && !needsChartRepair(stored) ? stored : null;
   }
 
   const live = await aggregateSurveyResults(pub.surveyId);
   if (live.respondents <= 0) {
-    return isUsableSurveyChart(stored) ? stored : null;
+    return isUsableSurveyChart(stored) && !needsChartRepair(stored) ? stored : null;
   }
 
   try {
@@ -119,7 +123,18 @@ export function buildSurveySummary(chartData: SurveyDataView): string {
   if (chartData.respondents === 0) {
     return "Belum ada responden. Skor akan diperbarui otomatis setelah survey diisi.";
   }
-  return `Skor kepuasan ${chartData.satisfactionScore}/5 dengan ${chartData.respondents} responden. Skor bahagia ${chartData.npsScore}.`;
+  const parts = [
+    `${chartData.respondents} responden`,
+    `skor bahagia ${chartData.npsScore}`,
+  ];
+  if (chartData.aspects.length > 0) {
+    parts.unshift(`Skor kepuasan ${chartData.satisfactionScore}/5`);
+  }
+  const choiceCount = chartData.choiceBreakdown?.length ?? 0;
+  if (choiceCount > 0) {
+    parts.push(`${choiceCount} pertanyaan pilihan`);
+  }
+  return `${parts.join(" · ")}.`;
 }
 
 function buildMonthlyTrend(
@@ -171,18 +186,21 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
       npsScore: 0,
       respondents: 0,
       target: 0,
+      respondentTarget: DEFAULT_RESPONDENT_TARGET,
       aspects: [],
       trend: [],
+      choiceBreakdown: [],
     };
   }
 
-  const respondents = survey.responses.length;
+  const filledResponses = survey.responses.filter((r) => r.answers.length > 0);
+  const respondents = filledResponses.length;
   const ratingQuestions = survey.questions.filter((q) => q.type === "rating");
   const npsQuestion = survey.questions.find((q) => q.type === "nps");
   const ratingQuestionIds = new Set(ratingQuestions.map((q) => q.id));
 
   const aspects = ratingQuestions.map((q) => {
-    const answers = survey.responses.flatMap((r) =>
+    const answers = filledResponses.flatMap((r) =>
       r.answers.filter((a) => a.questionId === q.id)
     );
     const scores = answers.map((a) => parseFloat(a.value)).filter((n) => !Number.isNaN(n));
@@ -197,7 +215,7 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
 
   let npsScore = 0;
   if (npsQuestion) {
-    const npsAnswers = survey.responses.flatMap((r) =>
+    const npsAnswers = filledResponses.flatMap((r) =>
       r.answers.filter((a) => a.questionId === npsQuestion.id)
     );
     const values = npsAnswers.map((a) => parseInt(a.value, 10)).filter((n) => !Number.isNaN(n));
@@ -208,6 +226,39 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     }
   }
 
+  const choiceQuestions = survey.questions.filter((q) => SURVEY_CHOICE_TYPES.has(q.type));
+  const choiceBreakdown = choiceQuestions.map((q) => {
+    const optionLabels = normalizeOptionList(q.options);
+    const counts = new Map<string, number>(optionLabels.map((label) => [label, 0]));
+    let answered = 0;
+
+    for (const response of filledResponses) {
+      const answer = response.answers.find((a) => a.questionId === q.id);
+      if (!answer) continue;
+      const values = parseAnswerValues(answer.value);
+      if (values.length === 0) continue;
+      answered += 1;
+      for (const value of values) {
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+    }
+
+    const options = [...counts.entries()]
+      .map(([label, count]) => ({
+        label,
+        count,
+        percent: answered > 0 ? Math.round((count / answered) * 100) : 0,
+      }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+    return {
+      questionId: q.id,
+      question: q.question,
+      type: q.type,
+      options,
+    };
+  });
+
   const targetGoal =
     survey.respondentTarget > 0 ? survey.respondentTarget : DEFAULT_RESPONDENT_TARGET;
   const target =
@@ -215,7 +266,7 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
       ? 100
       : Math.min(100, Math.round((respondents / targetGoal) * 100));
 
-  const trend = buildMonthlyTrend(survey.responses, ratingQuestionIds);
+  const trend = buildMonthlyTrend(filledResponses, ratingQuestionIds);
   const now = new Date();
   const currentMonth = MONTH_LABELS[now.getMonth()];
 
@@ -224,13 +275,15 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     npsScore,
     respondents,
     target,
+    respondentTarget: targetGoal,
     aspects,
     trend:
       trend.length > 0
         ? trend
-        : respondents > 0
+        : respondents > 0 && satisfactionScore > 0
           ? [{ month: currentMonth, score: satisfactionScore }]
           : [],
+    choiceBreakdown,
   };
 }
 
@@ -245,14 +298,22 @@ export async function syncSurveyPublication(
   });
   if (!survey) return null;
 
-  const hasNps = survey.questions.some((q) => q.type === "nps");
-  if (!hasNps) {
+  const npsQuestions = survey.questions.filter((q) => q.type === "nps");
+  if (npsQuestions.length === 0) {
     await prisma.surveyQuestion.create({
       data: {
         surveyId,
         question: DEFAULT_NPS_QUESTION,
         type: "nps",
         order: survey.questions.length,
+      },
+    });
+  } else if (npsQuestions.length > 1) {
+    // Jaga satu NPS — hapus duplikat sisa (data setengah migrasi)
+    await prisma.surveyQuestion.deleteMany({
+      where: {
+        surveyId,
+        id: { in: npsQuestions.slice(1).map((q) => q.id) },
       },
     });
   }

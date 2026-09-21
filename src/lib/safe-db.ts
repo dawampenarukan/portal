@@ -12,8 +12,10 @@ export const EMPTY_SURVEY_DATA: SurveyDataView = {
   npsScore: 0,
   respondents: 0,
   target: 0,
+  respondentTarget: 0,
   aspects: [],
   trend: [],
+  choiceBreakdown: [],
 };
 
 export async function safeQuery<T>(

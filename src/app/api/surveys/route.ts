@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import { ensureNpsQuestion, normalizeRespondentTarget } from "@/lib/survey-defaults";
+import {
+  ensureNpsQuestion,
+  normalizeOptionList,
+  normalizeRespondentTarget,
+  validateSurveyQuestionDraft,
+  type SurveyQuestionInput,
+} from "@/lib/survey-defaults";
 import { revalidatePublicContent } from "@/lib/revalidate-public";
 
 export async function GET() {
@@ -11,7 +17,11 @@ export async function GET() {
   const surveys = await prisma.survey.findMany({
     include: {
       questions: { orderBy: { order: "asc" } },
-      _count: { select: { responses: true } },
+      _count: {
+        select: {
+          responses: { where: { answers: { some: {} } } },
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -29,36 +39,50 @@ export async function POST(request: Request) {
       description?: string;
       isActive?: boolean;
       respondentTarget?: number;
-      questions?: { question: string; type: string; options?: string[]; order: number }[];
+      questions?: SurveyQuestionInput[];
     };
 
     if (!title?.trim()) return badRequest("Judul survey wajib diisi");
 
-    const normalizedQuestions = ensureNpsQuestion(questions ?? []);
+    const normalizedQuestions = ensureNpsQuestion(
+      (questions ?? []).map((q) => ({
+        question: String(q.question ?? ""),
+        type: String(q.type ?? "rating"),
+        options: normalizeOptionList(q.options),
+        order: Number(q.order) || 0,
+      }))
+    );
+
+    const draftError = validateSurveyQuestionDraft(normalizedQuestions);
+    if (draftError) return badRequest(draftError);
+
     const target = normalizeRespondentTarget(respondentTarget);
 
-    const survey = await prisma.survey.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        respondentTarget: target,
-        isActive: Boolean(isActive),
-        questions: {
-          create: normalizedQuestions.map((q, i) => ({
-            question: q.question,
-            type: q.type,
-            options: q.options ?? undefined,
-            order: q.order ?? i,
-          })),
+    const survey = await prisma.$transaction(async (tx) =>
+      tx.survey.create({
+        data: {
+          title: title.trim(),
+          description: description?.trim() || null,
+          respondentTarget: target,
+          isActive: Boolean(isActive),
+          questions: {
+            create: normalizedQuestions.map((q, i) => ({
+              question: q.question,
+              type: q.type,
+              options: q.options && q.options.length > 0 ? q.options : undefined,
+              order: q.order ?? i,
+            })),
+          },
         },
-      },
-      include: { questions: true },
-    });
+        include: { questions: { orderBy: { order: "asc" } } },
+      })
+    );
 
     revalidatePublicContent({ survey: true });
 
     return NextResponse.json(survey, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error("[survey:create]", err);
     return serverError("Gagal membuat survey");
   }
 }

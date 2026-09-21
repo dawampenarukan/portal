@@ -34,8 +34,19 @@ export async function AdminDashboardSurveySection() {
                 <strong className="text-foreground">{surveyData.satisfactionScore}/5</strong>
               </p>
               <p className="mt-1">
-                Responden: <strong className="text-foreground">{surveyData.respondents}</strong>{" "}
-                (total DB: {stats.surveyRespondents})
+                Responden (chart publikasi):{" "}
+                <strong className="text-foreground">{surveyData.respondents}</strong>
+                {surveyData.respondentTarget != null && surveyData.respondentTarget > 0 ? (
+                  <>
+                    {" "}
+                    · target tercapai{" "}
+                    <strong className="text-foreground">{surveyData.target}%</strong> (
+                    {surveyData.respondents}/{surveyData.respondentTarget})
+                  </>
+                ) : null}
+              </p>
+              <p className="mt-1 text-xs">
+                Total respons di database: {stats.surveyRespondents}
               </p>
               <p className="mt-1">
                 NPS: <strong className="text-foreground">{surveyData.npsScore}</strong>

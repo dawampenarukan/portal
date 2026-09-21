@@ -104,9 +104,19 @@ export interface SurveyDataView {
   satisfactionScore: number;
   npsScore: number;
   respondents: number;
+  /** Persentase target tercapai (0–100). */
   target: number;
+  /** Target absolut responden (untuk label dashboard). */
+  respondentTarget?: number;
   aspects: { name: string; score: number }[];
   trend: { month: string; score: number }[];
+  /** Frekuensi opsi untuk pertanyaan pilihan tunggal / multi-pilih. */
+  choiceBreakdown?: {
+    questionId: string;
+    question: string;
+    type: string;
+    options: { label: string; count: number; percent: number }[];
+  }[];
 }
 
 export interface FavoriteMenuView {

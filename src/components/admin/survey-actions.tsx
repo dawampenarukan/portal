@@ -22,17 +22,37 @@ export function SurveyActions({
 
   async function handlePublish() {
     setLoading(true);
-    await fetch(`/api/surveys/${surveyId}/publish`, { method: "POST" });
-    setLoading(false);
-    router.refresh();
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}/publish`, { method: "POST" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error ?? "Gagal menampilkan survey di portal");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Gagal menampilkan survey di portal. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleDelete() {
     if (!confirm("Hapus survey ini? Publikasi hasil terkait juga akan terhapus.")) return;
     setLoading(true);
-    await fetch(`/api/surveys/${surveyId}`, { method: "DELETE" });
-    setLoading(false);
-    router.refresh();
+    try {
+      const res = await fetch(`/api/surveys/${surveyId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        alert(data.error ?? "Gagal menghapus survey");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Gagal menghapus survey. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

@@ -40,8 +40,8 @@ export async function AdminSurveyList({ page }: { page: number }) {
               <div className="min-w-0">
                 <h3 className="font-semibold">{survey.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {survey._count.questions} pertanyaan · {survey._count.responses} responden ·
-                  target {survey.respondentTarget}
+                  {survey._count.questions} pertanyaan · {survey._count.responses} responden
+                  berjawaban · target {survey.respondentTarget}
                 </p>
                 {survey.description && (
                   <p className="mt-1 text-sm text-muted-foreground">{survey.description}</p>

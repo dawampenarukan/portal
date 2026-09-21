@@ -6,6 +6,7 @@ import {
   ArticleStatus,
   FeedbackStatus,
   MenuCategoryType,
+  Prisma,
   PublicationType,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -14,6 +15,7 @@ import { articlePublicPath, slugify } from "@/lib/slug";
 import { compareWeeklyEntries, formatWeeklyMenuHeading, isMenuEntryToday, isWeeklyEntryInOperationalWeek } from "@/lib/week-days";
 import { findWeeklyMenuEntries, healWeeklyMenuDatesForCategory } from "@/lib/weekly-menu-db";
 import { ADMIN_PAGE_SIZE, pageOffset } from "@/lib/pagination";
+import { normalizeOptionList } from "@/lib/survey-defaults";
 import {
   MENU_CATEGORY_TYPE_TO_ID,
   type MenuCategoryId,
@@ -167,8 +169,10 @@ const defaultSurveyData: SurveyDataView = {
   npsScore: 0,
   respondents: 0,
   target: 0,
+  respondentTarget: 0,
   aspects: [],
   trend: [],
+  choiceBreakdown: [],
 };
 
 /** Default take untuk list publik — cukup untuk home + berita tanpa tarik seluruh tabel. */
@@ -573,6 +577,17 @@ export async function getSurveyPublications(): Promise<SurveyPublicationView[]> 
 
       if (surveyId && needsChartRepair(chartData)) {
         chartData = await aggregateSurveyResults(surveyId);
+        try {
+          await prisma.publication.update({
+            where: { id: pub.id },
+            data: {
+              chartData: chartData as unknown as Prisma.InputJsonValue,
+              summary: buildSurveySummary(chartData),
+            },
+          });
+        } catch (err) {
+          console.error("[getSurveyPublications] persist repaired chart:", err);
+        }
       }
 
       return {
@@ -1103,11 +1118,32 @@ export async function getCategories() {
   return prisma.category.findMany({ orderBy: { name: "asc" } });
 }
 
+function mapSurveyQuestionView(q: {
+  id: string;
+  question: string;
+  type: string;
+  options: unknown;
+  order: number;
+}) {
+  const options = normalizeOptionList(q.options);
+  return {
+    id: q.id,
+    question: q.question,
+    type: q.type,
+    options: options.length > 0 ? options : null,
+    order: q.order,
+  };
+}
+
 export async function getAllSurveys(): Promise<SurveyView[]> {
   const surveys = await prisma.survey.findMany({
     include: {
       questions: { orderBy: { order: "asc" } },
-      _count: { select: { responses: true } },
+      _count: {
+        select: {
+          responses: { where: { answers: { some: {} } } },
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -1119,13 +1155,7 @@ export async function getAllSurveys(): Promise<SurveyView[]> {
     respondentTarget: s.respondentTarget,
     isActive: s.isActive,
     responseCount: s._count.responses,
-    questions: s.questions.map((q) => ({
-      id: q.id,
-      question: q.question,
-      type: q.type,
-      options: q.options as string[] | null,
-      order: q.order,
-    })),
+    questions: s.questions.map(mapSurveyQuestionView),
   }));
 }
 
@@ -1139,7 +1169,12 @@ export async function getAdminSurveysList(page = 1) {
         description: true,
         respondentTarget: true,
         isActive: true,
-        _count: { select: { responses: true, questions: true } },
+        _count: {
+          select: {
+            responses: { where: { answers: { some: {} } } },
+            questions: true,
+          },
+        },
       },
       orderBy: { updatedAt: "desc" },
       skip,
@@ -1193,7 +1228,11 @@ export async function getActiveSurveys(): Promise<SurveyView[]> {
     where: { isActive: true },
     include: {
       questions: { orderBy: { order: "asc" } },
-      _count: { select: { responses: true } },
+      _count: {
+        select: {
+          responses: { where: { answers: { some: {} } } },
+        },
+      },
     },
     orderBy: { updatedAt: "desc" },
   });
@@ -1205,13 +1244,7 @@ export async function getActiveSurveys(): Promise<SurveyView[]> {
     respondentTarget: s.respondentTarget,
     isActive: s.isActive,
     responseCount: s._count.responses,
-    questions: s.questions.map((q) => ({
-      id: q.id,
-      question: q.question,
-      type: q.type,
-      options: q.options as string[] | null,
-      order: q.order,
-    })),
+    questions: s.questions.map(mapSurveyQuestionView),
   }));
 }
 
@@ -1225,7 +1258,11 @@ export async function getSurveyById(id: string): Promise<SurveyView | null> {
     where: { id },
     include: {
       questions: { orderBy: { order: "asc" } },
-      _count: { select: { responses: true } },
+      _count: {
+        select: {
+          responses: { where: { answers: { some: {} } } },
+        },
+      },
     },
   });
   if (!survey) return null;
@@ -1237,13 +1274,7 @@ export async function getSurveyById(id: string): Promise<SurveyView | null> {
     respondentTarget: survey.respondentTarget,
     isActive: survey.isActive,
     responseCount: survey._count.responses,
-    questions: survey.questions.map((q) => ({
-      id: q.id,
-      question: q.question,
-      type: q.type,
-      options: q.options as string[] | null,
-      order: q.order,
-    })),
+    questions: survey.questions.map(mapSurveyQuestionView),
   };
 }
 
@@ -1323,7 +1354,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     prisma.article.count(),
     prisma.comment.count({ where: { isApproved: false, parentId: null } }),
     prisma.feedback.count({ where: { status: FeedbackStatus.NEW } }),
-    prisma.surveyResponse.count(),
+    prisma.surveyResponse.count({ where: { answers: { some: {} } } }),
   ]);
 
   return { articleCount, pendingComments, newFeedbacks, surveyRespondents };
