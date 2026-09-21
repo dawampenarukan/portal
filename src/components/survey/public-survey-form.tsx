@@ -6,9 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  choiceOptionsOnly,
+  choiceSelectableCount,
+  formatOtherAnswer,
+  hasOtherOption,
+  isOtherAnswerValue,
   isSurveyQuestionType,
+  parseOtherAnswerText,
   serializeMultiAnswer,
   SURVEY_CHOICE_TYPES,
+  SURVEY_OTHER_LABEL,
+  SURVEY_OTHER_OPTION,
 } from "@/lib/survey-defaults";
 import type { SurveyView } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -19,11 +27,20 @@ interface PublicSurveyFormProps {
 
 type AnswerState = Record<string, string | string[]>;
 
+function withoutOtherValues(list: string[]): string[] {
+  return list.filter((v) => !isOtherAnswerValue(v));
+}
+
+function findOtherValue(list: string[]): string | undefined {
+  return list.find((v) => isOtherAnswerValue(v));
+}
+
 export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [name, setName] = useState("");
   const [answers, setAnswers] = useState<AnswerState>({});
+  const [otherTexts, setOtherTexts] = useState<Record<string, string>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -34,9 +51,9 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
     [survey.questions]
   );
 
-  /** Selaras admin: pilihan butuh minimal 2 opsi. */
+  /** Selaras admin: pilihan butuh minimal 2 opsi (Lainnya dihitung). */
   const hasBrokenChoice = questions.some(
-    (q) => SURVEY_CHOICE_TYPES.has(q.type) && (q.options?.length ?? 0) < 2
+    (q) => SURVEY_CHOICE_TYPES.has(q.type) && choiceSelectableCount(q.options) < 2
   );
 
   function clearFieldError(questionId: string) {
@@ -53,6 +70,10 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
     clearFieldError(questionId);
   }
 
+  function setOtherText(questionId: string, text: string) {
+    setOtherTexts((prev) => ({ ...prev, [questionId]: text }));
+  }
+
   function toggleCheckbox(questionId: string, option: string) {
     setAnswers((prev) => {
       const current = prev[questionId];
@@ -65,6 +86,71 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
     clearFieldError(questionId);
   }
 
+  function selectOtherMultipleChoice(questionId: string) {
+    const text = (otherTexts[questionId] ?? "").trim();
+    setScalarAnswer(questionId, text ? formatOtherAnswer(text) : SURVEY_OTHER_OPTION);
+  }
+
+  function updateOtherMultipleChoiceText(questionId: string, text: string) {
+    setOtherText(questionId, text);
+    const current = answers[questionId];
+    if (typeof current === "string" && isOtherAnswerValue(current)) {
+      setScalarAnswer(questionId, text.trim() ? formatOtherAnswer(text) : SURVEY_OTHER_OPTION);
+    }
+  }
+
+  function toggleOtherCheckbox(questionId: string) {
+    setAnswers((prev) => {
+      const current = prev[questionId];
+      const list = Array.isArray(current) ? [...current] : [];
+      const existing = findOtherValue(list);
+      if (existing) {
+        return { ...prev, [questionId]: withoutOtherValues(list) };
+      }
+      const text = (otherTexts[questionId] ?? "").trim();
+      return {
+        ...prev,
+        [questionId]: [
+          ...withoutOtherValues(list),
+          text ? formatOtherAnswer(text) : SURVEY_OTHER_OPTION,
+        ],
+      };
+    });
+    clearFieldError(questionId);
+  }
+
+  function updateOtherCheckboxText(questionId: string, text: string) {
+    setOtherText(questionId, text);
+    setAnswers((prev) => {
+      const current = prev[questionId];
+      if (!Array.isArray(current) || !findOtherValue(current)) return prev;
+      return {
+        ...prev,
+        [questionId]: [
+          ...withoutOtherValues(current),
+          text.trim() ? formatOtherAnswer(text) : SURVEY_OTHER_OPTION,
+        ],
+      };
+    });
+  }
+
+  function resolveAnswerForSubmit(questionId: string, type: string): string {
+    const value = answers[questionId];
+    if (type === "checkbox" && Array.isArray(value)) {
+      const text = (otherTexts[questionId] ?? "").trim();
+      const resolved = value.map((v) => {
+        if (!isOtherAnswerValue(v)) return v;
+        return text ? formatOtherAnswer(text) : v;
+      });
+      return serializeMultiAnswer(resolved);
+    }
+    if (typeof value === "string" && isOtherAnswerValue(value)) {
+      const text = (otherTexts[questionId] ?? "").trim() || parseOtherAnswerText(value);
+      return text ? formatOtherAnswer(text) : value;
+    }
+    return String(value ?? "").trim();
+  }
+
   function validateClient(): string | null {
     const nextErrors: Record<string, string> = {};
     for (const q of questions) {
@@ -73,19 +159,30 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
         continue;
       }
       const value = answers[q.id];
+      const allowOther = hasOtherOption(q.options);
+
       if (q.type === "checkbox") {
-        if ((q.options?.length ?? 0) < 2) {
+        if (choiceSelectableCount(q.options) < 2) {
           nextErrors[q.id] = "Opsi belum lengkap — hubungi admin";
         } else if (!Array.isArray(value) || value.length === 0) {
           nextErrors[q.id] = "Pilih minimal satu opsi";
+        } else if (allowOther && findOtherValue(value)) {
+          const otherText =
+            (otherTexts[q.id] ?? "").trim() ||
+            parseOtherAnswerText(findOtherValue(value) ?? "");
+          if (!otherText) nextErrors[q.id] = "Isi teks Lainnya";
         }
         continue;
       }
       if (q.type === "multiple_choice") {
-        if ((q.options?.length ?? 0) < 2) {
+        if (choiceSelectableCount(q.options) < 2) {
           nextErrors[q.id] = "Opsi belum lengkap — hubungi admin";
         } else if (typeof value !== "string" || !value) {
           nextErrors[q.id] = "Pilih salah satu opsi";
+        } else if (allowOther && isOtherAnswerValue(value)) {
+          const otherText =
+            (otherTexts[q.id] ?? "").trim() || parseOtherAnswerText(value);
+          if (!otherText) nextErrors[q.id] = "Isi teks Lainnya";
         }
         continue;
       }
@@ -114,13 +211,10 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
 
     setSubmitting(true);
 
-    const payloadAnswers = questions.map((q) => {
-      const value = answers[q.id];
-      if (q.type === "checkbox" && Array.isArray(value)) {
-        return { questionId: q.id, value: serializeMultiAnswer(value) };
-      }
-      return { questionId: q.id, value: String(value ?? "").trim() };
-    });
+    const payloadAnswers = questions.map((q) => ({
+      questionId: q.id,
+      value: resolveAnswerForSubmit(q.id, q.type),
+    }));
 
     try {
       const res = await fetch(`/api/surveys/${survey.id}/responses`, {
@@ -174,171 +268,241 @@ export function PublicSurveyForm({ survey }: PublicSurveyFormProps) {
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama Anda" />
       </div>
 
-      {questions.map((q, i) => (
-        <fieldset key={q.id} data-question-id={q.id} className="rounded-lg border p-4">
-          <legend className="px-1 font-medium">
-            {i + 1}. {q.question}
-            <span className="ml-1 text-destructive" aria-hidden>
-              *
-            </span>
-            {q.type === "checkbox" ? (
-              <span className="ml-1 text-sm font-normal text-muted-foreground">
-                (boleh lebih dari satu)
+      {questions.map((q, i) => {
+        const fixedOptions = choiceOptionsOnly(q.options);
+        const allowOther = hasOtherOption(q.options);
+        const otherSelected =
+          q.type === "multiple_choice"
+            ? typeof answers[q.id] === "string" && isOtherAnswerValue(answers[q.id] as string)
+            : Array.isArray(answers[q.id]) && Boolean(findOtherValue(answers[q.id] as string[]));
+
+        return (
+          <fieldset key={q.id} data-question-id={q.id} className="rounded-lg border p-4">
+            <legend className="px-1 font-medium">
+              {i + 1}. {q.question}
+              <span className="ml-1 text-destructive" aria-hidden>
+                *
               </span>
-            ) : null}
-          </legend>
-          <div className="mt-3">
-            {q.type === "rating" && (
-              <div
-                className="flex flex-wrap gap-2"
-                role="radiogroup"
-                aria-label={`Rating 1 sampai 5 untuk: ${q.question}`}
-                aria-required
-              >
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const selected = answers[q.id] === String(n);
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      aria-pressed={selected}
-                      onClick={() => setScalarAnswer(q.id, String(n))}
-                      className={cn(
-                        "inline-flex h-11 min-w-11 items-center justify-center rounded-full border text-sm font-medium",
-                        selected && "bg-primary text-white"
-                      )}
-                    >
-                      {n}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {q.type === "nps" && (
-              <div
-                className="grid grid-cols-6 gap-2 sm:grid-cols-11"
-                role="radiogroup"
-                aria-label={`Skor NPS 0 sampai 10 untuk: ${q.question}`}
-                aria-required
-              >
-                {Array.from({ length: 11 }, (_, n) => {
-                  const selected = answers[q.id] === String(n);
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      aria-pressed={selected}
-                      onClick={() => setScalarAnswer(q.id, String(n))}
-                      className={cn(
-                        "inline-flex h-11 min-h-11 w-full items-center justify-center rounded-lg border text-sm font-medium",
-                        selected && "bg-primary text-white"
-                      )}
-                    >
-                      {n}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {q.type === "multiple_choice" && (
-              <div
-                className="space-y-2"
-                role="radiogroup"
-                aria-label={q.question}
-                aria-required
-              >
-                {(q.options?.length ?? 0) < 2 ? (
-                  <p className="text-sm text-destructive">
-                    Opsi belum lengkap (minimal 2). Hubungi admin.
-                  </p>
-                ) : (
-                  (q.options ?? []).map((opt) => {
-                    const selected = answers[q.id] === opt;
+              {q.type === "checkbox" ? (
+                <span className="ml-1 text-sm font-normal text-muted-foreground">
+                  (boleh lebih dari satu)
+                </span>
+              ) : null}
+            </legend>
+            <div className="mt-3">
+              {q.type === "rating" && (
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="radiogroup"
+                  aria-label={`Rating 1 sampai 5 untuk: ${q.question}`}
+                  aria-required
+                >
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const selected = answers[q.id] === String(n);
                     return (
-                      <label
-                        key={opt}
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-pressed={selected}
+                        onClick={() => setScalarAnswer(q.id, String(n))}
                         className={cn(
-                          "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
-                          selected && "border-primary bg-primary/5"
+                          "inline-flex h-11 min-w-11 items-center justify-center rounded-full border text-sm font-medium",
+                          selected && "bg-primary text-white"
                         )}
                       >
-                        <input
-                          type="radio"
-                          name={q.id}
-                          checked={selected}
-                          onChange={() => setScalarAnswer(q.id, opt)}
-                          className="h-4 w-4 shrink-0"
-                        />
-                        {opt}
-                      </label>
+                        {n}
+                      </button>
                     );
-                  })
-                )}
-              </div>
-            )}
-            {q.type === "checkbox" && (
-              <div
-                className="space-y-2"
-                role="group"
-                aria-label={q.question}
-                aria-required
-              >
-                {(q.options?.length ?? 0) < 2 ? (
-                  <p className="text-sm text-destructive">
-                    Opsi belum lengkap (minimal 2). Hubungi admin.
-                  </p>
-                ) : (
-                  (q.options ?? []).map((opt) => {
-                    const selected =
-                      Array.isArray(answers[q.id]) &&
-                      (answers[q.id] as string[]).includes(opt);
+                  })}
+                </div>
+              )}
+              {q.type === "nps" && (
+                <div
+                  className="grid grid-cols-6 gap-2 sm:grid-cols-11"
+                  role="radiogroup"
+                  aria-label={`Skor NPS 0 sampai 10 untuk: ${q.question}`}
+                  aria-required
+                >
+                  {Array.from({ length: 11 }, (_, n) => {
+                    const selected = answers[q.id] === String(n);
                     return (
-                      <label
-                        key={opt}
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-pressed={selected}
+                        onClick={() => setScalarAnswer(q.id, String(n))}
                         className={cn(
-                          "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
-                          selected && "border-primary bg-primary/5"
+                          "inline-flex h-11 min-h-11 w-full items-center justify-center rounded-lg border text-sm font-medium",
+                          selected && "bg-primary text-white"
                         )}
                       >
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={() => toggleCheckbox(q.id, opt)}
-                          className="h-4 w-4 shrink-0 rounded border"
-                        />
-                        {opt}
-                      </label>
+                        {n}
+                      </button>
                     );
-                  })
-                )}
-              </div>
-            )}
-            {q.type === "text" && (
-              <Textarea
-                rows={3}
-                value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : ""}
-                onChange={(e) => setScalarAnswer(q.id, e.target.value)}
-                aria-required
-                aria-invalid={Boolean(fieldErrors[q.id])}
-              />
-            )}
-            {!isSurveyQuestionType(q.type) ? (
-              <p className="text-sm text-destructive">
-                Tipe pertanyaan tidak dikenali. Hubungi admin.
-              </p>
-            ) : null}
-            {fieldErrors[q.id] ? (
-              <p className="mt-2 text-xs text-destructive" role="alert">
-                {fieldErrors[q.id]}
-              </p>
-            ) : null}
-          </div>
-        </fieldset>
-      ))}
+                  })}
+                </div>
+              )}
+              {q.type === "multiple_choice" && (
+                <div
+                  className="space-y-2"
+                  role="radiogroup"
+                  aria-label={q.question}
+                  aria-required
+                >
+                  {choiceSelectableCount(q.options) < 2 ? (
+                    <p className="text-sm text-destructive">
+                      Opsi belum lengkap (minimal 2). Hubungi admin.
+                    </p>
+                  ) : (
+                    <>
+                      {fixedOptions.map((opt) => {
+                        const selected = answers[q.id] === opt;
+                        return (
+                          <label
+                            key={opt}
+                            className={cn(
+                              "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                              selected && "border-primary bg-primary/5"
+                            )}
+                          >
+                            <input
+                              type="radio"
+                              name={q.id}
+                              checked={selected}
+                              onChange={() => setScalarAnswer(q.id, opt)}
+                              className="h-4 w-4 shrink-0"
+                            />
+                            {opt}
+                          </label>
+                        );
+                      })}
+                      {allowOther ? (
+                        <div
+                          className={cn(
+                            "flex min-h-11 flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                            otherSelected && "border-primary bg-primary/5"
+                          )}
+                        >
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="radio"
+                              name={q.id}
+                              checked={otherSelected}
+                              onChange={() => selectOtherMultipleChoice(q.id)}
+                              className="h-4 w-4 shrink-0"
+                            />
+                            <span className="shrink-0">{SURVEY_OTHER_LABEL}:</span>
+                          </label>
+                          <Input
+                            value={otherTexts[q.id] ?? ""}
+                            onChange={(e) => updateOtherMultipleChoiceText(q.id, e.target.value)}
+                            onFocus={() => {
+                              if (!otherSelected) selectOtherMultipleChoice(q.id);
+                            }}
+                            placeholder="Tulis jawaban Anda"
+                            className="h-9 min-w-40 flex-1 border-0 border-b border-input bg-transparent px-0 shadow-none focus-visible:ring-0"
+                            aria-label={`Teks ${SURVEY_OTHER_LABEL} untuk: ${q.question}`}
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
+              {q.type === "checkbox" && (
+                <div
+                  className="space-y-2"
+                  role="group"
+                  aria-label={q.question}
+                  aria-required
+                >
+                  {choiceSelectableCount(q.options) < 2 ? (
+                    <p className="text-sm text-destructive">
+                      Opsi belum lengkap (minimal 2). Hubungi admin.
+                    </p>
+                  ) : (
+                    <>
+                      {fixedOptions.map((opt) => {
+                        const selected =
+                          Array.isArray(answers[q.id]) &&
+                          (answers[q.id] as string[]).includes(opt);
+                        return (
+                          <label
+                            key={opt}
+                            className={cn(
+                              "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                              selected && "border-primary bg-primary/5"
+                            )}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selected}
+                              onChange={() => toggleCheckbox(q.id, opt)}
+                              className="h-4 w-4 shrink-0 rounded border"
+                            />
+                            {opt}
+                          </label>
+                        );
+                      })}
+                      {allowOther ? (
+                        <div
+                          className={cn(
+                            "flex min-h-11 flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm",
+                            otherSelected && "border-primary bg-primary/5"
+                          )}
+                        >
+                          <label className="flex cursor-pointer items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={otherSelected}
+                              onChange={() => toggleOtherCheckbox(q.id)}
+                              className="h-4 w-4 shrink-0 rounded border"
+                            />
+                            <span className="shrink-0">{SURVEY_OTHER_LABEL}:</span>
+                          </label>
+                          <Input
+                            value={otherTexts[q.id] ?? ""}
+                            onChange={(e) => updateOtherCheckboxText(q.id, e.target.value)}
+                            onFocus={() => {
+                              if (!otherSelected) toggleOtherCheckbox(q.id);
+                            }}
+                            placeholder="Tulis jawaban Anda"
+                            className="h-9 min-w-40 flex-1 border-0 border-b border-input bg-transparent px-0 shadow-none focus-visible:ring-0"
+                            aria-label={`Teks ${SURVEY_OTHER_LABEL} untuk: ${q.question}`}
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              )}
+              {q.type === "text" && (
+                <Textarea
+                  rows={3}
+                  value={typeof answers[q.id] === "string" ? (answers[q.id] as string) : ""}
+                  onChange={(e) => setScalarAnswer(q.id, e.target.value)}
+                  aria-required
+                  aria-invalid={Boolean(fieldErrors[q.id])}
+                />
+              )}
+              {!isSurveyQuestionType(q.type) ? (
+                <p className="text-sm text-destructive">
+                  Tipe pertanyaan tidak dikenali. Hubungi admin.
+                </p>
+              ) : null}
+              {fieldErrors[q.id] ? (
+                <p className="mt-2 text-xs text-destructive" role="alert">
+                  {fieldErrors[q.id]}
+                </p>
+              ) : null}
+            </div>
+          </fieldset>
+        );
+      })}
 
       {error && (
         <p className="text-sm text-destructive" role="alert">

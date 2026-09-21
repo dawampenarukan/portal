@@ -5,7 +5,16 @@ import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import type { SurveyDataView } from "@/lib/types";
 
-import { DEFAULT_NPS_QUESTION, DEFAULT_RESPONDENT_TARGET, normalizeOptionList, parseAnswerValues, SURVEY_CHOICE_TYPES } from "@/lib/survey-defaults";
+import {
+  DEFAULT_NPS_QUESTION,
+  DEFAULT_RESPONDENT_TARGET,
+  parseAnswerValues,
+  SURVEY_CHOICE_TYPES,
+  SURVEY_OTHER_LABEL,
+  choiceAnswerBucketLabel,
+  choiceOptionsOnly,
+  hasOtherOption,
+} from "@/lib/survey-defaults";
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
@@ -228,8 +237,12 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
 
   const choiceQuestions = survey.questions.filter((q) => SURVEY_CHOICE_TYPES.has(q.type));
   const choiceBreakdown = choiceQuestions.map((q) => {
-    const optionLabels = normalizeOptionList(q.options);
-    const counts = new Map<string, number>(optionLabels.map((label) => [label, 0]));
+    const optionLabels = choiceOptionsOnly(q.options);
+    const allowOther = hasOtherOption(q.options);
+    const counts = new Map<string, number>();
+    for (const label of optionLabels) counts.set(label, 0);
+    if (allowOther) counts.set(SURVEY_OTHER_LABEL, 0);
+
     let answered = 0;
 
     for (const response of filledResponses) {
@@ -239,7 +252,8 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
       if (values.length === 0) continue;
       answered += 1;
       for (const value of values) {
-        counts.set(value, (counts.get(value) ?? 0) + 1);
+        const label = choiceAnswerBucketLabel(value);
+        counts.set(label, (counts.get(label) ?? 0) + 1);
       }
     }
 

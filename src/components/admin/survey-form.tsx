@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  composeChoiceOptions,
   DEFAULT_NPS_QUESTION,
   DEFAULT_RESPONDENT_TARGET,
   ensureNpsQuestion,
+  hasOtherOption,
   optionsToEditorText,
   parseOptionsFromEditor,
   SURVEY_CHOICE_TYPES,
@@ -26,6 +28,7 @@ interface QuestionDraft {
   question: string;
   type: string;
   options: string;
+  allowOther: boolean;
   order: number;
 }
 
@@ -52,12 +55,13 @@ function buildQuestionDrafts(survey?: SurveyView): QuestionDraft[] {
         question: q.question,
         type: q.type,
         options: optionsToEditorText(q.options),
+        allowOther: hasOtherOption(q.options),
         order: q.order,
       })) ?? [];
 
   return ratingQuestions.length > 0
     ? ratingQuestions
-    : [{ key: draftKey(), question: "", type: "rating", options: "", order: 0 }];
+    : [{ key: draftKey(), question: "", type: "rating", options: "", allowOther: false, order: 0 }];
 }
 
 export function SurveyForm({ survey }: SurveyFormProps) {
@@ -92,6 +96,7 @@ export function SurveyForm({ survey }: SurveyFormProps) {
         question: "",
         type: "rating",
         options: "",
+        allowOther: false,
         order: questions.length,
       },
     ]);
@@ -116,28 +121,46 @@ export function SurveyForm({ survey }: SurveyFormProps) {
       questions.map((q, i) => {
         if (i !== index) return q;
         if (field === "type" && !SURVEY_CHOICE_TYPES.has(value)) {
-          return { ...q, type: value, options: "" };
+          return { ...q, type: value, options: "", allowOther: false };
+        }
+        if (field === "options") {
+          // Baris "Lainnya" / placeholder di editor → otomatis aktifkan toggle
+          const detectedOther = hasOtherOption(parseOptionsFromEditor(value));
+          return {
+            ...q,
+            options: value,
+            allowOther: detectedOther ? true : q.allowOther,
+          };
         }
         return { ...q, [field]: value };
       })
     );
   }
 
-  function optionCount(raw: string): number {
-    return parseOptionsFromEditor(raw).length;
+  function setAllowOther(index: number, allowOther: boolean) {
+    setQuestions(questions.map((q, i) => (i === index ? { ...q, allowOther } : q)));
+  }
+
+  function selectableOptionCount(q: QuestionDraft): number {
+    const parsed = parseOptionsFromEditor(q.options);
+    return composeChoiceOptions(parsed, q.allowOther || hasOtherOption(parsed)).length;
   }
 
   function buildPayload(force: boolean) {
     const targetValue = parseInt(respondentTarget, 10);
-    const ratingQuestions = questions.map((q, i) => ({
-      id: q.id,
-      question: q.question,
-      type: q.type,
-      options: SURVEY_CHOICE_TYPES.has(q.type)
-        ? parseOptionsFromEditor(q.options)
-        : undefined,
-      order: i,
-    }));
+    const ratingQuestions = questions.map((q, i) => {
+      const parsed = parseOptionsFromEditor(q.options);
+      const allowOther = q.allowOther || hasOtherOption(parsed);
+      return {
+        id: q.id,
+        question: q.question,
+        type: q.type,
+        options: SURVEY_CHOICE_TYPES.has(q.type)
+          ? composeChoiceOptions(parsed, allowOther)
+          : undefined,
+        order: i,
+      };
+    });
 
     return {
       title,
@@ -180,10 +203,10 @@ export function SurveyForm({ survey }: SurveyFormProps) {
     }
 
     for (const q of questions) {
-      if (SURVEY_CHOICE_TYPES.has(q.type) && optionCount(q.options) < 2) {
+      if (SURVEY_CHOICE_TYPES.has(q.type) && selectableOptionCount(q) < 2) {
         setSubmitting(false);
         setError(
-          `Pertanyaan “${q.question.trim()}” membutuhkan minimal 2 opsi (satu per baris).`
+          `Pertanyaan “${q.question.trim()}” membutuhkan minimal 2 opsi (satu per baris; Lainnya dihitung jika diaktifkan).`
         );
         return;
       }
@@ -366,24 +389,37 @@ export function SurveyForm({ survey }: SurveyFormProps) {
               <option value="text">{SURVEY_QUESTION_TYPE_LABELS.text}</option>
             </select>
             {SURVEY_CHOICE_TYPES.has(q.type) && (
-              <div>
+              <div className="space-y-2">
                 <Textarea
                   rows={4}
-                  placeholder={"Satu opsi per baris\nContoh:\nSayur sop\nCapcay\nTumis kangkung"}
+                  placeholder={"Satu opsi per baris\nContoh:\nDitumis\nDisop\nDirebus"}
                   value={q.options}
                   onChange={(e) => updateQuestion(i, "options", e.target.value)}
                   aria-label={`Opsi pertanyaan ${i + 1}`}
                 />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={q.allowOther}
+                    onChange={(e) => setAllowOther(i, e.target.checked)}
+                    className="h-4 w-4 rounded border"
+                  />
+                  Sertakan opsi &quot;Lainnya&quot; (responden bisa ketik manual)
+                </label>
                 <p
                   className={
-                    optionCount(q.options) < 2
-                      ? "mt-1 text-xs text-destructive"
-                      : "mt-1 text-xs text-muted-foreground"
+                    selectableOptionCount(q) < 2
+                      ? "text-xs text-destructive"
+                      : "text-xs text-muted-foreground"
                   }
                 >
-                  {optionCount(q.options) < 2
-                    ? `Minimal 2 opsi (saat ini ${optionCount(q.options)}). Satu opsi per baris.`
-                    : `${optionCount(q.options)} opsi siap dipakai. Satu opsi per baris${
+                  {selectableOptionCount(q) < 2
+                    ? `Minimal 2 opsi (saat ini ${selectableOptionCount(q)}). Satu opsi per baris${
+                        q.allowOther ? " — Lainnya sudah dihitung." : "."
+                      }`
+                    : `${selectableOptionCount(q)} opsi siap dipakai${
+                        q.allowOther ? " (termasuk Lainnya)" : ""
+                      }. Satu opsi per baris${
                         q.type === "checkbox"
                           ? " — responden boleh mencentang beberapa."
                           : "."

@@ -13,6 +13,11 @@ export type SurveyQuestionType = (typeof SURVEY_QUESTION_TYPES)[number];
 
 export const SURVEY_CHOICE_TYPES = new Set<string>(["multiple_choice", "checkbox"]);
 
+/** Sentinel di array options — tidak ditampilkan mentah ke responden. */
+export const SURVEY_OTHER_OPTION = "__OTHER__";
+export const SURVEY_OTHER_LABEL = "Lainnya";
+export const SURVEY_OTHER_PREFIX = "Lainnya: ";
+
 export type SurveyQuestionInput = {
   /** Stable id — wajib untuk update tanpa menghapus jawaban historis. */
   id?: string;
@@ -64,7 +69,71 @@ export function parseOptionsFromEditor(raw: string): string[] {
 
 export function optionsToEditorText(options: string[] | null | undefined): string {
   if (!options?.length) return "";
-  return options.join("\n");
+  return choiceOptionsOnly(options).join("\n");
+}
+
+/** Opsi sentinel / placeholder "Lainnya" → dianggap opsi isian bebas (bukan pilihan tetap). */
+export function isOtherSentinel(option: string): boolean {
+  const t = option.trim();
+  if (!t) return false;
+  if (t === SURVEY_OTHER_OPTION) return true;
+  // Exact "Lainnya" / "Lainnya..." / "Lainnya…"
+  if (/^lainnya(\.{2,}|\u2026)?$/i.test(t)) return true;
+  // "Lainnya:" / "Lainnya: ____" (blank underline placeholder)
+  if (/^lainnya\s*:\s*[_\s.\-–—]*$/i.test(t)) return true;
+  return false;
+}
+
+export function choiceOptionsOnly(options: unknown): string[] {
+  return normalizeOptionList(options).filter((o) => !isOtherSentinel(o));
+}
+
+export function hasOtherOption(options: unknown): boolean {
+  return normalizeOptionList(options).some(isOtherSentinel);
+}
+
+export function composeChoiceOptions(fixed: string[], allowOther: boolean): string[] {
+  const base = choiceOptionsOnly(fixed);
+  return allowOther ? [...base, SURVEY_OTHER_OPTION] : base;
+}
+
+/** Normalisasi opsi pilihan ke bentuk kanonik: opsi tetap + `__OTHER__` jika ada Lainnya. */
+export function canonicalizeChoiceOptions(options: unknown): string[] {
+  return composeChoiceOptions(choiceOptionsOnly(options), hasOtherOption(options));
+}
+
+export function choiceSelectableCount(options: unknown): number {
+  return canonicalizeChoiceOptions(options).length;
+}
+
+export function formatOtherAnswer(text: string): string {
+  return `${SURVEY_OTHER_PREFIX}${text.trim()}`;
+}
+
+export function isOtherAnswerValue(value: string): boolean {
+  const t = value.trim();
+  if (!t) return false;
+  if (t === SURVEY_OTHER_OPTION) return true;
+  return /^lainnya\s*:/i.test(t);
+}
+
+export function parseOtherAnswerText(value: string): string {
+  const t = value.trim();
+  if (t === SURVEY_OTHER_OPTION) return "";
+  const match = t.match(/^lainnya\s*:\s*(.*)$/i);
+  return match ? (match[1] ?? "").trim() : "";
+}
+
+export function isValidChoiceValue(value: string, options: unknown): boolean {
+  const fixed = choiceOptionsOnly(options);
+  if (fixed.includes(value)) return true;
+  if (!hasOtherOption(options)) return false;
+  return isOtherAnswerValue(value) && parseOtherAnswerText(value).length > 0;
+}
+
+/** Label bucket agregasi (gabungkan semua isian Lainnya). */
+export function choiceAnswerBucketLabel(value: string): string {
+  return isOtherAnswerValue(value) ? SURVEY_OTHER_LABEL : value;
 }
 
 export function ensureNpsQuestion(
@@ -76,7 +145,9 @@ export function ensureNpsQuestion(
     .map((q, index) => ({
       ...q,
       question: q.question.trim(),
-      options: q.options ? normalizeOptionList(q.options) : undefined,
+      options: SURVEY_CHOICE_TYPES.has(q.type)
+        ? canonicalizeChoiceOptions(q.options)
+        : undefined,
       order: index,
     }));
 
@@ -125,9 +196,9 @@ export const SURVEY_QUESTION_TYPE_LABELS: Record<SurveyQuestionType, string> = {
   nps: "NPS (0-10)",
 };
 
-/** Bandingkan set opsi (urutan diabaikan). */
+/** Bandingkan set opsi (urutan diabaikan; Lainnya dikanonikkan ke `__OTHER__`). */
 export function optionsSetKey(options: unknown): string {
-  return normalizeOptionList(options).slice().sort().join("\u0001");
+  return canonicalizeChoiceOptions(options).slice().sort().join("\u0001");
 }
 
 /** True bila ada tambah/hapus pertanyaan, ganti tipe, atau ubah set opsi. */
@@ -176,9 +247,8 @@ export function validateSurveyQuestionDraft(
       return `Tipe pertanyaan tidak dikenal: ${q.type}`;
     }
     if (SURVEY_CHOICE_TYPES.has(q.type)) {
-      const opts = normalizeOptionList(q.options);
-      if (opts.length < 2) {
-        return `Pertanyaan pilihan membutuhkan minimal 2 opsi: “${q.question}”`;
+      if (choiceSelectableCount(q.options) < 2) {
+        return `Pertanyaan pilihan membutuhkan minimal 2 opsi (termasuk Lainnya jika diaktifkan): “${q.question}”`;
       }
     }
   }
@@ -254,22 +324,35 @@ export function validateSurveyAnswers(
     }
 
     if (type === "multiple_choice") {
-      if (options.length < 2) {
+      if (choiceSelectableCount(options) < 2) {
         return {
           ok: false,
           error: `Opsi pertanyaan belum lengkap: “${q.question}”`,
         };
       }
       const value = raw.trim();
-      if (!options.includes(value)) {
+      if (!isValidChoiceValue(value, options)) {
+        if (isOtherAnswerValue(value) && !parseOtherAnswerText(value)) {
+          return {
+            ok: false,
+            error: `Isi teks Lainnya: “${q.question}”`,
+          };
+        }
         return { ok: false, error: `Pilihan tidak valid: “${q.question}”` };
       }
-      normalized.push({ questionId: q.id, value });
+      if (isOtherAnswerValue(value)) {
+        normalized.push({
+          questionId: q.id,
+          value: formatOtherAnswer(parseOtherAnswerText(value)),
+        });
+      } else {
+        normalized.push({ questionId: q.id, value });
+      }
       continue;
     }
 
     if (type === "checkbox") {
-      if (options.length < 2) {
+      if (choiceSelectableCount(options) < 2) {
         return {
           ok: false,
           error: `Opsi pertanyaan belum lengkap: “${q.question}”`,
@@ -279,12 +362,26 @@ export function validateSurveyAnswers(
       if (values.length === 0) {
         return { ok: false, error: `Pilih minimal satu opsi: “${q.question}”` };
       }
-      if (values.some((v) => !options.includes(v))) {
-        return { ok: false, error: `Pilihan tidak valid: “${q.question}”` };
+      const normalizedValues: string[] = [];
+      for (const value of values) {
+        if (!isValidChoiceValue(value, options)) {
+          if (isOtherAnswerValue(value) && !parseOtherAnswerText(value)) {
+            return {
+              ok: false,
+              error: `Isi teks Lainnya: “${q.question}”`,
+            };
+          }
+          return { ok: false, error: `Pilihan tidak valid: “${q.question}”` };
+        }
+        normalizedValues.push(
+          isOtherAnswerValue(value)
+            ? formatOtherAnswer(parseOtherAnswerText(value))
+            : value
+        );
       }
       normalized.push({
         questionId: q.id,
-        value: serializeMultiAnswer(values),
+        value: serializeMultiAnswer(normalizedValues),
       });
       continue;
     }
