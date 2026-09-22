@@ -5,6 +5,7 @@ import withBundleAnalyzer from "@next/bundle-analyzer";
 const nextConfig: NextConfig = {
   // Slim image for VPS Docker (sales compose profile `portal`)
   output: "standalone",
+  serverExternalPackages: ["exceljs"],
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [

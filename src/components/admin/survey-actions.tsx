@@ -5,15 +5,18 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SurveyDownloadButton } from "@/components/admin/survey-download-button";
 
 interface SurveyActionsProps {
   surveyId: string;
+  responseCount?: number;
   publicationId?: string | null;
   publicationPublished?: boolean;
 }
 
 export function SurveyActions({
   surveyId,
+  responseCount = 0,
   publicationId = null,
   publicationPublished = false,
 }: SurveyActionsProps) {
@@ -64,6 +67,12 @@ export function SurveyActions({
       ) : (
         <Badge variant="outline">Belum dipublikasikan</Badge>
       )}
+      <Link href={`/admin/survey/${surveyId}/hasil`} prefetch={false}>
+        <Button size="sm" variant="outline">
+          Lihat Hasil
+        </Button>
+      </Link>
+      <SurveyDownloadButton surveyId={surveyId} responseCount={responseCount} />
       <Link href={`/admin/survey/${surveyId}/edit`} prefetch={false}>
         <Button size="sm" variant="outline">
           Edit

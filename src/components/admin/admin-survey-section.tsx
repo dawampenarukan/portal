@@ -63,6 +63,7 @@ export async function AdminSurveyList({ page }: { page: number }) {
             <div className="mt-4">
               <SurveyActions
                 surveyId={survey.id}
+                responseCount={survey._count.responses}
                 publicationId={survey.publication?.id ?? null}
                 publicationPublished={survey.publication?.isPublished ?? false}
               />

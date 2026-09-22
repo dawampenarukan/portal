@@ -202,6 +202,27 @@ export async function aggregateSurveyResults(surveyId: string): Promise<SurveyDa
     };
   }
 
+  return aggregateSurveyResultsFromLoaded(survey);
+}
+
+export type SurveyAggregateSource = {
+  respondentTarget: number;
+  questions: {
+    id: string;
+    question: string;
+    type: string;
+    options: unknown;
+  }[];
+  responses: {
+    createdAt: Date;
+    answers: { questionId: string; value: string }[];
+  }[];
+};
+
+/** Agregasi dari payload survey yang sudah di-load (hindari double-fetch). */
+export function aggregateSurveyResultsFromLoaded(
+  survey: SurveyAggregateSource
+): SurveyDataView {
   const filledResponses = survey.responses.filter((r) => r.answers.length > 0);
   const respondents = filledResponses.length;
   const ratingQuestions = survey.questions.filter((q) => q.type === "rating");
