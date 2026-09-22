@@ -62,6 +62,7 @@ export function ArticleDetailCover({
           priority
           fallbackEmoji="📰"
           sizes="(max-width: 768px) 100vw, 720px"
+          videoMode={isVideoCover ? "detail" : "decorative"}
         />
       </div>
     );

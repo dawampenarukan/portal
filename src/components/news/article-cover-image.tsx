@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ArticleDetailVideo } from "@/components/news/article-detail-video";
 import { cn } from "@/lib/utils";
 
 interface ArticleCoverImageProps {
@@ -13,6 +14,11 @@ interface ArticleCoverImageProps {
   fill?: boolean;
   sizes?: string;
   priority?: boolean;
+  /**
+   * `decorative` (default): autoplay muted tanpa kontrol — kartu/list.
+   * `detail`: autoplay langsung ber-suara (+ controls; fallback muted jika browser blokir).
+   */
+  videoMode?: "decorative" | "detail";
 }
 
 function mediaPath(src: string): string {
@@ -39,11 +45,22 @@ export function ArticleCoverImage({
   fill = true,
   sizes = "(max-width: 768px) 100vw, 50vw",
   priority = false,
+  videoMode = "decorative",
 }: ArticleCoverImageProps) {
   if (src) {
     const fillClass = fill ? "absolute inset-0 h-full w-full" : "h-full w-full";
 
     if (isMp4CoverUrl(src)) {
+      if (videoMode === "detail") {
+        return (
+          <ArticleDetailVideo
+            src={src}
+            alt={alt}
+            className={cn(fillClass, className)}
+          />
+        );
+      }
+
       return (
         <video
           src={src}
