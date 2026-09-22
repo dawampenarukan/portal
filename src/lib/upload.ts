@@ -1,75 +1,85 @@
+import "server-only";
+
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
 import { put } from "@vercel/blob";
+import {
+  ALLOWED_AUDIO_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  isAllowedAudioType,
+  MAX_AUDIO_SIZE,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+} from "@/lib/upload-limits";
 
-/** Keep under common platform body limits (~4.5MB on Vercel). */
-const MAX_IMAGE_SIZE = 4 * 1024 * 1024;
-const MAX_AUDIO_SIZE = 8 * 1024 * 1024;
-const MAX_VIDEO_SIZE = 15 * 1024 * 1024;
-
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
-
-const ALLOWED_AUDIO_TYPES = [
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/ogg",
-  "audio/wav",
-  "audio/webm",
-  "audio/x-wav",
-  "audio/wave",
-];
-
-const ALLOWED_VIDEO_TYPES = ["video/mp4"];
+export {
+  ALLOWED_AUDIO_TYPES,
+  ALLOWED_IMAGE_TYPES,
+  ALLOWED_VIDEO_TYPES,
+  MAX_AUDIO_SIZE,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+} from "@/lib/upload-limits";
 
 /** Official Vercel Blob RW token prefix (`vercel_blob_rw_<storeId>_<secret>`). */
 const BLOB_TOKEN_PREFIX = "vercel_blob_rw_";
 
 function isAudioType(type: string): boolean {
-  return ALLOWED_AUDIO_TYPES.includes(type) || type.startsWith("audio/");
-}
-
-function isAllowedAudioType(type: string): boolean {
-  if (ALLOWED_AUDIO_TYPES.includes(type)) return true;
-  // Beberapa browser mengirim audio/mp4 untuk m4a — tolak; hanya daftar di atas
-  return false;
+  return (
+    (ALLOWED_AUDIO_TYPES as readonly string[]).includes(type) ||
+    type.startsWith("audio/")
+  );
 }
 
 const VIDEO_CLOUD_SETUP_HINT =
-  "Upload cloud belum siap untuk video. Minta teknis menjalankan sekali: npm run env:blob — lalu restart npm run dev. " +
+  "Upload cloud belum siap untuk video. Salin BLOB_READ_WRITE_TOKEN dari Vercel → Storage → Blob Store → tab .env.local ke .env.local, lalu restart npm run dev. " +
   "Atau upload cover langsung dari admin di website live (production sudah terhubung cloud).";
 
 function validateFile(file: File) {
-  if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+  const type = (file.type || "").toLowerCase();
+  const name = file.name || "";
+
+  const isImage =
+    (ALLOWED_IMAGE_TYPES as readonly string[]).includes(type) ||
+    (!type && /\.(jpe?g|png|gif|webp)$/i.test(name));
+  const isVideo =
+    (ALLOWED_VIDEO_TYPES as readonly string[]).includes(type) ||
+    (!type && /\.mp4$/i.test(name));
+  const isKnownAudio =
+    isAllowedAudioType(type) ||
+    (!type && /\.(mp3|ogg|wav|webm)$/i.test(name));
+
+  if (isImage) {
     if (file.size > MAX_IMAGE_SIZE) {
       throw new Error("Ukuran gambar maksimal 4MB");
     }
     return;
   }
 
-  if (ALLOWED_VIDEO_TYPES.includes(file.type)) {
+  if (isVideo) {
     if (file.size > MAX_VIDEO_SIZE) {
       throw new Error("Ukuran video MP4 maksimal 15MB");
     }
-    if (!hasBlobStorage()) {
+    // Production (Vercel) wajib Blob; lokal boleh simpan ke public/uploads.
+    if (!hasBlobStorage() && process.env.VERCEL) {
       throw new Error(VIDEO_CLOUD_SETUP_HINT);
     }
     return;
   }
 
-  if (isAllowedAudioType(file.type)) {
+  if (isKnownAudio) {
     if (file.size > MAX_AUDIO_SIZE) {
       throw new Error("Ukuran audio maksimal 8MB");
+    }
+    if (!hasBlobStorage() && process.env.VERCEL) {
+      throw new Error(VIDEO_CLOUD_SETUP_HINT);
     }
     return;
   }
 
-  if (isAudioType(file.type)) {
+  if (isAudioType(type)) {
     throw new Error("Format audio tidak didukung (MP3, OGG, WAV, WEBM)");
   }
 
@@ -194,28 +204,34 @@ async function saveToLocal(file: File): Promise<string> {
 }
 
 const BLOB_SETUP_HINT =
-  "Upload cloud belum siap. Minta teknis menjalankan: npm run env:blob lalu restart npm run dev. " +
+  "Upload cloud belum siap. Salin BLOB_READ_WRITE_TOKEN dari Vercel → Storage → Blob Store → tab .env.local ke .env.local, lalu restart npm run dev. " +
   "Di website live, pastikan Blob Store terhubung ke project Vercel.";
 
 export async function saveUploadedFiles(files: File[]): Promise<string[]> {
   if (files.length === 0) return [];
   if (files.length > 5) throw new Error("Maksimal 5 file per unggahan");
 
-  const hasVideo = files.some((f) => ALLOWED_VIDEO_TYPES.includes(f.type));
+  const hasVideo = files.some((f) => {
+    const t = (f.type || "").toLowerCase();
+    return (
+      (ALLOWED_VIDEO_TYPES as readonly string[]).includes(t) ||
+      (!t && /\.mp4$/i.test(f.name))
+    );
+  });
+  const useBlob = hasBlobStorage();
 
-  if (process.env.VERCEL || hasVideo) {
-    if (!hasBlobStorage()) {
-      throw new Error(
-        hasVideo
-          ? VIDEO_CLOUD_SETUP_HINT
-          : getBlobTokenMisconfigHint() ?? BLOB_SETUP_HINT
-      );
-    }
+  // Di Vercel, Blob wajib (batas body Function + URL publik stabil).
+  if (process.env.VERCEL && !useBlob) {
+    throw new Error(
+      hasVideo
+        ? VIDEO_CLOUD_SETUP_HINT
+        : getBlobTokenMisconfigHint() ?? BLOB_SETUP_HINT
+    );
   }
 
-  // Token ada → selalu cloud (lokal & production sama). Tanpa token → hanya gambar ke lokal.
+  // Token ada → cloud. Tanpa token di lokal → public/uploads (gambar & video).
   const urls: string[] = [];
-  const save = hasBlobStorage() ? saveToBlob : saveToLocal;
+  const save = useBlob ? saveToBlob : saveToLocal;
 
   for (const file of files) {
     validateFile(file);

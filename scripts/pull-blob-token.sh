@@ -37,13 +37,19 @@ TOKEN_VALUE="${TOKEN_VALUE#\'}"
 
 if [[ "$TOKEN_VALUE" == "[SENSITIVE]" ]] || [[ "$TOKEN_VALUE" == *SENSITIVE* ]] || [[ ! "$TOKEN_VALUE" == vercel_blob_rw_* ]]; then
   echo ""
-  echo "✗ Token Blob tidak bisa dibaca otomatis (nilai placeholder / tidak valid)."
-  echo "  Lakukan manual sekali:"
-  echo "  1. Vercel → Storage → Blob Store → tab .env.local"
-  echo "  2. Salin BLOB_READ_WRITE_TOKEN (harus diawali vercel_blob_rw_)"
-  echo "  3. Tempel ke file .env.local di project ini, contoh:"
+  echo "✗ Token Blob tidak bisa dibaca otomatis."
+  echo "  Penyebab: Vercel CLI menyembunyikan secret production sebagai [SENSITIVE]."
+  echo "  Auto-pull tidak bisa dipakai untuk BLOB_READ_WRITE_TOKEN — salin manual sekali:"
+  echo ""
+  echo "  1. Buka Vercel Dashboard → Storage → Blob Store (project portalpenarukan2)"
+  echo "  2. Buka tab .env.local (atau Environment Variables yang berisi BLOB_READ_WRITE_TOKEN)"
+  echo "  3. Salin nilai yang diawali: vercel_blob_rw_"
+  echo "  4. Tempel ke file .env.local di root project ini, contoh:"
   echo '     BLOB_READ_WRITE_TOKEN="vercel_blob_rw_..."'
-  echo "  4. Restart: npm run dev"
+  echo "  5. Restart: hentikan npm run dev, lalu jalankan lagi"
+  echo ""
+  echo "  Catatan: tanpa token, upload MP4 di lokal tetap bisa (disimpan ke /uploads),"
+  echo "  tapi URL itu hanya di laptop — tidak tampil di website production."
   exit 1
 fi
 

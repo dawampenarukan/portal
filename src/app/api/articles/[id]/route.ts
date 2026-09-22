@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, notFound, serverError } from "@/lib/api-auth";
 import { validateBackgroundMusicFields } from "@/lib/article-background-music";
+import { normalizeArticleCoverImage } from "@/lib/article-cover";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
@@ -68,6 +69,13 @@ export async function PATCH(request: Request, { params }: Params) {
     });
     if (musicError) return badRequest(musicError);
 
+    let nextCover = existing.coverImage;
+    if (body.coverImage !== undefined) {
+      const coverResult = normalizeArticleCoverImage(body.coverImage);
+      if (!coverResult.ok) return badRequest(coverResult.error);
+      nextCover = coverResult.url;
+    }
+
     const article = await prisma.article.update({
       where: { id },
       data: {
@@ -84,7 +92,7 @@ export async function PATCH(request: Request, { params }: Params) {
         })(),
         excerpt: body.excerpt !== undefined ? body.excerpt?.trim() || null : existing.excerpt,
         content: body.content ?? existing.content,
-        coverImage: body.coverImage !== undefined ? body.coverImage || null : existing.coverImage,
+        coverImage: nextCover,
         backgroundAudio: nextAudio,
         backgroundAudioTitle:
           body.backgroundAudioTitle !== undefined

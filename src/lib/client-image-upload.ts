@@ -1,4 +1,14 @@
-/** Client-only helpers: compress photos before POST /api/upload. */
+/** Client-only helpers: compress photos before POST /api/upload; video/audio via Blob client. */
+
+import { upload } from "@vercel/blob/client";
+import {
+  inferMediaContentTypeFromPath,
+  isAllowedAudioType,
+  isAllowedVideoType,
+  isBlobClientUploadType,
+  MAX_AUDIO_SIZE,
+  MAX_VIDEO_SIZE,
+} from "@/lib/upload-limits";
 
 const MAX_EDGE_PX = 1920;
 const TARGET_BYTES = 1.5 * 1024 * 1024;
@@ -18,12 +28,12 @@ const HEIC_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence"]);
 export function uploadErrorMessage(status: number, serverError?: string): string {
   if (serverError?.trim()) return serverError.trim();
   if (status === 413) {
-    return "Foto terlalu besar. Coba foto dengan resolusi lebih kecil.";
+    return "File terlalu besar untuk diunggah lewat server. Untuk video gunakan MP4 maksimal 15MB; untuk foto kompres atau turunkan resolusi.";
   }
   if (status >= 500) {
     return "Server gagal menerima upload. Coba lagi sebentar.";
   }
-  return "Gagal upload gambar";
+  return "Gagal upload file";
 }
 
 /**
@@ -41,7 +51,8 @@ export async function parseUploadJson(
   } catch {
     if (res.status === 413 || /request entity too large/i.test(text)) {
       return {
-        error: "Foto terlalu besar. Coba foto dengan resolusi lebih kecil.",
+        error:
+          "File terlalu besar untuk diunggah lewat server. Untuk video gunakan MP4 maksimal 15MB; untuk foto kompres atau turunkan resolusi.",
       };
     }
     return {};
@@ -202,7 +213,7 @@ export async function uploadImageFiles(files: File[]): Promise<string[]> {
   return urls;
 }
 
-/** Image → compress; video/audio → raw upload with safe error parsing. */
+/** Image → compress + multipart; video/audio → langsung ke Vercel Blob (hindari batas 4.5MB Function). */
 export async function uploadMediaFile(file: File): Promise<string> {
   const type = (file.type || "").toLowerCase();
   const looksImage =
@@ -213,7 +224,94 @@ export async function uploadMediaFile(file: File): Promise<string> {
     return uploadImageFile(file);
   }
 
+  const looksVideo =
+    isAllowedVideoType(type) || (!type && /\.mp4$/i.test(file.name));
+  const looksAudio =
+    isAllowedAudioType(type) ||
+    (!type && /\.(mp3|ogg|wav|webm)$/i.test(file.name));
+
+  if (looksVideo || looksAudio || isBlobClientUploadType(type)) {
+    return uploadLargeMediaToBlob(file);
+  }
+
+  throw new Error(
+    "Format tidak didukung. Gambar: JPEG, PNG, WebP, GIF. Video: MP4. Audio: MP3, OGG, WAV, WEBM."
+  );
+}
+
+async function uploadLargeMediaViaMultipart(file: File): Promise<string> {
   const urls = await postFiles([file]);
   if (!urls[0]) throw new Error("Gagal mengunggah file");
   return urls[0];
+}
+
+const BLOB_SETUP_HINT =
+  "Untuk URL cloud (tampil di production): salin BLOB_READ_WRITE_TOKEN dari Vercel → Storage → Blob Store → tab .env.local, tempel ke .env.local, lalu restart npm run dev. (npm run env:blob sering gagal karena Vercel menyembunyikan secret sebagai [SENSITIVE].)";
+
+async function uploadLargeMediaToBlob(file: File): Promise<string> {
+  const type = (file.type || "").toLowerCase();
+  const isVideo =
+    isAllowedVideoType(type) || (!type && /\.mp4$/i.test(file.name));
+  const isAudio =
+    isAllowedAudioType(type) ||
+    (!type && /\.(mp3|ogg|wav|webm)$/i.test(file.name));
+
+  if (!isVideo && !isAudio) {
+    throw new Error(
+      "Format tidak didukung. Video: MP4. Audio: MP3, OGG, WAV, WEBM."
+    );
+  }
+
+  const maxBytes = isVideo ? MAX_VIDEO_SIZE : MAX_AUDIO_SIZE;
+  const label = isVideo ? "video MP4" : "audio";
+  const maxMb = Math.round(maxBytes / (1024 * 1024));
+  if (file.size > maxBytes) {
+    throw new Error(`Ukuran ${label} maksimal ${maxMb}MB`);
+  }
+
+  const ext =
+    file.name.split(".").pop()?.toLowerCase() ||
+    (isVideo ? "mp4" : isAudio ? "mp3" : "bin");
+  const pathname = `uploads/${crypto.randomUUID()}.${ext}`;
+  const contentType =
+    file.type ||
+    inferMediaContentTypeFromPath(pathname) ||
+    (isVideo ? "video/mp4" : isAudio ? "audio/mpeg" : undefined);
+
+  // Pastikan File punya MIME yang dikenali server (browser kadang kosong).
+  const uploadFile =
+    file.type || !contentType
+      ? file
+      : new File([file], file.name, {
+          type: contentType,
+          lastModified: file.lastModified,
+        });
+
+  try {
+    const blob = await upload(pathname, uploadFile, {
+      access: "public",
+      handleUploadUrl: "/api/upload/blob",
+      contentType,
+      multipart: uploadFile.size > 4 * 1024 * 1024,
+    });
+    if (!blob.url) throw new Error("Gagal mengunggah file");
+    return blob.url;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Gagal mengunggah file";
+    if (/unauthorized|forbidden|401|403|sesi admin/i.test(message)) {
+      throw new Error("Sesi admin diperlukan untuk mengunggah video/audio.");
+    }
+
+    // Jangan andalkan pesan SDK (ada typo spasi ganda di @vercel/blob).
+    // Selalu coba multipart: lokal → /uploads; production menolak video di sini.
+    try {
+      return await uploadLargeMediaViaMultipart(uploadFile);
+    } catch (fallbackErr) {
+      const fb =
+        fallbackErr instanceof Error
+          ? fallbackErr.message
+          : "Gagal mengunggah file";
+      throw new Error(`${fb} — ${BLOB_SETUP_HINT}`);
+    }
+  }
 }

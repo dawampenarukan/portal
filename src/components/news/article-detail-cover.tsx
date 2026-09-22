@@ -46,7 +46,8 @@ export function ArticleDetailCover({
   );
 
   const isVideoCover = Boolean(coverImage && isMp4Url(coverImage));
-  const canOpenGallery = galleryImages.length > 0;
+  // Galeri hanya untuk gambar; cover video tidak dibuka sebagai lightbox gambar
+  const canOpenGallery = !isVideoCover && galleryImages.length > 0;
 
   const coverClassName =
     "relative my-6 aspect-video overflow-hidden rounded-xl ring-2 ring-white/60";

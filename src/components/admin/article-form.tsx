@@ -14,6 +14,10 @@ import {
 } from "@/lib/article-background-music";
 import { slugify } from "@/lib/slug";
 import { uploadMediaFile } from "@/lib/client-image-upload";
+import {
+  isAllowedVideoType,
+  MAX_VIDEO_SIZE,
+} from "@/lib/upload-limits";
 import type { ArticleView } from "@/lib/types";
 
 interface Category {
@@ -78,6 +82,10 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (uploadingCover) {
+      setError("Tunggu upload cover selesai sebelum menyimpan.");
+      return;
+    }
     setSubmitting(true);
     setError("");
 
@@ -102,6 +110,12 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
     });
     if (musicError) {
       setError(musicError);
+      setSubmitting(false);
+      return;
+    }
+
+    if (!title.trim() || !content.trim() || !categoryId) {
+      setError("Judul, konten, dan kategori wajib diisi");
       setSubmitting(false);
       return;
     }
@@ -131,42 +145,61 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
     const url = article ? `/api/articles/${article.id}` : "/api/articles";
     const method = article ? "PATCH" : "POST";
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    setSubmitting(false);
-
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Gagal menyimpan");
-      return;
-    }
-
-    router.push("/admin/berita");
-    router.refresh();
-  }
-
-  async function uploadFile(file: File): Promise<string | null> {
     try {
-      return await uploadMediaFile(file);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal mengunggah file");
-      return null;
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(data.error ?? "Gagal menyimpan");
+        return;
+      }
+
+      router.push("/admin/berita");
+      router.refresh();
+    } catch {
+      setError("Gagal menyimpan. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const type = (file.type || "").toLowerCase();
+    const isVideo =
+      isAllowedVideoType(type) || (!type && /\.mp4$/i.test(file.name));
+    const isImage =
+      type.startsWith("image/") ||
+      (!type && /\.(jpe?g|png|gif|webp)$/i.test(file.name));
+
+    if (!isVideo && !isImage) {
+      setError("Cover harus JPEG, PNG, WebP, GIF, atau video MP4.");
+      e.target.value = "";
+      return;
+    }
+    if (isVideo && file.size > MAX_VIDEO_SIZE) {
+      setError("Ukuran video MP4 maksimal 15MB");
+      e.target.value = "";
+      return;
+    }
+
     setUploadingCover(true);
     setError("");
-    const url = await uploadFile(file);
-    setUploadingCover(false);
-    if (url) setCoverImage(url);
-    e.target.value = "";
+    try {
+      const url = await uploadMediaFile(file);
+      setCoverImage(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal mengunggah file");
+    } finally {
+      setUploadingCover(false);
+      e.target.value = "";
+    }
   }
 
   function clearMusic() {
@@ -253,9 +286,10 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
           disabled={uploadingCover}
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          JPEG, PNG, WebP, GIF (maks. 4MB) atau MP4 (maks. 15MB). Cukup pilih
-          file di sini — video akan tampil di website publik otomatis setelah
-          tersimpan. Usahakan file ringan.
+          JPEG, PNG, WebP, GIF (maks. 4MB) atau MP4 (maks. 15MB). Video ke cloud
+          bila BLOB_READ_WRITE_TOKEN ada di .env.local; tanpa token di lokal
+          disimpan ke /uploads (hanya laptop — paste token dari Vercel Blob Store
+          agar tampil di production). Usahakan file ringan.
         </p>
         {coverImage.startsWith("/uploads/") ? (
           <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
@@ -421,7 +455,13 @@ export function ArticleForm({ categories, article }: ArticleFormProps) {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2">
         <Button type="submit" disabled={submitting || uploadingCover}>
-          {submitting ? "Menyimpan..." : article ? "Perbarui" : "Simpan"}
+          {uploadingCover
+            ? "Mengunggah cover..."
+            : submitting
+              ? "Menyimpan..."
+              : article
+                ? "Perbarui"
+                : "Simpan"}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}>
           Batal

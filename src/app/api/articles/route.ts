@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ArticleStatus } from "@prisma/client";
 import { requireAdmin, badRequest, serverError } from "@/lib/api-auth";
 import { validateBackgroundMusicFields } from "@/lib/article-background-music";
+import { normalizeArticleCoverImage } from "@/lib/article-cover";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slug";
 import { revalidateAdminStats, revalidatePublicContent } from "@/lib/revalidate-public";
@@ -82,6 +83,9 @@ export async function POST(request: Request) {
     });
     if (musicError) return badRequest(musicError);
 
+    const coverResult = normalizeArticleCoverImage(coverImage);
+    if (!coverResult.ok) return badRequest(coverResult.error);
+
     const articleSlug = slugify(
       ((slug as string)?.trim() || (title as string) || "").toString()
     );
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
         slug: articleSlug,
         excerpt: (excerpt as string)?.trim() || null,
         content: content as string,
-        coverImage: (coverImage as string) || null,
+        coverImage: coverResult.url,
         backgroundAudio: audioUrl,
         backgroundAudioTitle: optionalTrimmedString(backgroundAudioTitle),
         backgroundAudioCredit: optionalTrimmedString(backgroundAudioCredit),
